@@ -111,3 +111,6 @@ msgstr "No hay cuentas con sesión iniciada."
 
 msgid "This page starts or stops the core of a signed-in account."
 msgstr "Esta página arranca o detiene el núcleo de una cuenta con sesión iniciada."
+
+msgid "The firewall is on, and it can drop TUN traffic."
+msgstr "El cortafuegos está activo y puede descartar el tráfico TUN."

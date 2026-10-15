@@ -111,3 +111,6 @@ msgstr "로그인한 계정이 없습니다."
 
 msgid "This page starts or stops the core of a signed-in account."
 msgstr "이 페이지에서는 로그인한 계정의 코어를 시작하거나 중지합니다."
+
+msgid "The firewall is on, and it can drop TUN traffic."
+msgstr "방화벽이 켜져 있어 TUN 트래픽이 버려질 수 있습니다."

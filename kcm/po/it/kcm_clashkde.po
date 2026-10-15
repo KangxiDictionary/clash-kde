@@ -111,3 +111,6 @@ msgstr "Nessun account ha effettuato l'accesso."
 
 msgid "This page starts or stops the core of a signed-in account."
 msgstr "Questa pagina avvia o ferma il core di un account che ha effettuato l'accesso."
+
+msgid "The firewall is on, and it can drop TUN traffic."
+msgstr "Il firewall è attivo e può scartare il traffico TUN."

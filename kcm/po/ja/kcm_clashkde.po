@@ -111,3 +111,6 @@ msgstr "ログイン中のアカウントはありません。"
 
 msgid "This page starts or stops the core of a signed-in account."
 msgstr "このページでは、ログイン中のアカウントのコアを起動または停止します。"
+
+msgid "The firewall is on, and it can drop TUN traffic."
+msgstr "ファイアウォールが有効で、TUN の通信が捨てられることがあります。"

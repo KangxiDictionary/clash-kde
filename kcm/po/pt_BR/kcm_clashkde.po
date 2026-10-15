@@ -111,3 +111,6 @@ msgstr "Não há contas conectadas."
 
 msgid "This page starts or stops the core of a signed-in account."
 msgstr "Esta página inicia ou para o núcleo de uma conta conectada."
+
+msgid "The firewall is on, and it can drop TUN traffic."
+msgstr "O firewall está ligado e pode descartar o tráfego TUN."

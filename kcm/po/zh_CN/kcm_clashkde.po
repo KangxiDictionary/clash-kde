@@ -349,3 +349,6 @@ msgstr "没有已登录的账户。"
 
 msgid "This page starts or stops the core of a signed-in account."
 msgstr "这一页用来启动或停止已登录账户的内核。"
+
+msgid "The firewall is on, and it can drop TUN traffic."
+msgstr "防火墙开着，它可能会丢掉 TUN 的流量。"

@@ -111,3 +111,6 @@ msgstr "Es ist kein Konto angemeldet."
 
 msgid "This page starts or stops the core of a signed-in account."
 msgstr "Diese Seite startet oder stoppt den Kern eines angemeldeten Kontos."
+
+msgid "The firewall is on, and it can drop TUN traffic."
+msgstr "Die Firewall ist an und kann TUN-Verkehr verwerfen."

@@ -17,6 +17,7 @@ class ClashClient : public QObject
     Q_PROPERTY(bool systemProxyEnabled READ systemProxyEnabled NOTIFY statusChanged)
     Q_PROPERTY(bool systemProxyApplied READ systemProxyApplied NOTIFY statusChanged)
     Q_PROPERTY(bool tunEnabled READ tunEnabled NOTIFY statusChanged)
+    Q_PROPERTY(bool firewallActive READ firewallActive NOTIFY statusChanged)
     Q_PROPERTY(QString mode READ mode NOTIFY statusChanged)
     Q_PROPERTY(QString listenAddress READ listenAddress NOTIFY statusChanged)
     Q_PROPERTY(int mixedPort READ mixedPort NOTIFY statusChanged)
@@ -47,6 +48,7 @@ public:
     bool systemProxyEnabled() const;
     bool systemProxyApplied() const;
     bool tunEnabled() const;
+    bool firewallActive() const;
     QString mode() const;
     QString listenAddress() const;
     int mixedPort() const;
@@ -123,6 +125,7 @@ private:
     void setBusy(bool busy);
     void setDelayTesting(bool testing);
     void applyStatus(const QVariantMap &status);
+    void refreshFirewall();
     void overlayCurrentAccount();
     void reportError(const QString &message);
     void asyncCall(const QString &method, const QVariantList &args, bool refreshProfilesAfter, bool refreshProxiesAfter, bool markBusy = true);
@@ -134,6 +137,8 @@ private:
     bool m_systemProxyEnabled = false;
     bool m_systemProxyApplied = false;
     bool m_tunEnabled = false;
+    bool m_firewallActive = false;
+    qint64 m_firewallCheckedAt = 0;
     QString m_mode = QStringLiteral("rule");
     QString m_listenHost = QStringLiteral("127.0.0.1");
     int m_mixedPort = 7890;

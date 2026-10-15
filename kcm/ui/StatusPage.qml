@@ -78,6 +78,13 @@ Item {
             }
         }
 
+        Kirigami.InlineMessage {
+            Layout.fillWidth: true
+            visible: kcm.client.tunEnabled && kcm.client.firewallActive
+            type: Kirigami.MessageType.Warning
+            text: tx.i18n("The firewall is on, and it can drop TUN traffic.")
+        }
+
         Rectangle {
             Layout.fillWidth: true
             implicitHeight: bannerRow.implicitHeight + Kirigami.Units.largeSpacing * 2

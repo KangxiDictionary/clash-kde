@@ -111,3 +111,6 @@ msgstr "Нет вошедших учётных записей."
 
 msgid "This page starts or stops the core of a signed-in account."
 msgstr "Эта страница запускает или останавливает ядро вошедшей учётной записи."
+
+msgid "The firewall is on, and it can drop TUN traffic."
+msgstr "Межсетевой экран включён и может отбрасывать трафик TUN."

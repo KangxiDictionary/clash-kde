@@ -8,6 +8,7 @@
 #include <QDBusPendingCallWatcher>
 #include <QDBusPendingReply>
 #include <QDBusReply>
+#include <QDateTime>
 #include <QDir>
 #include <QFile>
 #include <QJsonArray>
@@ -29,6 +30,30 @@ QVariantList jsonArray(const QString &text)
         items.append(value.toObject().toVariantMap());
     }
     return items;
+}
+
+bool firewallIsEnabled()
+{
+    QFile file(QStringLiteral("/etc/ufw/ufw.conf"));
+    if (file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        while (!file.atEnd()) {
+            const QString line = QString::fromUtf8(file.readLine()).trimmed();
+            if (line.startsWith(QLatin1Char('#')) || line.isEmpty()) {
+                continue;
+            }
+            if (line == QStringLiteral("ENABLED=yes")) {
+                return true;
+            }
+        }
+    }
+    QProcess process;
+    process.start(QStringLiteral("systemctl"),
+                  {QStringLiteral("is-active"), QStringLiteral("--quiet"), QStringLiteral("firewalld")});
+    if (!process.waitForFinished(400)) {
+        process.kill();
+        return false;
+    }
+    return process.exitStatus() == QProcess::NormalExit && process.exitCode() == 0;
 }
 }
 
@@ -83,6 +108,7 @@ bool ClashClient::coreRunning() const { return m_coreRunning; }
 bool ClashClient::systemProxyEnabled() const { return m_systemProxyEnabled; }
 bool ClashClient::systemProxyApplied() const { return m_systemProxyApplied; }
 bool ClashClient::tunEnabled() const { return m_tunEnabled; }
+bool ClashClient::firewallActive() const { return m_firewallActive; }
 QString ClashClient::mode() const { return m_mode; }
 QString ClashClient::listenAddress() const
 {
@@ -379,8 +405,19 @@ bool ClashClient::commitSettings()
     return true;
 }
 
+void ClashClient::refreshFirewall()
+{
+    const qint64 now = QDateTime::currentMSecsSinceEpoch();
+    if (m_firewallCheckedAt != 0 && now - m_firewallCheckedAt < 10000) {
+        return;
+    }
+    m_firewallCheckedAt = now;
+    m_firewallActive = firewallIsEnabled();
+}
+
 void ClashClient::refreshStatus()
 {
+    refreshFirewall();
     QDBusReply<QString> reply = m_iface->call(QStringLiteral("GetStatus"));
     if (!reply.isValid()) {
         if (m_message != reply.error().message()) {

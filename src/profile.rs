@@ -142,6 +142,9 @@ pub fn prepare_runtime_config(profile: Value, overlay: Value, settings: &Setting
         if let Value::Mapping(map) = &mut config {
             let uid = unsafe { libc::getuid() };
             map.insert(Value::String("tun".into()), enabled_tun(uid));
+            // 系统代理把域名交给内核。TUN 截到的是 IP，域名规则对不上，
+            // 握手会打到错误的地址。嗅探 TLS 里的域名后再解析，才和系统代理同一条路。
+            map.insert(Value::String("sniffer".into()), tun_sniffer());
         }
     }
     config
@@ -156,10 +159,9 @@ fn enabled_tun(uid: u32) -> Value {
 
     let mut tun = Mapping::new();
     tun.insert(Value::String("enable".into()), Value::Bool(true));
-    tun.insert(
-        Value::String("stack".into()),
-        Value::String("system".into()),
-    );
+    tun.insert(Value::String("stack".into()), Value::String("mixed".into()));
+    // 默认 9000 会让客户端一次发出超过路径能承载的握手包，Google 的 TLS 会停在这里。
+    tun.insert(Value::String("mtu".into()), Value::Number(1500.into()));
     tun.insert(Value::String("auto-route".into()), Value::Bool(true));
     tun.insert(Value::String("auto-redirect".into()), Value::Bool(true));
     tun.insert(
@@ -173,6 +175,58 @@ fn enabled_tun(uid: u32) -> Value {
         Value::Sequence(include),
     );
     Value::Mapping(tun)
+}
+
+fn tun_sniffer() -> Value {
+    let mut http_ports = serde_yaml::Sequence::new();
+    http_ports.push(Value::Number(80.into()));
+    http_ports.push(Value::String("8080-8880".into()));
+    let mut tls_ports = serde_yaml::Sequence::new();
+    tls_ports.push(Value::Number(443.into()));
+    tls_ports.push(Value::Number(8443.into()));
+
+    let mut http = Mapping::new();
+    http.insert(Value::String("ports".into()), Value::Sequence(http_ports));
+    http.insert(
+        Value::String("override-destination".into()),
+        Value::Bool(true),
+    );
+    let mut tls = Mapping::new();
+    tls.insert(
+        Value::String("ports".into()),
+        Value::Sequence(tls_ports.clone()),
+    );
+    tls.insert(
+        Value::String("override-destination".into()),
+        Value::Bool(true),
+    );
+    let mut quic = Mapping::new();
+    quic.insert(Value::String("ports".into()), Value::Sequence(tls_ports));
+    quic.insert(
+        Value::String("override-destination".into()),
+        Value::Bool(true),
+    );
+
+    let mut sniff = Mapping::new();
+    sniff.insert(Value::String("HTTP".into()), Value::Mapping(http));
+    sniff.insert(Value::String("TLS".into()), Value::Mapping(tls));
+    sniff.insert(Value::String("QUIC".into()), Value::Mapping(quic));
+
+    let mut skip = serde_yaml::Sequence::new();
+    skip.push(Value::String("Mijia Cloud".into()));
+    skip.push(Value::String("+.push.apple.com".into()));
+
+    let mut sniffer = Mapping::new();
+    sniffer.insert(Value::String("enable".into()), Value::Bool(true));
+    sniffer.insert(Value::String("force-dns-mapping".into()), Value::Bool(true));
+    sniffer.insert(Value::String("parse-pure-ip".into()), Value::Bool(true));
+    sniffer.insert(
+        Value::String("override-destination".into()),
+        Value::Bool(true),
+    );
+    sniffer.insert(Value::String("sniff".into()), Value::Mapping(sniff));
+    sniffer.insert(Value::String("skip-domain".into()), Value::Sequence(skip));
+    Value::Mapping(sniffer)
 }
 
 pub fn deep_merge(base: &mut Value, overlay: &Value) {
@@ -309,12 +363,13 @@ mod tests {
                 .and_then(Value::as_str),
             Some("system")
         );
+        assert!(config.get("sniffer").is_none());
     }
 
     #[test]
     fn enabled_tun_replaces_the_subscription_block() {
         let profile = serde_yaml::from_str(
-            "tun:\n  enable: true\n  device: evil\n  include-uid: [0]\nproxies: []\n",
+            "tun:\n  enable: true\n  device: evil\n  include-uid: [0]\nsniffer:\n  enable: false\nproxies: []\n",
         )
         .unwrap();
         let mut settings = Settings::default();
@@ -323,7 +378,8 @@ mod tests {
         let config = prepare_runtime_config(profile, Value::Mapping(Mapping::new()), &settings);
         let tun = config.get("tun").expect("tun");
         assert_eq!(tun.get("enable").and_then(Value::as_bool), Some(true));
-        assert_eq!(tun.get("stack").and_then(Value::as_str), Some("system"));
+        assert_eq!(tun.get("stack").and_then(Value::as_str), Some("mixed"));
+        assert_eq!(tun.get("mtu").and_then(Value::as_u64), Some(1500));
         assert_eq!(tun.get("auto-route").and_then(Value::as_bool), Some(true));
         assert_eq!(
             tun.get("auto-redirect").and_then(Value::as_bool),
@@ -343,6 +399,24 @@ mod tests {
         assert_eq!(include.len(), 1);
         let uid = unsafe { libc::getuid() };
         assert_eq!(include[0].as_u64(), Some(u64::from(uid)));
+        let sniffer = config.get("sniffer").expect("sniffer");
+        assert_eq!(sniffer.get("enable").and_then(Value::as_bool), Some(true));
+        assert_eq!(
+            sniffer.get("parse-pure-ip").and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            sniffer.get("override-destination").and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            sniffer
+                .get("sniff")
+                .and_then(|sniff| sniff.get("TLS"))
+                .and_then(|tls| tls.get("override-destination"))
+                .and_then(Value::as_bool),
+            Some(true)
+        );
         let text = serde_yaml::to_string(&config).unwrap();
         crate::privilege::assess_tun_document(&text, uid).unwrap();
         assert_eq!(
