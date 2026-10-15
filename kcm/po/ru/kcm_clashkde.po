@@ -39,3 +39,30 @@ msgstr "Этот файл ложится поверх подписки, а ад�
 
 msgid "A subscription update replaces the text written here."
 msgstr "Обновление подписки заменяет текст, написанный здесь."
+
+msgid "TUN"
+msgstr "TUN"
+
+msgid "This captures only this account's traffic, and the system proxy steps aside while it is on."
+msgstr "Это перехватывает только трафик этой учётной записи, и пока оно включено, системный прокси уступает."
+
+msgid "Users"
+msgstr "Пользователи"
+
+msgid "This page starts and stops Mihomo for accounts that are signed in."
+msgstr "Эта страница запускает и останавливает Mihomo у вошедших учётных записей."
+
+msgid "Account"
+msgstr "Учётная запись"
+
+msgid "On"
+msgstr "Вкл"
+
+msgid "Off"
+msgstr "Выкл"
+
+msgid "Start"
+msgstr "Запустить"
+
+msgid "Stop"
+msgstr "Остановить"

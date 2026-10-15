@@ -120,7 +120,41 @@ pub fn prepare_runtime_config(profile: Value, overlay: Value, settings: &Setting
     let mut config = profile;
     deep_merge(&mut config, &overlay);
     deep_merge(&mut config, &managed_keys(settings));
+    if settings.tun_enabled {
+        if let Value::Mapping(map) = &mut config {
+            let uid = unsafe { libc::getuid() };
+            map.insert(Value::String("tun".into()), enabled_tun(uid));
+        }
+    }
     config
+}
+
+fn enabled_tun(uid: u32) -> Value {
+    let mut hijack = serde_yaml::Sequence::new();
+    hijack.push(Value::String("any:53".into()));
+    hijack.push(Value::String("tcp://any:53".into()));
+    let mut include = serde_yaml::Sequence::new();
+    include.push(Value::Number(uid.into()));
+
+    let mut tun = Mapping::new();
+    tun.insert(Value::String("enable".into()), Value::Bool(true));
+    tun.insert(
+        Value::String("stack".into()),
+        Value::String("system".into()),
+    );
+    tun.insert(Value::String("auto-route".into()), Value::Bool(true));
+    tun.insert(Value::String("auto-redirect".into()), Value::Bool(true));
+    tun.insert(
+        Value::String("auto-detect-interface".into()),
+        Value::Bool(true),
+    );
+    tun.insert(Value::String("strict-route".into()), Value::Bool(true));
+    tun.insert(Value::String("dns-hijack".into()), Value::Sequence(hijack));
+    tun.insert(
+        Value::String("include-uid".into()),
+        Value::Sequence(include),
+    );
+    Value::Mapping(tun)
 }
 
 pub fn deep_merge(base: &mut Value, overlay: &Value) {
@@ -140,9 +174,6 @@ pub fn deep_merge(base: &mut Value, overlay: &Value) {
 }
 
 fn managed_keys(settings: &Settings) -> Value {
-    let mut tun = Mapping::new();
-    tun.insert(Value::String("enable".into()), Value::Bool(false));
-
     let mut managed = Mapping::new();
     managed.insert(
         Value::String("mixed-port".into()),
@@ -165,7 +196,11 @@ fn managed_keys(settings: &Settings) -> Value {
         Value::String("mode".into()),
         Value::String(settings.mode.clone()),
     );
-    managed.insert(Value::String("tun".into()), Value::Mapping(tun));
+    if !settings.tun_enabled {
+        let mut tun = Mapping::new();
+        tun.insert(Value::String("enable".into()), Value::Bool(false));
+        managed.insert(Value::String("tun".into()), Value::Mapping(tun));
+    }
     Value::Mapping(managed)
 }
 
@@ -247,6 +282,46 @@ mod tests {
                 .and_then(|tun| tun.get("stack"))
                 .and_then(Value::as_str),
             Some("system")
+        );
+    }
+
+    #[test]
+    fn enabled_tun_replaces_the_subscription_block() {
+        let profile = serde_yaml::from_str(
+            "tun:\n  enable: true\n  device: evil\n  include-uid: [0]\nproxies: []\n",
+        )
+        .unwrap();
+        let mut settings = Settings::default();
+        settings.tun_enabled = true;
+        settings.mode = "rule".into();
+        let config = prepare_runtime_config(profile, Value::Mapping(Mapping::new()), &settings);
+        let tun = config.get("tun").expect("tun");
+        assert_eq!(tun.get("enable").and_then(Value::as_bool), Some(true));
+        assert_eq!(tun.get("stack").and_then(Value::as_str), Some("system"));
+        assert_eq!(tun.get("auto-route").and_then(Value::as_bool), Some(true));
+        assert_eq!(
+            tun.get("auto-redirect").and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            tun.get("auto-detect-interface").and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(tun.get("strict-route").and_then(Value::as_bool), Some(true));
+        assert!(tun.get("device").is_none());
+        let hijack = tun.get("dns-hijack").and_then(Value::as_sequence).unwrap();
+        assert_eq!(hijack.len(), 2);
+        assert_eq!(hijack[0].as_str(), Some("any:53"));
+        assert_eq!(hijack[1].as_str(), Some("tcp://any:53"));
+        let include = tun.get("include-uid").and_then(Value::as_sequence).unwrap();
+        assert_eq!(include.len(), 1);
+        let uid = unsafe { libc::getuid() };
+        assert_eq!(include[0].as_u64(), Some(u64::from(uid)));
+        let text = serde_yaml::to_string(&config).unwrap();
+        crate::privilege::assess_tun_document(&text, uid).unwrap();
+        assert_eq!(
+            config.get("allow-lan").and_then(Value::as_bool),
+            Some(false)
         );
     }
 

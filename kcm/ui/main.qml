@@ -23,6 +23,12 @@ Kirigami.Page {
                 QQC2.TabButton { text: tx.i18n("Profiles") }
                 QQC2.TabButton { text: tx.i18n("Proxies") }
                 QQC2.TabButton { text: tx.i18n("Advanced") }
+                QQC2.TabButton { text: tx.i18n("Users") }
+                onCurrentIndexChanged: {
+                    if (currentIndex === 4) {
+                        kcm.client.reloadAccounts();
+                    }
+                }
             }
             QQC2.BusyIndicator {
                 running: kcm.client.busy
@@ -41,6 +47,7 @@ Kirigami.Page {
             ProfilesPage {}
             ProxiesPage {}
             AdvancedPage {}
+            UsersPage {}
         }
     }
 }

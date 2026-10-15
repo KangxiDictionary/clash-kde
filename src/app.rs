@@ -73,6 +73,7 @@ struct Status {
     core_running: bool,
     system_proxy_enabled: bool,
     system_proxy_applied: bool,
+    tun_enabled: bool,
     mode: String,
     listen_host: String,
     mixed_port: u16,
@@ -208,6 +209,34 @@ impl App {
         }
         self.sync_system_proxy().await?;
         self.emit(Event::Status);
+        Ok(())
+    }
+
+    pub async fn set_tun(self: &Arc<Self>, enabled: bool) -> Result<(), String> {
+        if enabled {
+            let path = self.inner.lock().await.settings.mihomo_path.clone();
+            let binary = core::resolve_binary(&path)?;
+            crate::privilege::ensure_system_binary(&binary)?;
+            crate::admin::authorize_tun().await?;
+        } else {
+            crate::admin::revoke_tun().await?;
+        }
+        let running = {
+            let mut inner = self.inner.lock().await;
+            inner.settings.tun_enabled = enabled;
+            inner
+                .settings
+                .save(&self.paths)
+                .map_err(|error| error.to_string())?;
+            inner.message.clear();
+            inner.core_running
+        };
+        if running {
+            self.spawn_core().await?;
+        } else {
+            self.sync_system_proxy().await?;
+            self.emit(Event::Status);
+        }
         Ok(())
     }
 
@@ -677,6 +706,7 @@ impl App {
             core_running: inner.core_running,
             system_proxy_enabled: inner.settings.system_proxy_enabled,
             system_proxy_applied: inner.system_proxy_applied,
+            tun_enabled: inner.settings.tun_enabled,
             mode: inner.settings.mode.clone(),
             listen_host: "127.0.0.1".to_string(),
             mixed_port: inner.settings.mixed_port,
@@ -774,7 +804,19 @@ impl App {
         binary: std::path::PathBuf,
     ) -> Result<(), String> {
         core::seed_geodata(&self.paths.runtime_dir());
-        let mut process = CoreProcess::spawn(&self.paths, &binary)?;
+        let mut process = if settings.tun_enabled {
+            crate::privilege::ensure_system_binary(&binary)?;
+            let pid = crate::admin::spawn_tun(
+                &binary,
+                &self.paths.runtime_dir(),
+                &self.paths.runtime_config(),
+                &self.paths.core_log(),
+            )
+            .await?;
+            core::CoreProcess::adopt(pid)
+        } else {
+            core::CoreProcess::spawn(&self.paths, &binary)?
+        };
         let controller = Controller::new(settings.controller_port, &settings.controller_secret);
         if let Err(error) = self.wait_until_ready(&mut process).await {
             if matches!(process.try_wait(), Ok(None)) {
@@ -1010,15 +1052,16 @@ impl App {
     }
 
     async fn sync_system_proxy(&self) -> Result<(), String> {
-        let (enabled, running, port) = {
+        let (enabled, running, port, tun) = {
             let inner = self.inner.lock().await;
             (
                 inner.settings.system_proxy_enabled,
                 inner.core_running,
                 inner.settings.mixed_port,
+                inner.settings.tun_enabled,
             )
         };
-        if enabled && running {
+        if proxy_settings::system_proxy_should_apply(enabled, running, tun) {
             proxy_settings::apply_if_needed(&self.paths, port)
                 .map_err(|error| error.to_string())?;
             self.inner.lock().await.system_proxy_applied = true;

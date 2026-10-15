@@ -26,6 +26,8 @@ pub struct Settings {
     pub active_profile: String,
     #[serde(default)]
     pub selections: BTreeMap<String, String>,
+    #[serde(default)]
+    pub tun_enabled: bool,
 }
 
 fn default_mode() -> String {
@@ -56,6 +58,7 @@ impl Default for Settings {
             mihomo_path: default_mihomo_path(),
             active_profile: String::new(),
             selections: BTreeMap::new(),
+            tun_enabled: false,
         }
     }
 }

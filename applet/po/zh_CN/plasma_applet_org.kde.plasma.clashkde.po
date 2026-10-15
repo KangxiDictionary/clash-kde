@@ -112,3 +112,9 @@ msgstr "全局"
 
 msgid "Direct"
 msgstr "直连"
+
+msgid "TUN is on."
+msgstr "TUN 开着。"
+
+msgid "TUN is off."
+msgstr "TUN 关着。"

@@ -39,3 +39,30 @@ msgstr "このファイルはサブスクリプションの上に載り、待ち
 
 msgid "A subscription update replaces the text written here."
 msgstr "サブスクリプションを更新すると、ここに書いた内容は置き換わります。"
+
+msgid "TUN"
+msgstr "TUN"
+
+msgid "This captures only this account's traffic, and the system proxy steps aside while it is on."
+msgstr "このアカウントの通信だけを取り込み、開いている間はシステムのプロキシが譲ります。"
+
+msgid "Users"
+msgstr "ユーザー"
+
+msgid "This page starts and stops Mihomo for accounts that are signed in."
+msgstr "このページでは、ログイン中のアカウント自身の Mihomo を起動したり止めたりします。"
+
+msgid "Account"
+msgstr "アカウント"
+
+msgid "On"
+msgstr "オン"
+
+msgid "Off"
+msgstr "オフ"
+
+msgid "Start"
+msgstr "起動"
+
+msgid "Stop"
+msgstr "停止"

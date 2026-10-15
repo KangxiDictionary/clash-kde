@@ -15,3 +15,9 @@ msgstr "Questo interruttore avvia solo il proxy locale."
 
 msgid "KDE and browsers follow this only while the core is running."
 msgstr "KDE e i browser lo seguono solo mentre il nucleo è in esecuzione."
+
+msgid "TUN is on."
+msgstr "TUN è acceso."
+
+msgid "TUN is off."
+msgstr "TUN è spento."

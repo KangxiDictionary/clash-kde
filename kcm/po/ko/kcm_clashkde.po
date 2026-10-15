@@ -39,3 +39,30 @@ msgstr "이 파일이 구독 위에 덮이며, 수신 주소는 여전히 여기
 
 msgid "A subscription update replaces the text written here."
 msgstr "구독을 업데이트하면 여기에 쓴 내용이 바뀝니다."
+
+msgid "TUN"
+msgstr "TUN"
+
+msgid "This captures only this account's traffic, and the system proxy steps aside while it is on."
+msgstr "이 계정의 트래픽만 잡고, 켜져 있는 동안에는 시스템 프록시가 비켜 줍니다."
+
+msgid "Users"
+msgstr "사용자"
+
+msgid "This page starts and stops Mihomo for accounts that are signed in."
+msgstr "이 페이지는 로그인한 계정 자신의 Mihomo를 켜고 끕니다."
+
+msgid "Account"
+msgstr "계정"
+
+msgid "On"
+msgstr "켜짐"
+
+msgid "Off"
+msgstr "꺼짐"
+
+msgid "Start"
+msgstr "시작"
+
+msgid "Stop"
+msgstr "중지"

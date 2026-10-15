@@ -1,22 +1,57 @@
 //! Session service that supervises a per-user mihomo process.
 //!
 //! The KDE settings module talks to `org.kde.clashkde` on the session bus.
-//! Start, stop, restart, system-proxy and mode methods stay stable so a later
-//! system service can call the same interface for each user.
+//! Start, stop, restart, system-proxy and mode methods stay stable so the
+//! system service can call the same interface for each signed-in user.
 
+mod admin;
 mod app;
 mod controller;
 mod core;
 mod dbus_api;
 mod paths;
+mod privilege;
 mod profile;
 mod proxy_settings;
+mod session_bridge;
 mod state;
 
 use std::process::ExitCode;
 
-#[tokio::main]
-async fn main() -> ExitCode {
+fn main() -> ExitCode {
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    if args.first().is_some_and(|arg| arg == "--as-user") {
+        return session_bridge::run(&args);
+    }
+    if args.first().is_some_and(|arg| arg == "--spawn-tun") {
+        let uid = args.get(1).and_then(|text| text.parse().ok()).unwrap_or(0);
+        let code = privilege::exec_tun(
+            uid,
+            std::path::Path::new(args.get(2).map(String::as_str).unwrap_or("")),
+            std::path::Path::new(args.get(3).map(String::as_str).unwrap_or("")),
+            std::path::Path::new(args.get(4).map(String::as_str).unwrap_or("")),
+            std::path::Path::new(args.get(5).map(String::as_str).unwrap_or("")),
+        );
+        return ExitCode::from(code as u8);
+    }
+    if args.iter().any(|arg| arg == "--help" || arg == "-h") {
+        eprintln!("Usage: clash-kde [--restore-proxy]");
+        return ExitCode::SUCCESS;
+    }
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build();
+    let runtime = match runtime {
+        Ok(runtime) => runtime,
+        Err(error) => {
+            eprintln!("{error}");
+            return ExitCode::from(1);
+        }
+    };
+    runtime.block_on(async_main(args))
+}
+
+async fn async_main(args: Vec<String>) -> ExitCode {
     tracing_subscriber::fmt()
         .with_env_filter(
             tracing_subscriber::EnvFilter::try_from_default_env()
@@ -24,7 +59,7 @@ async fn main() -> ExitCode {
         )
         .init();
 
-    if std::env::args().skip(1).any(|arg| arg == "--restore-proxy") {
+    if args.iter().any(|arg| arg == "--restore-proxy") {
         return match proxy_settings::restore_if_applied(&paths::Paths::from_env()) {
             Ok(()) => ExitCode::SUCCESS,
             Err(error) => {
@@ -34,12 +69,14 @@ async fn main() -> ExitCode {
         };
     }
 
-    if std::env::args()
-        .skip(1)
-        .any(|arg| arg == "--help" || arg == "-h")
-    {
-        eprintln!("Usage: clash-kde [--restore-proxy]");
-        return ExitCode::SUCCESS;
+    if args.iter().any(|arg| arg == "--system") {
+        return match admin::run().await {
+            Ok(()) => ExitCode::SUCCESS,
+            Err(error) => {
+                tracing::error!("{error}");
+                ExitCode::from(1)
+            }
+        };
     }
 
     match dbus_api::run().await {

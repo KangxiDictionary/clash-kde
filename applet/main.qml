@@ -256,6 +256,13 @@ PlasmoidItem {
                 Layout.fillWidth: true
             }
 
+            PC3.Label {
+                text: session.tunEnabled ? i18n("TUN is on.") : i18n("TUN is off.")
+                font: Kirigami.Theme.smallFont
+                opacity: 0.75
+                Layout.fillWidth: true
+            }
+
             PC3.Switch {
                 text: i18n("Core")
                 checked: session.coreDesired

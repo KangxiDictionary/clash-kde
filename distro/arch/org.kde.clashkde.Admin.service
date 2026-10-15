@@ -1,0 +1,5 @@
+[D-BUS Service]
+Name=org.kde.clashkde.Admin
+Exec=/usr/bin/clash-kde --system
+User=root
+SystemdService=clash-kde-system.service

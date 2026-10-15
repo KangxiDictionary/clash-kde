@@ -7,6 +7,7 @@ description = "Per-user mihomo session service for the KDE System Settings modul
 
 [dependencies]
 base64 = "0.22"
+caps = "0.5"
 bytes = "1"
 dirs = "6"
 futures-util = "0.3"

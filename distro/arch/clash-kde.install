@@ -14,17 +14,20 @@ _foreach_user() {
 
 post_install() {
     systemctl --global enable clash-kde.service || true
+    systemctl daemon-reload || true
     _foreach_user systemctl --user daemon-reload
     _foreach_user systemctl --user start clash-kde.service
 }
 
 post_upgrade() {
     systemctl --global enable clash-kde.service || true
+    systemctl daemon-reload || true
     _foreach_user systemctl --user daemon-reload
     _foreach_user systemctl --user try-restart clash-kde.service
 }
 
 pre_remove() {
+    systemctl stop clash-kde-system.service || true
     _foreach_user systemctl --user disable --now clash-kde.service
     systemctl --global disable clash-kde.service || true
     if [[ -x /usr/bin/clash-kde ]]; then

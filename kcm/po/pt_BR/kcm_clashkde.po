@@ -39,3 +39,30 @@ msgstr "Este arquivo fica por cima da assinatura, mas o endereço de escuta cont
 
 msgid "A subscription update replaces the text written here."
 msgstr "Atualizar a assinatura substitui o texto escrito aqui."
+
+msgid "TUN"
+msgstr "TUN"
+
+msgid "This captures only this account's traffic, and the system proxy steps aside while it is on."
+msgstr "Isto captura só o tráfego desta conta, e o proxy do sistema sai da frente enquanto estiver ligado."
+
+msgid "Users"
+msgstr "Usuários"
+
+msgid "This page starts and stops Mihomo for accounts that are signed in."
+msgstr "Esta página inicia e para o Mihomo das contas que estão conectadas."
+
+msgid "Account"
+msgstr "Conta"
+
+msgid "On"
+msgstr "Ligado"
+
+msgid "Off"
+msgstr "Desligado"
+
+msgid "Start"
+msgstr "Iniciar"
+
+msgid "Stop"
+msgstr "Parar"

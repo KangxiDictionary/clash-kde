@@ -39,3 +39,30 @@ msgstr "這個檔案蓋在訂閱上面，監聽位址仍然在這裡決定。"
 
 msgid "A subscription update replaces the text written here."
 msgstr "從訂閱更新的話，這裡寫的內容會被換掉。"
+
+msgid "TUN"
+msgstr "TUN"
+
+msgid "This captures only this account's traffic, and the system proxy steps aside while it is on."
+msgstr "這只截取這個帳戶的流量，打開時系統代理會先讓開。"
+
+msgid "Users"
+msgstr "使用者"
+
+msgid "This page starts and stops Mihomo for accounts that are signed in."
+msgstr "這一頁用來開關已登入帳戶自己的 Mihomo。"
+
+msgid "Account"
+msgstr "帳戶"
+
+msgid "On"
+msgstr "開"
+
+msgid "Off"
+msgstr "關"
+
+msgid "Start"
+msgstr "啟動"
+
+msgid "Stop"
+msgstr "停止"

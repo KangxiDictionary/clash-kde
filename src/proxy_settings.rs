@@ -4,6 +4,10 @@ use std::process::Command;
 
 use crate::paths::Paths;
 
+pub fn system_proxy_should_apply(enabled: bool, running: bool, tun_enabled: bool) -> bool {
+    enabled && running && !tun_enabled
+}
+
 pub fn apply_if_needed(paths: &Paths, port: u16) -> std::io::Result<()> {
     fs::create_dir_all(&paths.config_dir)?;
     if !paths.proxy_flag().exists() {
@@ -261,6 +265,14 @@ fn notify_kio() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn tun_withdraws_the_system_proxy() {
+        assert!(system_proxy_should_apply(true, true, false));
+        assert!(!system_proxy_should_apply(true, true, true));
+        assert!(!system_proxy_should_apply(true, false, false));
+        assert!(!system_proxy_should_apply(false, true, false));
+    }
 
     #[test]
     fn apply_and_restore_round_trip_keeps_other_groups() {

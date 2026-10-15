@@ -15,3 +15,9 @@ msgstr "이 스위치는 로컬 프록시만 켭니다."
 
 msgid "KDE and browsers follow this only while the core is running."
 msgstr "코어가 켜져 있을 때만 KDE와 브라우저가 시스템 프록시를 따라갑니다."
+
+msgid "TUN is on."
+msgstr "TUN이 켜져 있습니다."
+
+msgid "TUN is off."
+msgstr "TUN이 꺼져 있습니다."

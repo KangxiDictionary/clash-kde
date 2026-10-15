@@ -277,3 +277,30 @@ msgstr "网站"
 msgid "There is a Mihomo widget for the panel."
 msgstr "面板上有一个 Mihomo 小组件。"
 
+
+msgid "TUN"
+msgstr "TUN"
+
+msgid "This captures only this account's traffic, and the system proxy steps aside while it is on."
+msgstr "这只截取这个账户的流量，打开时系统代理会先让开。"
+
+msgid "Users"
+msgstr "用户"
+
+msgid "This page starts and stops Mihomo for accounts that are signed in."
+msgstr "这一页用来开关已登录账户自己的 Mihomo。"
+
+msgid "Account"
+msgstr "账户"
+
+msgid "On"
+msgstr "开"
+
+msgid "Off"
+msgstr "关"
+
+msgid "Start"
+msgstr "启动"
+
+msgid "Stop"
+msgstr "停止"

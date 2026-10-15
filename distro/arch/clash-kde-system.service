@@ -1,0 +1,13 @@
+[Unit]
+Description=Clash KDE privileged helper
+After=polkit.service
+
+[Service]
+Type=dbus
+BusName=org.kde.clashkde.Admin
+ExecStart=/usr/bin/clash-kde --system
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target

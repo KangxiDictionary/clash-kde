@@ -146,6 +146,29 @@ Item {
                 text: kcm.client.systemProxyApplied ? tx.i18n("Applied") : tx.i18n("Not applied")
                 opacity: 0.7
             }
+        }
+
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: Kirigami.Units.largeSpacing
+
+            QQC2.Label {
+                text: tx.i18n("TUN")
+            }
+
+            QQC2.Switch {
+                checked: kcm.client.tunEnabled
+                enabled: !kcm.client.busy
+                onToggled: {
+                    if (checked !== kcm.client.tunEnabled) {
+                        kcm.client.setTunEnabled(checked);
+                    }
+                }
+
+                QQC2.ToolTip.visible: hovered
+                QQC2.ToolTip.delay: 700
+                QQC2.ToolTip.text: tx.i18n("This captures only this account's traffic, and the system proxy steps aside while it is on.")
+            }
 
             Item {
                 Layout.fillWidth: true

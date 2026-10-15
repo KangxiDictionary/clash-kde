@@ -35,6 +35,11 @@ impl Manager {
         self.app.set_system_proxy(enabled).await.map_err(failed)
     }
 
+    #[zbus(name = "SetTun")]
+    async fn set_tun(&self, enabled: bool) -> fdo::Result<()> {
+        self.app.set_tun(enabled).await.map_err(failed)
+    }
+
     #[zbus(name = "SetMode")]
     async fn set_mode(&self, mode: String) -> fdo::Result<()> {
         self.app.set_mode(&mode).await.map_err(failed)

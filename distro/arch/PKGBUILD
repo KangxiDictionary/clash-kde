@@ -18,6 +18,7 @@ depends=(
     'libplasma'
     'plasma-workspace'
     'dbus'
+    'polkit'
 )
 makedepends=(
     'cargo'
@@ -50,4 +51,12 @@ package() {
         "${pkgdir}/usr/share/dbus-1/services/org.kde.clashkde.service"
     install -Dm644 distro/arch/90-clash-kde.preset \
         "${pkgdir}/usr/lib/systemd/user-preset/90-clash-kde.preset"
+    install -Dm644 distro/arch/clash-kde-system.service \
+        "${pkgdir}/usr/lib/systemd/system/clash-kde-system.service"
+    install -Dm644 distro/arch/org.kde.clashkde.Admin.service \
+        "${pkgdir}/usr/share/dbus-1/system-services/org.kde.clashkde.Admin.service"
+    install -Dm644 distro/arch/org.kde.clashkde.Admin.conf \
+        "${pkgdir}/usr/share/dbus-1/system.d/org.kde.clashkde.Admin.conf"
+    install -Dm644 distro/arch/org.kde.clashkde.policy \
+        "${pkgdir}/usr/share/polkit-1/actions/org.kde.clashkde.policy"
 }

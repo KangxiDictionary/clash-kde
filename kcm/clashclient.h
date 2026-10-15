@@ -16,6 +16,7 @@ class ClashClient : public QObject
     Q_PROPERTY(bool coreRunning READ coreRunning NOTIFY statusChanged)
     Q_PROPERTY(bool systemProxyEnabled READ systemProxyEnabled NOTIFY statusChanged)
     Q_PROPERTY(bool systemProxyApplied READ systemProxyApplied NOTIFY statusChanged)
+    Q_PROPERTY(bool tunEnabled READ tunEnabled NOTIFY statusChanged)
     Q_PROPERTY(QString mode READ mode NOTIFY statusChanged)
     Q_PROPERTY(QString listenAddress READ listenAddress NOTIFY statusChanged)
     Q_PROPERTY(int mixedPort READ mixedPort NOTIFY statusChanged)
@@ -31,6 +32,8 @@ class ClashClient : public QObject
     Q_PROPERTY(bool delayTesting READ delayTesting NOTIFY delayTestingChanged)
     Q_PROPERTY(QVariantList profiles READ profiles NOTIFY profilesChanged)
     Q_PROPERTY(QVariantList groups READ groups NOTIFY proxiesChanged)
+    Q_PROPERTY(QVariantList accounts READ accounts NOTIFY accountsChanged)
+    Q_PROPERTY(QString accountsError READ accountsError NOTIFY accountsChanged)
     Q_PROPERTY(int draftMixedPort READ draftMixedPort WRITE setDraftMixedPort NOTIFY draftChanged)
     Q_PROPERTY(int draftControllerPort READ draftControllerPort WRITE setDraftControllerPort NOTIFY draftChanged)
     Q_PROPERTY(QString draftMihomoPath READ draftMihomoPath WRITE setDraftMihomoPath NOTIFY draftChanged)
@@ -42,6 +45,7 @@ public:
     bool coreRunning() const;
     bool systemProxyEnabled() const;
     bool systemProxyApplied() const;
+    bool tunEnabled() const;
     QString mode() const;
     QString listenAddress() const;
     int mixedPort() const;
@@ -57,6 +61,8 @@ public:
     bool delayTesting() const;
     QVariantList profiles() const;
     QVariantList groups() const;
+    QVariantList accounts() const;
+    QString accountsError() const;
 
     int draftMixedPort() const;
     void setDraftMixedPort(int port);
@@ -68,6 +74,10 @@ public:
     Q_INVOKABLE void setCoreDesired(bool desired);
     Q_INVOKABLE void restartCore();
     Q_INVOKABLE void setSystemProxyEnabled(bool enabled);
+    Q_INVOKABLE void setTunEnabled(bool enabled);
+    Q_INVOKABLE void reloadAccounts();
+    Q_INVOKABLE void startAccount(qulonglong uid);
+    Q_INVOKABLE void stopAccount(qulonglong uid);
     Q_INVOKABLE void setMode(const QString &mode);
     Q_INVOKABLE void setActiveProfile(const QString &id);
     Q_INVOKABLE void addSubscription(const QString &name, const QString &url);
@@ -90,6 +100,7 @@ Q_SIGNALS:
     void statusChanged();
     void profilesChanged();
     void proxiesChanged();
+    void accountsChanged();
     void busyChanged();
     void delayTestingChanged();
     void delayUpdated(const QString &group, const QString &name, qlonglong delayMs);
@@ -108,12 +119,14 @@ private:
     void applyStatus(const QVariantMap &status);
     void reportError(const QString &message);
     void asyncCall(const QString &method, const QVariantList &args, bool refreshProfilesAfter, bool refreshProxiesAfter, bool markBusy = true);
+    void accountCall(const QString &method, qulonglong uid);
 
     QDBusInterface *m_iface = nullptr;
     bool m_coreDesired = false;
     bool m_coreRunning = false;
     bool m_systemProxyEnabled = false;
     bool m_systemProxyApplied = false;
+    bool m_tunEnabled = false;
     QString m_mode = QStringLiteral("rule");
     QString m_listenHost = QStringLiteral("127.0.0.1");
     int m_mixedPort = 7890;
@@ -133,4 +146,7 @@ private:
     QString m_draftMihomoPath = QStringLiteral("mihomo");
     QVariantList m_profiles;
     QVariantList m_groups;
+    QVariantList m_accounts;
+    QString m_accountsError;
+    QDBusInterface *m_admin = nullptr;
 };

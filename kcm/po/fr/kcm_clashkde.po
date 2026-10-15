@@ -39,3 +39,30 @@ msgstr "Ce fichier se pose au-dessus de l'abonnement, mais l'adresse d'écoute r
 
 msgid "A subscription update replaces the text written here."
 msgstr "Une mise à jour de l'abonnement remplace le texte écrit ici."
+
+msgid "TUN"
+msgstr "TUN"
+
+msgid "This captures only this account's traffic, and the system proxy steps aside while it is on."
+msgstr "Cela ne capture que le trafic de ce compte, et le proxy système s'efface tant que c'est ouvert."
+
+msgid "Users"
+msgstr "Utilisateurs"
+
+msgid "This page starts and stops Mihomo for accounts that are signed in."
+msgstr "Cette page démarre et arrête Mihomo pour les comptes connectés."
+
+msgid "Account"
+msgstr "Compte"
+
+msgid "On"
+msgstr "Activé"
+
+msgid "Off"
+msgstr "Désactivé"
+
+msgid "Start"
+msgstr "Démarrer"
+
+msgid "Stop"
+msgstr "Arrêter"

@@ -19,6 +19,7 @@ class ClashCalls : public QObject
     Q_PROPERTY(bool coreRunning READ coreRunning NOTIFY changed)
     Q_PROPERTY(bool systemProxyEnabled READ systemProxyEnabled NOTIFY changed)
     Q_PROPERTY(bool systemProxyApplied READ systemProxyApplied NOTIFY changed)
+    Q_PROPERTY(bool tunEnabled READ tunEnabled NOTIFY changed)
     Q_PROPERTY(QString mode READ mode NOTIFY changed)
     Q_PROPERTY(QString message READ message NOTIFY changed)
     Q_PROPERTY(QString region READ region NOTIFY changed)
@@ -35,6 +36,7 @@ public:
     bool coreRunning() const;
     bool systemProxyEnabled() const;
     bool systemProxyApplied() const;
+    bool tunEnabled() const;
     QString mode() const;
     QString message() const;
     QString region() const;
@@ -64,6 +66,7 @@ private:
     bool m_coreRunning = false;
     bool m_systemProxyEnabled = false;
     bool m_systemProxyApplied = false;
+    bool m_tunEnabled = false;
     QString m_mode = QStringLiteral("rule");
     QString m_message;
     QString m_region;

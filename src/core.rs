@@ -1,5 +1,4 @@
-use std::fs::OpenOptions;
-use std::io::Write;
+use std::os::unix::process::ExitStatusExt;
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use std::time::Duration;
@@ -9,12 +8,13 @@ use tokio::process::{Child, Command};
 use crate::paths::Paths;
 
 pub struct CoreProcess {
-    child: Child,
+    child: Option<Child>,
+    pid: u32,
 }
 
 impl CoreProcess {
     pub fn spawn(paths: &Paths, binary: &Path) -> Result<Self, String> {
-        let log = OpenOptions::new()
+        let log = std::fs::OpenOptions::new()
             .create(true)
             .append(true)
             .open(paths.core_log())
@@ -34,31 +34,61 @@ impl CoreProcess {
             .kill_on_drop(true)
             .spawn()
             .map_err(|error| format!("无法启动 mihomo: {error}"))?;
-        Ok(Self { child })
+        let pid = child.id().ok_or_else(|| "mihomo 没有进程号".to_string())?;
+        Ok(Self {
+            child: Some(child),
+            pid,
+        })
+    }
+
+    pub fn adopt(pid: u32) -> Self {
+        Self { child: None, pid }
     }
 
     pub async fn wait(&mut self) -> std::io::Result<std::process::ExitStatus> {
-        self.child.wait().await
+        if let Some(child) = self.child.as_mut() {
+            return child.wait().await;
+        }
+        loop {
+            if !process_alive(self.pid) {
+                return Ok(std::process::ExitStatus::from_raw(1 << 8));
+            }
+            tokio::time::sleep(Duration::from_millis(400)).await;
+        }
     }
 
     pub fn try_wait(&mut self) -> std::io::Result<Option<std::process::ExitStatus>> {
-        self.child.try_wait()
+        if let Some(child) = self.child.as_mut() {
+            return child.try_wait();
+        }
+        if process_alive(self.pid) {
+            Ok(None)
+        } else {
+            Ok(Some(std::process::ExitStatus::from_raw(1 << 8)))
+        }
     }
 
     pub async fn terminate(&mut self) {
-        if let Some(pid) = self.child.id() {
-            unsafe {
-                libc::kill(pid as i32, libc::SIGTERM);
-            }
+        let pid = self.pid as i32;
+        unsafe {
+            libc::kill(pid, libc::SIGTERM);
         }
         tokio::select! {
-            _ = self.child.wait() => {}
+            _ = self.wait() => {}
             _ = tokio::time::sleep(Duration::from_secs(2)) => {
-                let _ = self.child.start_kill();
-                let _ = self.child.wait().await;
+                unsafe { libc::kill(pid, libc::SIGKILL); }
+                let _ = self.wait().await;
             }
         }
     }
+}
+
+fn process_alive(pid: u32) -> bool {
+    let rc = unsafe { libc::kill(pid as i32, 0) };
+    if rc == 0 {
+        return true;
+    }
+    std::io::Error::last_os_error().raw_os_error() != Some(libc::ESRCH)
 }
 
 pub fn resolve_binary(requested: &str) -> Result<std::path::PathBuf, String> {
@@ -171,12 +201,12 @@ fn copy_file(src: &Path, dest: &Path) -> std::io::Result<()> {
     let file_name = dest.file_name().unwrap_or_default().to_string_lossy();
     let tmp = dest.with_file_name(format!("{file_name}.partial"));
     {
-        let mut file = OpenOptions::new()
+        let mut file = std::fs::OpenOptions::new()
             .create(true)
             .write(true)
             .truncate(true)
             .open(&tmp)?;
-        file.write_all(&bytes)?;
+        std::io::Write::write_all(&mut file, &bytes)?;
     }
     std::fs::rename(&tmp, dest)
 }

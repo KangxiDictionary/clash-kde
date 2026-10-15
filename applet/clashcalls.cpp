@@ -57,6 +57,11 @@ bool ClashCalls::systemProxyApplied() const
     return m_systemProxyApplied;
 }
 
+bool ClashCalls::tunEnabled() const
+{
+    return m_tunEnabled;
+}
+
 QString ClashCalls::mode() const
 {
     return m_mode;
@@ -143,6 +148,7 @@ void ClashCalls::applyStatus(const QString &json)
     m_coreRunning = object.value(QStringLiteral("core_running")).toBool();
     m_systemProxyEnabled = object.value(QStringLiteral("system_proxy_enabled")).toBool();
     m_systemProxyApplied = object.value(QStringLiteral("system_proxy_applied")).toBool();
+    m_tunEnabled = object.value(QStringLiteral("tun_enabled")).toBool();
     m_mode = object.value(QStringLiteral("mode")).toString(QStringLiteral("rule"));
     m_message = object.value(QStringLiteral("message")).toString();
     m_region = object.value(QStringLiteral("exit_region")).toString();

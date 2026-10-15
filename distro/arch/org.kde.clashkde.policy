@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE policyconfig PUBLIC "-//freedesktop//DTD polkit Policy Configuration 1.0//EN" "http://www.freedesktop.org/software/polkit/policyconfig-1.dtd">
+<policyconfig>
+  <vendor>clash-kde</vendor>
+  <vendor_url>https://github.com/KangxiDictionary/clash-kde</vendor_url>
+
+  <action id="org.kde.clashkde.tun">
+    <description>Capture this account's traffic with Mihomo</description>
+    <description xml:lang="zh-Hans-CN">用 Mihomo 截取这个账户的流量</description>
+    <description xml:lang="zh-Hant-TW">用 Mihomo 截取這個帳戶的流量</description>
+    <description xml:lang="ja">Mihomo でこのアカウントの通信を取り込む</description>
+    <description xml:lang="ko">Mihomo로 이 계정의 트래픽을 잡기</description>
+    <description xml:lang="de">Den Verkehr dieses Kontos mit Mihomo erfassen</description>
+    <description xml:lang="fr">Capturer le trafic de ce compte avec Mihomo</description>
+    <description xml:lang="es">Capturar el tráfico de esta cuenta con Mihomo</description>
+    <description xml:lang="pt-BR">Capturar o tráfego desta conta com o Mihomo</description>
+    <description xml:lang="ru">Перехватывать трафик этой учётной записи через Mihomo</description>
+    <description xml:lang="it">Catturare il traffico di questo account con Mihomo</description>
+    <message>Authentication is required to capture this account's network traffic.</message>
+    <message xml:lang="zh-Hans-CN">需要认证才能截取这个账户的网络流量。</message>
+    <message xml:lang="zh-Hant-TW">需要認證才能截取這個帳戶的網路流量。</message>
+    <message xml:lang="ja">このアカウントの通信を取り込むには認証が必要です。</message>
+    <message xml:lang="ko">이 계정의 네트워크 트래픽을 잡으려면 인증이 필요합니다.</message>
+    <message xml:lang="de">Zum Erfassen des Netzwerkverkehrs dieses Kontos ist eine Authentifizierung nötig.</message>
+    <message xml:lang="fr">Une authentification est nécessaire pour capturer le trafic réseau de ce compte.</message>
+    <message xml:lang="es">Hace falta autenticarse para capturar el tráfico de red de esta cuenta.</message>
+    <message xml:lang="pt-BR">É preciso autenticar para capturar o tráfego de rede desta conta.</message>
+    <message xml:lang="ru">Чтобы перехватывать сетевой трафик этой учётной записи, нужна аутентификация.</message>
+    <message xml:lang="it">Serve un'autenticazione per catturare il traffico di rete di questo account.</message>
+    <defaults>
+      <allow_any>auth_admin_keep</allow_any>
+      <allow_inactive>auth_admin_keep</allow_inactive>
+      <allow_active>auth_admin_keep</allow_active>
+    </defaults>
+  </action>
+
+  <action id="org.kde.clashkde.manage-users">
+    <description>Start or stop Mihomo for a signed-in account</description>
+    <description xml:lang="zh-Hans-CN">开关已登录账户的 Mihomo</description>
+    <description xml:lang="zh-Hant-TW">開關已登入帳戶的 Mihomo</description>
+    <description xml:lang="ja">ログイン中のアカウントの Mihomo を起動または停止する</description>
+    <description xml:lang="ko">로그인한 계정의 Mihomo를 켜거나 끄기</description>
+    <description xml:lang="de">Mihomo eines angemeldeten Kontos starten oder stoppen</description>
+    <description xml:lang="fr">Démarrer ou arrêter Mihomo pour un compte connecté</description>
+    <description xml:lang="es">Arrancar o detener Mihomo de una cuenta con sesión iniciada</description>
+    <description xml:lang="pt-BR">Iniciar ou parar o Mihomo de uma conta conectada</description>
+    <description xml:lang="ru">Запускать или останавливать Mihomo вошедшей учётной записи</description>
+    <description xml:lang="it">Avviare o fermare Mihomo per un account che ha effettuato l'accesso</description>
+    <message>Authentication is required to start or stop Mihomo for a signed-in account.</message>
+    <message xml:lang="zh-Hans-CN">需要认证才能开关已登录账户的 Mihomo。</message>
+    <message xml:lang="zh-Hant-TW">需要認證才能開關已登入帳戶的 Mihomo。</message>
+    <message xml:lang="ja">ログイン中のアカウントの Mihomo を起動または停止するには認証が必要です。</message>
+    <message xml:lang="ko">로그인한 계정의 Mihomo를 켜거나 끄려면 인증이 필요합니다.</message>
+    <message xml:lang="de">Zum Starten oder Stoppen von Mihomo für ein angemeldetes Konto ist eine Authentifizierung nötig.</message>
+    <message xml:lang="fr">Une authentification est nécessaire pour démarrer ou arrêter Mihomo pour un compte connecté.</message>
+    <message xml:lang="es">Hace falta autenticarse para arrancar o detener Mihomo de una cuenta con sesión iniciada.</message>
+    <message xml:lang="pt-BR">É preciso autenticar para iniciar ou parar o Mihomo de uma conta conectada.</message>
+    <message xml:lang="ru">Чтобы запускать или останавливать Mihomo у вошедшей учётной записи, нужна аутентификация.</message>
+    <message xml:lang="it">Serve un'autenticazione per avviare o fermare Mihomo per un account che ha effettuato l'accesso.</message>
+    <defaults>
+      <allow_any>auth_admin_keep</allow_any>
+      <allow_inactive>auth_admin_keep</allow_inactive>
+      <allow_active>auth_admin_keep</allow_active>
+    </defaults>
+  </action>
+</policyconfig>

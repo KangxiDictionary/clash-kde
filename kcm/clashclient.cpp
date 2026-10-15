@@ -33,6 +33,11 @@ ClashClient::ClashClient(QObject *parent)
                                  QStringLiteral("org.kde.clashkde.Manager"),
                                  QDBusConnection::sessionBus(),
                                  this))
+    , m_admin(new QDBusInterface(QStringLiteral("org.kde.clashkde.Admin"),
+                                 QStringLiteral("/org/kde/clashkde"),
+                                 QStringLiteral("org.kde.clashkde.Admin"),
+                                 QDBusConnection::systemBus(),
+                                 this))
 {
     auto bus = QDBusConnection::sessionBus();
     bus.connect(QStringLiteral("org.kde.clashkde"),
@@ -71,6 +76,7 @@ bool ClashClient::coreDesired() const { return m_coreDesired; }
 bool ClashClient::coreRunning() const { return m_coreRunning; }
 bool ClashClient::systemProxyEnabled() const { return m_systemProxyEnabled; }
 bool ClashClient::systemProxyApplied() const { return m_systemProxyApplied; }
+bool ClashClient::tunEnabled() const { return m_tunEnabled; }
 QString ClashClient::mode() const { return m_mode; }
 QString ClashClient::listenAddress() const
 {
@@ -89,6 +95,8 @@ bool ClashClient::busy() const { return m_busy; }
 bool ClashClient::delayTesting() const { return m_delayTesting; }
 QVariantList ClashClient::profiles() const { return m_profiles; }
 QVariantList ClashClient::groups() const { return m_groups; }
+QVariantList ClashClient::accounts() const { return m_accounts; }
+QString ClashClient::accountsError() const { return m_accountsError; }
 int ClashClient::draftMixedPort() const { return m_draftMixedPort; }
 int ClashClient::draftControllerPort() const { return m_draftControllerPort; }
 QString ClashClient::draftMihomoPath() const { return m_draftMihomoPath; }
@@ -136,6 +144,40 @@ void ClashClient::restartCore()
 void ClashClient::setSystemProxyEnabled(bool enabled)
 {
     asyncCall(QStringLiteral("SetSystemProxy"), {enabled}, false, false);
+}
+
+void ClashClient::setTunEnabled(bool enabled)
+{
+    asyncCall(QStringLiteral("SetTun"), {enabled}, false, false);
+}
+
+void ClashClient::reloadAccounts()
+{
+    setBusy(true);
+    auto *watcher = new QDBusPendingCallWatcher(m_admin->asyncCall(QStringLiteral("List")), this);
+    connect(watcher, &QDBusPendingCallWatcher::finished, this, [this](QDBusPendingCallWatcher *call) {
+        call->deleteLater();
+        setBusy(false);
+        const QDBusPendingReply<QString> reply = *call;
+        if (!reply.isValid()) {
+            m_accountsError = reply.error().message();
+            m_accounts.clear();
+        } else {
+            m_accountsError.clear();
+            m_accounts = jsonArray(reply.value());
+        }
+        Q_EMIT accountsChanged();
+    });
+}
+
+void ClashClient::startAccount(qulonglong uid)
+{
+    accountCall(QStringLiteral("Start"), uid);
+}
+
+void ClashClient::stopAccount(qulonglong uid)
+{
+    accountCall(QStringLiteral("Stop"), uid);
 }
 
 void ClashClient::setMode(const QString &mode)
@@ -324,6 +366,7 @@ void ClashClient::applyStatus(const QVariantMap &status)
     m_coreRunning = status.value(QStringLiteral("core_running")).toBool();
     m_systemProxyEnabled = status.value(QStringLiteral("system_proxy_enabled")).toBool();
     m_systemProxyApplied = status.value(QStringLiteral("system_proxy_applied")).toBool();
+    m_tunEnabled = status.value(QStringLiteral("tun_enabled")).toBool();
     m_mode = status.value(QStringLiteral("mode")).toString();
     m_listenHost = status.value(QStringLiteral("listen_host"), QStringLiteral("127.0.0.1")).toString();
     m_mixedPort = status.value(QStringLiteral("mixed_port")).toInt();
@@ -376,5 +419,22 @@ void ClashClient::asyncCall(const QString &method, const QVariantList &args, boo
         if (refreshProxiesAfter) {
             refreshProxies();
         }
+    });
+}
+
+void ClashClient::accountCall(const QString &method, qulonglong uid)
+{
+    setBusy(true);
+    auto *watcher = new QDBusPendingCallWatcher(m_admin->asyncCall(method, static_cast<uint>(uid)), this);
+    connect(watcher, &QDBusPendingCallWatcher::finished, this, [this](QDBusPendingCallWatcher *call) {
+        call->deleteLater();
+        setBusy(false);
+        const QDBusPendingReply<> reply = *call;
+        if (!reply.isValid()) {
+            m_accountsError = reply.error().message();
+            Q_EMIT accountsChanged();
+            return;
+        }
+        reloadAccounts();
     });
 }
