@@ -166,11 +166,10 @@ pub fn enter_user(uid: u32, gid: u32, name: &str) -> io::Result<()> {
     net.insert(caps::Capability::CAP_NET_RAW);
 
     caps::securebits::set_keepcaps(true).map_err(io::Error::other)?;
+    // setuid clears ambient and effective, but not inheritable. The bits
+    // have to be inheritable before the uid change so they can be raised
+    // again afterwards.
     caps::set(None, caps::CapSet::Inheritable, &net).map_err(io::Error::other)?;
-    caps::raise(None, caps::CapSet::Ambient, caps::Capability::CAP_NET_ADMIN)
-        .map_err(io::Error::other)?;
-    caps::raise(None, caps::CapSet::Ambient, caps::Capability::CAP_NET_RAW)
-        .map_err(io::Error::other)?;
 
     let c_name = std::ffi::CString::new(name).map_err(|_| io::Error::other("账户名无效"))?;
     if unsafe { libc::initgroups(c_name.as_ptr(), gid) } != 0 {
@@ -183,11 +182,19 @@ pub fn enter_user(uid: u32, gid: u32, name: &str) -> io::Result<()> {
         return Err(io::Error::last_os_error());
     }
 
-    // setuid clears the effective set and, with keepcaps, leaves the full
-    // permitted set. capset refuses a permitted set that does not cover the
-    // effective set, so the effective set has to shrink first.
+    // setuid always clears the ambient set, even with keepcaps, and exec of
+    // an ordinary program keeps only ambient capabilities. Raise them again
+    // after the uid change, while the kept permitted set still contains them.
     caps::set(None, caps::CapSet::Effective, &net).map_err(io::Error::other)?;
     caps::set(None, caps::CapSet::Permitted, &net).map_err(io::Error::other)?;
+    caps::raise(None, caps::CapSet::Ambient, caps::Capability::CAP_NET_ADMIN)
+        .map_err(io::Error::other)?;
+    caps::raise(None, caps::CapSet::Ambient, caps::Capability::CAP_NET_RAW)
+        .map_err(io::Error::other)?;
+    let ambient = caps::read(None, caps::CapSet::Ambient).map_err(io::Error::other)?;
+    if !net.is_subset(&ambient) {
+        return Err(io::Error::other("切换账户后没有留下网络能力"));
+    }
     caps::securebits::set_keepcaps(false).map_err(io::Error::other)?;
     Ok(())
 }

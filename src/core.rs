@@ -129,6 +129,25 @@ pub fn startup_hint(path: &Path) -> String {
     }
 }
 
+pub fn tun_listen_error(path: &Path) -> Option<String> {
+    let text = std::fs::read_to_string(path).ok()?;
+    let start = text.rfind("Start initial configuration")?;
+    let line = text[start..]
+        .lines()
+        .find(|line| line.contains("Start TUN listening error:"))?;
+    let detail = line
+        .split("Start TUN listening error:")
+        .nth(1)
+        .unwrap_or("")
+        .trim()
+        .trim_matches('"');
+    if detail.is_empty() {
+        Some("TUN 没有接上".to_string())
+    } else {
+        Some(format!("TUN 没有接上: {detail}"))
+    }
+}
+
 const GEODATA_FILES: [&str; 4] = ["country.mmdb", "geoip.metadb", "geosite.dat", "geoip.dat"];
 
 pub fn seed_geodata(runtime: &Path) {
@@ -229,6 +248,20 @@ mod tests {
         let log = dir.path().join("mihomo.log");
         std::fs::write(&log, "Geodata Loader mode: memconservative\n").unwrap();
         assert_eq!(startup_hint(&log), "正在启动内核");
+    }
+
+    #[test]
+    fn tun_listen_error_uses_the_latest_start() {
+        let dir = tempfile::tempdir().unwrap();
+        let log = dir.path().join("mihomo.log");
+        std::fs::write(
+            &log,
+            "Start initial configuration in progress\nmsg=\"Start TUN listening error: old\"\nStart initial configuration in progress\nmsg=\"Start TUN listening error: configure tun interface: operation not permitted\"\n",
+        )
+        .unwrap();
+        let error = tun_listen_error(&log).expect("error");
+        assert!(error.contains("operation not permitted"));
+        assert!(!error.contains("old"));
     }
 
     #[test]

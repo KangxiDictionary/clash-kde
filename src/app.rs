@@ -767,6 +767,12 @@ impl App {
                 )
             };
             if controller.probe().await {
+                if let Some(error) = core::tun_listen_error(&self.paths.core_log()) {
+                    let tun = self.inner.lock().await.settings.tun_enabled;
+                    if tun {
+                        return Err(error);
+                    }
+                }
                 return Ok(());
             }
             match process.try_wait() {
