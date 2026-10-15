@@ -184,38 +184,35 @@ msgstr "订阅"
 msgid "Connection"
 msgstr "连接"
 
-msgid "Only starts the local proxy. System proxy is a separate switch."
-msgstr "只启动本机代理。系统代理另外开关。"
+msgid "This switch only starts the local proxy."
+msgstr "这个开关只负责打开本地代理。"
 
-msgid "Restart with the current configuration."
-msgstr "按当前配置重新启动。"
+msgid "Restart the core with the configuration it already has."
+msgstr "用现在这份配置重新启动内核。"
 
 msgid "While the core is running, KDE applications use it. Turning the core off withdraws it."
 msgstr "内核运行时，KDE 应用程序使用它。内核停止后会撤回。"
 
-msgid "While the core is running, KDE and browsers that follow the system proxy use it. Turning the core off withdraws it."
-msgstr "内核运行时，KDE 和遵循系统代理的浏览器会使用它。内核停止后会撤回。"
+msgid "KDE and browsers follow this only while the core is running."
+msgstr "只有内核开着的时候，KDE 和浏览器才会跟着系统代理走。"
 
-msgid "Rule follows the profile. Global sends everything through the proxy. Direct connects directly."
-msgstr "规则按配置分流。全局全部走代理。直连全部直接连接。"
+msgid "Other programs can use this address as it is."
+msgstr "别的程序可以直接用这个地址。"
 
-msgid "Applications can use this address directly."
-msgstr "其他软件可以手动填写这个地址。"
+msgid "See which region the traffic is leaving from."
+msgstr "看看流量这会儿是从哪个地区出去的。"
 
-msgid "Look up the exit region through the current proxy."
-msgstr "通过当前代理查询出口地区。"
+msgid "HTTP and SOCKS share this port, and saving restarts a running core."
+msgstr "HTTP 和 SOCKS 共用这个端口，保存之后正在跑的内核会重启。"
 
-msgid "HTTP and SOCKS share this port. Applying restarts a running core."
-msgstr "HTTP 和 SOCKS 共用这个端口。应用后如果内核在运行，会重新启动。"
+msgid "This page talks to the controller, which listens only on this computer."
+msgstr "这个页面靠控制器通信，控制器只在这台电脑上监听。"
 
-msgid "Used by this page. It listens only on this computer."
-msgstr "供这个页面读取状态，只监听本机。"
+msgid "This is the mihomo program already installed on the system."
+msgstr "这是系统里已经装好的那个 mihomo。"
 
-msgid "The mihomo program installed on the system."
-msgstr "系统里的 mihomo 程序。"
-
-msgid "Merged on top of the subscription. The listen address is still set here."
-msgstr "合并到订阅之上。监听地址仍由这里决定。"
+msgid "This file is placed over the subscription, while the listen address stays set here."
+msgstr "这个文件盖在订阅上面，监听地址仍然在这里定。"
 
 msgid "Profile order"
 msgstr "配置顺序"
@@ -241,8 +238,8 @@ msgstr "编辑资料"
 msgid "Edit configuration"
 msgstr "编辑配置"
 
-msgid "Updating from the subscription replaces this text."
-msgstr "从订阅更新会覆盖这里的内容。"
+msgid "A subscription update replaces the text written here."
+msgstr "从订阅更新的话，这里写的内容会被换掉。"
 
 msgid "Remaining: %1"
 msgstr "剩余 %1"
@@ -276,3 +273,7 @@ msgstr "许可证"
 
 msgid "Website"
 msgstr "网站"
+
+msgid "There is a Mihomo widget for the panel."
+msgstr "面板上有一个 Mihomo 小组件。"
+

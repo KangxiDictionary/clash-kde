@@ -14,6 +14,7 @@ include(KDECompilerSettings NO_POLICY_SCOPE)
 
 find_package(Qt6 ${QT_MIN_VERSION} REQUIRED COMPONENTS Core Quick Gui Qml DBus)
 find_package(KF6 ${KF6_MIN_VERSION} REQUIRED COMPONENTS CoreAddons I18n KCMUtils)
+find_package(Plasma REQUIRED)
 
 kcmutils_add_qml_kcm(kcm_clashkde SOURCES
     kcm.cpp
@@ -31,3 +32,5 @@ target_link_libraries(kcm_clashkde PRIVATE
 )
 
 ki18n_install(po)
+
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../applet ${CMAKE_CURRENT_BINARY_DIR}/applet)

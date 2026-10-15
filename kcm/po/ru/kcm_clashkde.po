@@ -1,0 +1,41 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: kcm_clashkde 0.1.0\n"
+"Language: ru\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);\n"
+
+msgid "There is a Mihomo widget for the panel."
+msgstr "Для панели есть виджет Mihomo."
+
+msgid "Other programs can use this address as it is."
+msgstr "Другие программы могут использовать этот адрес как есть."
+
+msgid "This switch only starts the local proxy."
+msgstr "Этот переключатель только запускает локальный прокси."
+
+msgid "KDE and browsers follow this only while the core is running."
+msgstr "KDE и браузеры идут через это, только пока ядро запущено."
+
+msgid "Restart the core with the configuration it already has."
+msgstr "Перезапустить ядро с текущей конфигурацией."
+
+msgid "See which region the traffic is leaving from."
+msgstr "Посмотреть, из какого региона выходит трафик."
+
+msgid "HTTP and SOCKS share this port, and saving restarts a running core."
+msgstr "HTTP и SOCKS делят этот порт, а сохранение перезапускает работающее ядро."
+
+msgid "This page talks to the controller, which listens only on this computer."
+msgstr "Эта страница говорит с контроллером, а он слушает только на этом компьютере."
+
+msgid "This is the mihomo program already installed on the system."
+msgstr "Это уже установленная в системе программа mihomo."
+
+msgid "This file is placed over the subscription, while the listen address stays set here."
+msgstr "Этот файл ложится поверх подписки, а адрес прослушивания по-прежнему задаётся здесь."
+
+msgid "A subscription update replaces the text written here."
+msgstr "Обновление подписки заменяет текст, написанный здесь."

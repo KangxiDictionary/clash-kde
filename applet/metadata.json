@@ -1,0 +1,21 @@
+{
+    "KPlugin": {
+        "Authors": [
+            {
+                "Name": "clash-kde contributors"
+            }
+        ],
+        "Category": "Online Services",
+        "Description": "Panel widget for the per-user mihomo proxy",
+        "Description[zh_CN]": "用户级 mihomo 的面板小组件",
+        "EnabledByDefault": true,
+        "Icon": "network-vpn",
+        "License": "GPL-3.0-or-later",
+        "Name": "Mihomo",
+        "Name[zh_CN]": "Mihomo",
+        "Version": "0.1.0",
+        "Website": "https://github.com/KangxiDictionary/clash-kde"
+    },
+    "KPackageStructure": "Plasma/Applet",
+    "X-Plasma-API-Minimum-Version": "6.0"
+}

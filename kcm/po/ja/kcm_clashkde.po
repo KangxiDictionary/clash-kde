@@ -1,0 +1,41 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: kcm_clashkde 0.1.0\n"
+"Language: ja\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+msgid "There is a Mihomo widget for the panel."
+msgstr "パネル用の Mihomo ウィジェットがあります。"
+
+msgid "Other programs can use this address as it is."
+msgstr "他のアプリも、このアドレスをそのまま使えます。"
+
+msgid "This switch only starts the local proxy."
+msgstr "このスイッチはローカルプロキシを起動するだけです。"
+
+msgid "KDE and browsers follow this only while the core is running."
+msgstr "コアが動いている間だけ、KDE とブラウザはシステムのプロキシに従います。"
+
+msgid "Restart the core with the configuration it already has."
+msgstr "今の設定のままコアを再起動します。"
+
+msgid "See which region the traffic is leaving from."
+msgstr "通信が今どの地域から出ているか調べます。"
+
+msgid "HTTP and SOCKS share this port, and saving restarts a running core."
+msgstr "HTTP と SOCKS はこのポートを共有し、保存すると動いているコアは再起動します。"
+
+msgid "This page talks to the controller, which listens only on this computer."
+msgstr "このページはコントローラーと話し、待ち受けは今のパソコンだけです。"
+
+msgid "This is the mihomo program already installed on the system."
+msgstr "システムに入っている mihomo そのものです。"
+
+msgid "This file is placed over the subscription, while the listen address stays set here."
+msgstr "このファイルはサブスクリプションの上に載り、待ち受け先はここが決めます。"
+
+msgid "A subscription update replaces the text written here."
+msgstr "サブスクリプションを更新すると、ここに書いた内容は置き換わります。"

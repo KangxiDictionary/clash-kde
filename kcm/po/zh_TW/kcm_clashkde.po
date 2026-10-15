@@ -1,0 +1,41 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: kcm_clashkde 0.1.0\n"
+"Language: zh_TW\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+msgid "There is a Mihomo widget for the panel."
+msgstr "面板上有一個 Mihomo 小工具。"
+
+msgid "Other programs can use this address as it is."
+msgstr "其他程式可以直接用這個位址。"
+
+msgid "This switch only starts the local proxy."
+msgstr "這個開關只負責打開本機代理。"
+
+msgid "KDE and browsers follow this only while the core is running."
+msgstr "只有核心開著的時候，KDE 和瀏覽器才會跟著系統代理走。"
+
+msgid "Restart the core with the configuration it already has."
+msgstr "用現在這份設定重新啟動核心。"
+
+msgid "See which region the traffic is leaving from."
+msgstr "看看流量現在是從哪個地區出去的。"
+
+msgid "HTTP and SOCKS share this port, and saving restarts a running core."
+msgstr "HTTP 和 SOCKS 共用這個連接埠，儲存後正在跑的核心會重新啟動。"
+
+msgid "This page talks to the controller, which listens only on this computer."
+msgstr "這個頁面透過控制器通訊，控制器只在這台電腦上監聽。"
+
+msgid "This is the mihomo program already installed on the system."
+msgstr "這是系統裡已經裝好的那個 mihomo。"
+
+msgid "This file is placed over the subscription, while the listen address stays set here."
+msgstr "這個檔案蓋在訂閱上面，監聽位址仍然在這裡決定。"
+
+msgid "A subscription update replaces the text written here."
+msgstr "從訂閱更新的話，這裡寫的內容會被換掉。"

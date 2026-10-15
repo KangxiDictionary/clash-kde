@@ -1,0 +1,17 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: plasma_applet_org.kde.plasma.clashkde 0.1.0\n"
+"Language: it\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "Other programs can use this address as it is."
+msgstr "Gli altri programmi possono usare questo indirizzo così com'è."
+
+msgid "This switch only starts the local proxy."
+msgstr "Questo interruttore avvia solo il proxy locale."
+
+msgid "KDE and browsers follow this only while the core is running."
+msgstr "KDE e i browser lo seguono solo mentre il nucleo è in esecuzione."

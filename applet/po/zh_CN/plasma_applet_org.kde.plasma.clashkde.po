@@ -1,0 +1,114 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: plasma_applet_org.kde.plasma.clashkde 0.1.0\n"
+"Language: zh_CN\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+msgctxt "@title"
+msgid "Behavior"
+msgstr "行为"
+
+msgctxt "@item:inlistbox"
+msgid "Open the popup"
+msgstr "打开弹出面板"
+
+msgctxt "@item:inlistbox"
+msgid "Toggle the core"
+msgstr "开关内核"
+
+msgctxt "@item:inlistbox"
+msgid "Toggle the system proxy"
+msgstr "开关系统代理"
+
+msgctxt "@item:inlistbox"
+msgid "Cycle mode"
+msgstr "切换模式"
+
+msgctxt "@item:inlistbox"
+msgid "Open settings"
+msgstr "打开设置"
+
+msgctxt "@item:inlistbox"
+msgid "Do nothing"
+msgstr "无操作"
+
+msgctxt "@label:listbox"
+msgid "Left click"
+msgstr "左键单击"
+
+msgctxt "@label:listbox"
+msgid "Middle click"
+msgstr "中键单击"
+
+msgctxt "@label:listbox"
+msgid "Scroll wheel"
+msgstr "滚轮"
+
+msgid "Running"
+msgstr "运行中"
+
+msgid "Waiting to start"
+msgstr "正在启动"
+
+msgid "Stopped"
+msgstr "已停止"
+
+msgid "System proxy on"
+msgstr "系统代理已打开"
+
+msgid "System proxy off"
+msgstr "系统代理已关闭"
+
+msgid "The status could not be read."
+msgstr "读不到当前状态。"
+
+msgid "The service is not available."
+msgstr "服务不可用。"
+
+msgid "%1 B/s"
+msgstr "%1 B/s"
+
+msgid "%1 KB/s"
+msgstr "%1 KB/s"
+
+msgid "%1 MB/s"
+msgstr "%1 MB/s"
+
+msgid "Stop"
+msgstr "停止"
+
+msgid "Start"
+msgstr "启动"
+
+msgid "System proxy"
+msgstr "系统代理"
+
+msgid "Settings"
+msgstr "设置"
+
+msgid "Mihomo"
+msgstr "Mihomo"
+
+msgid "Other programs can use this address as it is."
+msgstr "别的程序可以直接用这个地址。"
+
+msgid "Core"
+msgstr "内核"
+
+msgid "This switch only starts the local proxy."
+msgstr "这个开关只负责打开本地代理。"
+
+msgid "KDE and browsers follow this only while the core is running."
+msgstr "只有内核开着的时候，KDE 和浏览器才会跟着系统代理走。"
+
+msgid "Rule"
+msgstr "规则"
+
+msgid "Global"
+msgstr "全局"
+
+msgid "Direct"
+msgstr "直连"

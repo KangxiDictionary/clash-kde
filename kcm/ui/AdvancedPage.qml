@@ -47,7 +47,7 @@ Item {
 
                 QQC2.ToolTip.visible: hovered
                 QQC2.ToolTip.delay: 700
-                QQC2.ToolTip.text: tx.i18n("HTTP and SOCKS share this port. Applying restarts a running core.")
+                QQC2.ToolTip.text: tx.i18n("HTTP and SOCKS share this port, and saving restarts a running core.")
             }
 
             QQC2.SpinBox {
@@ -63,7 +63,7 @@ Item {
 
                 QQC2.ToolTip.visible: hovered
                 QQC2.ToolTip.delay: 700
-                QQC2.ToolTip.text: tx.i18n("Used by this page. It listens only on this computer.")
+                QQC2.ToolTip.text: tx.i18n("This page talks to the controller, which listens only on this computer.")
             }
 
             QQC2.TextField {
@@ -77,7 +77,7 @@ Item {
 
                 QQC2.ToolTip.visible: hovered
                 QQC2.ToolTip.delay: 700
-                QQC2.ToolTip.text: tx.i18n("The mihomo program installed on the system.")
+                QQC2.ToolTip.text: tx.i18n("This is the mihomo program already installed on the system.")
             }
 
             Kirigami.SelectableLabel {
@@ -91,7 +91,7 @@ Item {
 
                 QQC2.ToolTip.visible: overrideHover.hovered
                 QQC2.ToolTip.delay: 700
-                QQC2.ToolTip.text: tx.i18n("Merged on top of the subscription. The listen address is still set here.")
+                QQC2.ToolTip.text: tx.i18n("This file is placed over the subscription, while the listen address stays set here.")
             }
         }
 

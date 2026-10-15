@@ -91,7 +91,7 @@ Item {
 
                         QQC2.ToolTip.visible: listenHover.hovered
                         QQC2.ToolTip.delay: 700
-                        QQC2.ToolTip.text: tx.i18n("Applications can use this address directly.")
+                        QQC2.ToolTip.text: tx.i18n("Other programs can use this address as it is.")
                     }
                 }
 
@@ -103,7 +103,7 @@ Item {
 
                     QQC2.ToolTip.visible: hovered
                     QQC2.ToolTip.delay: 700
-                    QQC2.ToolTip.text: tx.i18n("Restart with the current configuration.")
+                    QQC2.ToolTip.text: tx.i18n("Restart the core with the configuration it already has.")
                 }
 
                 QQC2.Switch {
@@ -116,7 +116,7 @@ Item {
 
                     QQC2.ToolTip.visible: hovered
                     QQC2.ToolTip.delay: 700
-                    QQC2.ToolTip.text: tx.i18n("Only starts the local proxy. System proxy is a separate switch.")
+                    QQC2.ToolTip.text: tx.i18n("This switch only starts the local proxy.")
                 }
             }
         }
@@ -139,7 +139,7 @@ Item {
 
                 QQC2.ToolTip.visible: hovered
                 QQC2.ToolTip.delay: 700
-                QQC2.ToolTip.text: tx.i18n("While the core is running, KDE and browsers that follow the system proxy use it. Turning the core off withdraws it.")
+                QQC2.ToolTip.text: tx.i18n("KDE and browsers follow this only while the core is running.")
             }
 
             QQC2.Label {
@@ -166,10 +166,6 @@ Item {
                         kcm.client.setMode(mode);
                     }
                 }
-
-                QQC2.ToolTip.visible: hovered
-                QQC2.ToolTip.delay: 700
-                QQC2.ToolTip.text: tx.i18n("Rule follows the profile. Global sends everything through the proxy. Direct connects directly.")
             }
         }
 
@@ -251,13 +247,21 @@ Item {
 
                     QQC2.ToolTip.visible: hovered
                     QQC2.ToolTip.delay: 700
-                    QQC2.ToolTip.text: tx.i18n("Look up the exit region through the current proxy.")
+                    QQC2.ToolTip.text: tx.i18n("See which region the traffic is leaving from.")
                 }
             }
         }
 
         Item {
             Layout.fillHeight: true
+        }
+
+        QQC2.Label {
+            Layout.fillWidth: true
+            wrapMode: Text.WordWrap
+            opacity: 0.65
+            font: Kirigami.Theme.smallFont
+            text: tx.i18n("There is a Mihomo widget for the panel.")
         }
     }
 }

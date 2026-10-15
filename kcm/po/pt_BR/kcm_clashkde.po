@@ -1,0 +1,41 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: kcm_clashkde 0.1.0\n"
+"Language: pt_BR\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n > 1);\n"
+
+msgid "There is a Mihomo widget for the panel."
+msgstr "Há um widget do Mihomo para o painel."
+
+msgid "Other programs can use this address as it is."
+msgstr "Outros programas podem usar este endereço como está."
+
+msgid "This switch only starts the local proxy."
+msgstr "Este interruptor só inicia o proxy local."
+
+msgid "KDE and browsers follow this only while the core is running."
+msgstr "O KDE e os navegadores só seguem isto enquanto o núcleo está em execução."
+
+msgid "Restart the core with the configuration it already has."
+msgstr "Reiniciar o núcleo com a configuração que ele já tem."
+
+msgid "See which region the traffic is leaving from."
+msgstr "Ver de qual região o tráfego está saindo."
+
+msgid "HTTP and SOCKS share this port, and saving restarts a running core."
+msgstr "HTTP e SOCKS compartilham esta porta, e salvar reinicia o núcleo se ele estiver rodando."
+
+msgid "This page talks to the controller, which listens only on this computer."
+msgstr "Esta página fala com o controlador, que escuta só neste computador."
+
+msgid "This is the mihomo program already installed on the system."
+msgstr "É o programa mihomo que já está instalado no sistema."
+
+msgid "This file is placed over the subscription, while the listen address stays set here."
+msgstr "Este arquivo fica por cima da assinatura, mas o endereço de escuta continua decidido aqui."
+
+msgid "A subscription update replaces the text written here."
+msgstr "Atualizar a assinatura substitui o texto escrito aqui."

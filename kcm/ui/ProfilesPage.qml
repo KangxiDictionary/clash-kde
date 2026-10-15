@@ -120,7 +120,7 @@ Item {
 
             QQC2.ToolTip.visible: editorHover.hovered
             QQC2.ToolTip.delay: 700
-            QQC2.ToolTip.text: tx.i18n("Updating from the subscription replaces this text.")
+            QQC2.ToolTip.text: tx.i18n("A subscription update replaces the text written here.")
         }
     }
 

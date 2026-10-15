@@ -1,0 +1,17 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: plasma_applet_org.kde.plasma.clashkde 0.1.0\n"
+"Language: zh_TW\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+msgid "Other programs can use this address as it is."
+msgstr "其他程式可以直接用這個位址。"
+
+msgid "This switch only starts the local proxy."
+msgstr "這個開關只負責打開本機代理。"
+
+msgid "KDE and browsers follow this only while the core is running."
+msgstr "只有核心開著的時候，KDE 和瀏覽器才會跟著系統代理走。"
