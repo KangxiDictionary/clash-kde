@@ -73,6 +73,29 @@ impl Manager {
         self.app.set_active_profile(&id).await.map_err(failed)
     }
 
+    #[zbus(name = "GetProfileBody")]
+    async fn get_profile_body(&self, id: String) -> fdo::Result<String> {
+        self.app.profile_body(&id).await.map_err(failed)
+    }
+
+    #[zbus(name = "SetProfileBody")]
+    async fn set_profile_body(&self, id: String, body: String) -> fdo::Result<()> {
+        self.app.set_profile_body(&id, body).await.map_err(failed)
+    }
+
+    #[zbus(name = "SetProfileMeta")]
+    async fn set_profile_meta(&self, id: String, name: String, url: String) -> fdo::Result<()> {
+        self.app
+            .set_profile_meta(&id, name, url)
+            .await
+            .map_err(failed)
+    }
+
+    #[zbus(name = "ImportProfile")]
+    async fn import_profile(&self, name: String, path: String) -> fdo::Result<String> {
+        self.app.import_profile(name, path).await.map_err(failed)
+    }
+
     #[zbus(name = "SelectProxy")]
     async fn select_proxy(&self, group: String, name: String) -> fdo::Result<()> {
         self.app.select_proxy(&group, &name).await.map_err(failed)
@@ -111,6 +134,14 @@ impl Manager {
 
     #[zbus(signal)]
     async fn proxies_changed(emitter: &SignalEmitter<'_>) -> zbus::Result<()>;
+
+    #[zbus(signal)]
+    async fn delay_updated(
+        emitter: &SignalEmitter<'_>,
+        group: &str,
+        name: &str,
+        delay_ms: i64,
+    ) -> zbus::Result<()>;
 }
 
 fn failed(error: String) -> fdo::Error {
@@ -165,6 +196,11 @@ pub async fn run() -> Result<(), String> {
                     Event::Status => Manager::status_changed(&emitter).await,
                     Event::Profiles => Manager::profiles_changed(&emitter).await,
                     Event::Proxies => Manager::proxies_changed(&emitter).await,
+                    Event::Delay {
+                        group,
+                        name,
+                        delay_ms,
+                    } => Manager::delay_updated(&emitter, &group, &name, delay_ms).await,
                 };
                 if let Err(error) = result {
                     tracing::debug!("无法发出状态信号: {error}");

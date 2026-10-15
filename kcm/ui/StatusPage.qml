@@ -139,7 +139,7 @@ Item {
 
                 QQC2.ToolTip.visible: hovered
                 QQC2.ToolTip.delay: 700
-                QQC2.ToolTip.text: tx.i18n("While the core is running, KDE applications use it. Turning the core off withdraws it.")
+                QQC2.ToolTip.text: tx.i18n("While the core is running, KDE and browsers that follow the system proxy use it. Turning the core off withdraws it.")
             }
 
             QQC2.Label {
@@ -185,44 +185,74 @@ Item {
 
         RowLayout {
             Layout.fillWidth: true
-            spacing: Kirigami.Units.largeSpacing
+            spacing: Kirigami.Units.largeSpacing * 2
 
-            QQC2.Label {
-                text: tx.i18n("Upload")
+            ColumnLayout {
+                spacing: Kirigami.Units.smallSpacing
+
+                RowLayout {
+                    spacing: Kirigami.Units.smallSpacing
+                    Kirigami.Icon {
+                        source: "arrow-up"
+                        Layout.preferredWidth: Kirigami.Units.iconSizes.small
+                        Layout.preferredHeight: Kirigami.Units.iconSizes.small
+                    }
+                    QQC2.Label {
+                        text: tx.i18n("Upload")
+                    }
+                }
+                Kirigami.Heading {
+                    level: 2
+                    text: root.formatRate(kcm.client.uploadBps)
+                }
             }
-            QQC2.Label {
-                text: root.formatRate(kcm.client.uploadBps)
-                Layout.preferredWidth: Kirigami.Units.gridUnit * 6
-            }
-            QQC2.Label {
-                text: tx.i18n("Download")
-            }
-            QQC2.Label {
-                text: root.formatRate(kcm.client.downloadBps)
-                Layout.preferredWidth: Kirigami.Units.gridUnit * 6
+
+            ColumnLayout {
+                spacing: Kirigami.Units.smallSpacing
+
+                RowLayout {
+                    spacing: Kirigami.Units.smallSpacing
+                    Kirigami.Icon {
+                        source: "arrow-down"
+                        Layout.preferredWidth: Kirigami.Units.iconSizes.small
+                        Layout.preferredHeight: Kirigami.Units.iconSizes.small
+                    }
+                    QQC2.Label {
+                        text: tx.i18n("Download")
+                    }
+                }
+                Kirigami.Heading {
+                    level: 2
+                    text: root.formatRate(kcm.client.downloadBps)
+                }
             }
 
             Item {
                 Layout.fillWidth: true
             }
 
-            QQC2.Label {
-                text: tx.i18n("Exit region")
-            }
-            QQC2.Label {
-                text: kcm.client.exitRegion.length > 0 ? kcm.client.exitRegion : tx.i18n("Not checked yet")
-                opacity: 0.85
-                elide: Text.ElideRight
-                Layout.maximumWidth: Kirigami.Units.gridUnit * 14
-            }
-            QQC2.Button {
-                text: tx.i18n("Check region")
-                enabled: kcm.client.coreRunning && !kcm.client.busy
-                onClicked: kcm.client.refreshExitRegion()
+            ColumnLayout {
+                spacing: Kirigami.Units.smallSpacing
+                Layout.maximumWidth: Kirigami.Units.gridUnit * 16
 
-                QQC2.ToolTip.visible: hovered
-                QQC2.ToolTip.delay: 700
-                QQC2.ToolTip.text: tx.i18n("Look up the exit region through the current proxy.")
+                QQC2.Label {
+                    text: tx.i18n("Exit region")
+                }
+                Kirigami.Heading {
+                    level: 2
+                    text: kcm.client.exitRegion.length > 0 ? kcm.client.exitRegion : tx.i18n("Not checked yet")
+                    wrapMode: Text.WordWrap
+                    Layout.fillWidth: true
+                }
+                QQC2.Button {
+                    text: tx.i18n("Check region")
+                    enabled: kcm.client.coreRunning && !kcm.client.busy
+                    onClicked: kcm.client.refreshExitRegion()
+
+                    QQC2.ToolTip.visible: hovered
+                    QQC2.ToolTip.delay: 700
+                    QQC2.ToolTip.text: tx.i18n("Look up the exit region through the current proxy.")
+                }
             }
         }
 

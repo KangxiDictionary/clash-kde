@@ -20,6 +20,14 @@ pub struct Profile {
     pub url: String,
     #[serde(default)]
     pub updated_unix: i64,
+    #[serde(default)]
+    pub upload: u64,
+    #[serde(default)]
+    pub download: u64,
+    #[serde(default)]
+    pub total: u64,
+    #[serde(default)]
+    pub expire_unix: i64,
 }
 
 pub fn load_profiles(paths: &Paths) -> Vec<Profile> {
@@ -240,5 +248,14 @@ mod tests {
                 .and_then(Value::as_str),
             Some("system")
         );
+    }
+
+    #[test]
+    fn old_profile_index_still_loads() {
+        let text = r#"[{"id":"a","name":"n","url":"https://example","updated_unix":1}]"#;
+        let profiles: Vec<Profile> = serde_json::from_str(text).unwrap();
+        assert_eq!(profiles[0].total, 0);
+        assert_eq!(profiles[0].expire_unix, 0);
+        assert_eq!(profiles[0].upload, 0);
     }
 }

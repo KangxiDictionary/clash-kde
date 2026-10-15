@@ -55,4 +55,8 @@ impl Paths {
     pub fn proxy_backup(&self) -> PathBuf {
         self.config_dir.join("proxy-group.backup")
     }
+
+    pub fn gnome_proxy_backup(&self) -> PathBuf {
+        self.config_dir.join("proxy-gnome.backup")
+    }
 }

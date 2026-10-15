@@ -28,6 +28,7 @@ class ClashClient : public QObject
     Q_PROPERTY(QString activeProfile READ activeProfile NOTIFY statusChanged)
     Q_PROPERTY(QString message READ message NOTIFY statusChanged)
     Q_PROPERTY(bool busy READ busy NOTIFY busyChanged)
+    Q_PROPERTY(bool delayTesting READ delayTesting NOTIFY delayTestingChanged)
     Q_PROPERTY(QVariantList profiles READ profiles NOTIFY profilesChanged)
     Q_PROPERTY(QVariantList groups READ groups NOTIFY proxiesChanged)
     Q_PROPERTY(int draftMixedPort READ draftMixedPort WRITE setDraftMixedPort NOTIFY draftChanged)
@@ -53,6 +54,7 @@ public:
     QString activeProfile() const;
     QString message() const;
     bool busy() const;
+    bool delayTesting() const;
     QVariantList profiles() const;
     QVariantList groups() const;
 
@@ -73,15 +75,24 @@ public:
     Q_INVOKABLE void updateProfile(const QString &id);
     Q_INVOKABLE void selectProxy(const QString &group, const QString &name);
     Q_INVOKABLE void testGroupDelay(const QString &group);
+    Q_INVOKABLE QString profileBody(const QString &id);
+    Q_INVOKABLE void setProfileBody(const QString &id, const QString &body);
+    Q_INVOKABLE void setProfileMeta(const QString &id, const QString &name, const QString &url);
+    Q_INVOKABLE void importProfile(const QString &name, const QString &fileUrl);
     Q_INVOKABLE void refreshExitRegion();
     Q_INVOKABLE void reload();
     bool commitSettings();
+    void revertDraft();
+    void applyDefaultsToDraft();
+    bool draftIsDefaults() const;
 
 Q_SIGNALS:
     void statusChanged();
     void profilesChanged();
     void proxiesChanged();
     void busyChanged();
+    void delayTestingChanged();
+    void delayUpdated(const QString &group, const QString &name, qlonglong delayMs);
     void draftChanged();
     void errorOccurred(const QString &message);
 
@@ -89,12 +100,14 @@ private Q_SLOTS:
     void refreshStatus();
     void refreshProfiles();
     void refreshProxies();
+    void onDelayUpdated(const QString &group, const QString &name, qlonglong delayMs);
 
 private:
     void setBusy(bool busy);
+    void setDelayTesting(bool testing);
     void applyStatus(const QVariantMap &status);
     void reportError(const QString &message);
-    void asyncCall(const QString &method, const QVariantList &args, bool refreshProfilesAfter, bool refreshProxiesAfter);
+    void asyncCall(const QString &method, const QVariantList &args, bool refreshProfilesAfter, bool refreshProxiesAfter, bool markBusy = true);
 
     QDBusInterface *m_iface = nullptr;
     bool m_coreDesired = false;
@@ -113,6 +126,7 @@ private:
     QString m_activeProfile;
     QString m_message;
     bool m_busy = false;
+    bool m_delayTesting = false;
     bool m_draftDirty = false;
     int m_draftMixedPort = 7890;
     int m_draftControllerPort = 9090;

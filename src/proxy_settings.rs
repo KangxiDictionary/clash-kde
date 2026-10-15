@@ -13,9 +13,11 @@ pub fn apply_if_needed(paths: &Paths, port: u16) -> std::io::Result<()> {
             None => "absent\n".to_string(),
         };
         crate::state::write_private(&paths.proxy_backup(), backup.as_bytes())?;
+        backup_gnome(paths)?;
         fs::write(&paths.proxy_flag(), b"1")?;
     }
     write_manual_proxy(&paths.kioslaverc, port)?;
+    apply_gnome(port);
     notify_kio();
     Ok(())
 }
@@ -38,20 +40,24 @@ pub fn restore_if_applied(paths: &Paths) -> std::io::Result<()> {
     fs::write(&paths.kioslaverc, restored)?;
     let _ = fs::remove_file(paths.proxy_flag());
     let _ = fs::remove_file(paths.proxy_backup());
+    restore_gnome(paths);
     notify_kio();
     Ok(())
 }
 
 fn write_manual_proxy(path: &Path, port: u16) -> std::io::Result<()> {
     let original = fs::read_to_string(path).unwrap_or_default();
+    // KDE stores the port after a space. A colon is not the value kwriteconfig6 writes.
     let body = format!(
         "\
 ProxyType=1
-httpProxy=http://127.0.0.1:{port}
-httpsProxy=http://127.0.0.1:{port}
-ftpProxy=http://127.0.0.1:{port}
-socksProxy=socks://127.0.0.1:{port}
+httpProxy=http://127.0.0.1 {port}
+httpsProxy=http://127.0.0.1 {port}
+ftpProxy=http://127.0.0.1 {port}
+socksProxy=socks://127.0.0.1 {port}
 NoProxyFor=localhost,127.0.0.1,::1
+Authmode=0
+ReversedException=false
 "
     );
     let updated = replace_group(&original, "Proxy Settings", Some(&body));
@@ -141,6 +147,105 @@ fn group_name(line: &str) -> Option<&str> {
     if name.is_empty() { None } else { Some(name) }
 }
 
+const GNOME_KEYS: &[(&str, &str)] = &[
+    ("org.gnome.system.proxy", "mode"),
+    ("org.gnome.system.proxy", "ignore-hosts"),
+    ("org.gnome.system.proxy.http", "enabled"),
+    ("org.gnome.system.proxy.http", "host"),
+    ("org.gnome.system.proxy.http", "port"),
+    ("org.gnome.system.proxy.https", "host"),
+    ("org.gnome.system.proxy.https", "port"),
+    ("org.gnome.system.proxy.socks", "host"),
+    ("org.gnome.system.proxy.socks", "port"),
+    ("org.gnome.system.proxy.ftp", "host"),
+    ("org.gnome.system.proxy.ftp", "port"),
+];
+
+fn backup_gnome(paths: &Paths) -> std::io::Result<()> {
+    if cfg!(test) {
+        return Ok(());
+    }
+    let mut lines = Vec::new();
+    for (schema, key) in GNOME_KEYS {
+        if let Some(value) = gsettings_get(schema, key) {
+            lines.push(format!("{schema}\t{key}\t{value}"));
+        }
+    }
+    if lines.is_empty() {
+        return Ok(());
+    }
+    crate::state::write_private(&paths.gnome_proxy_backup(), lines.join("\n").as_bytes())
+}
+
+fn apply_gnome(port: u16) {
+    if cfg!(test) || gsettings_get("org.gnome.system.proxy", "mode").is_none() {
+        return;
+    }
+    let address = format!("'127.0.0.1'");
+    let port = port.to_string();
+    gsettings_set("org.gnome.system.proxy", "mode", "'manual'");
+    gsettings_set("org.gnome.system.proxy.http", "enabled", "true");
+    gsettings_set("org.gnome.system.proxy.http", "host", &address);
+    gsettings_set("org.gnome.system.proxy.http", "port", &port);
+    gsettings_set("org.gnome.system.proxy.https", "host", &address);
+    gsettings_set("org.gnome.system.proxy.https", "port", &port);
+    gsettings_set("org.gnome.system.proxy.socks", "host", &address);
+    gsettings_set("org.gnome.system.proxy.socks", "port", &port);
+    gsettings_set("org.gnome.system.proxy.ftp", "host", &address);
+    gsettings_set("org.gnome.system.proxy.ftp", "port", &port);
+    if gsettings_get("org.gnome.system.proxy", "ignore-hosts")
+        .is_none_or(|value| value == "@as []" || value == "[]")
+    {
+        gsettings_set(
+            "org.gnome.system.proxy",
+            "ignore-hosts",
+            "['localhost', '127.0.0.1', '::1']",
+        );
+    }
+}
+
+fn restore_gnome(paths: &Paths) {
+    if cfg!(test) {
+        return;
+    }
+    let Ok(text) = fs::read_to_string(paths.gnome_proxy_backup()) else {
+        gsettings_set("org.gnome.system.proxy", "mode", "'none'");
+        return;
+    };
+    for line in text.lines() {
+        let mut parts = line.splitn(3, '\t');
+        let Some(schema) = parts.next() else { continue };
+        let Some(key) = parts.next() else { continue };
+        let Some(value) = parts.next() else { continue };
+        gsettings_set(schema, key, value);
+    }
+    let _ = fs::remove_file(paths.gnome_proxy_backup());
+}
+
+fn gsettings_get(schema: &str, key: &str) -> Option<String> {
+    let output = Command::new("gsettings")
+        .args(["get", schema, key])
+        .output()
+        .ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    let text = String::from_utf8(output.stdout).ok()?;
+    let text = text.trim();
+    if text.is_empty() {
+        None
+    } else {
+        Some(text.to_string())
+    }
+}
+
+fn gsettings_set(schema: &str, key: &str, value: &str) -> bool {
+    Command::new("gsettings")
+        .args(["set", schema, key, value])
+        .status()
+        .is_ok_and(|status| status.success())
+}
+
 fn notify_kio() {
     let _ = Command::new("dbus-send")
         .args([
@@ -180,7 +285,7 @@ Bar=2
         apply_if_needed(&paths, 7890).unwrap();
         let applied = fs::read_to_string(&paths.kioslaverc).unwrap();
         assert!(applied.contains("ProxyType=1"));
-        assert!(applied.contains("http://127.0.0.1:7890"));
+        assert!(applied.contains("http://127.0.0.1 7890"));
         assert!(applied.contains("[Other]\nFoo=1\n"));
         assert!(applied.contains("[Later]\nBar=2\n"));
         assert!(!applied.contains("http://old:1"));
@@ -222,7 +327,7 @@ Bar=2
         apply_if_needed(&paths, 7890).unwrap();
         apply_if_needed(&paths, 7891).unwrap();
         let applied = fs::read_to_string(&paths.kioslaverc).unwrap();
-        assert!(applied.contains("127.0.0.1:7891"));
+        assert!(applied.contains("127.0.0.1 7891"));
         restore_if_applied(&paths).unwrap();
         assert_eq!(
             fs::read_to_string(&paths.kioslaverc).unwrap(),

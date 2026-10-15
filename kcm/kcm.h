@@ -15,7 +15,9 @@ class ClashKcm : public KQuickConfigModule
 public:
     ClashKcm(QObject *parent, const KPluginMetaData &data);
     ClashClient *client() const;
+    void load() override;
     void save() override;
+    void defaults() override;
 
 private:
     ClashClient *m_client = nullptr;

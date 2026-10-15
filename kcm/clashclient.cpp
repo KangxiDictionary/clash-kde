@@ -12,6 +12,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QTimer>
+#include <QUrl>
 
 namespace {
 QVariantList jsonArray(const QString &text)
@@ -52,6 +53,12 @@ ClashClient::ClashClient(QObject *parent)
                  QStringLiteral("ProxiesChanged"),
                  this,
                  SLOT(refreshProxies()));
+    bus.connect(QStringLiteral("org.kde.clashkde"),
+                QStringLiteral("/org/kde/clashkde"),
+                QStringLiteral("org.kde.clashkde.Manager"),
+                QStringLiteral("DelayUpdated"),
+                this,
+                SLOT(onDelayUpdated(QString,QString,qlonglong)));
 
     auto *timer = new QTimer(this);
     timer->setInterval(1000);
@@ -79,6 +86,7 @@ QString ClashClient::exitRegion() const { return m_exitRegion; }
 QString ClashClient::activeProfile() const { return m_activeProfile; }
 QString ClashClient::message() const { return m_message; }
 bool ClashClient::busy() const { return m_busy; }
+bool ClashClient::delayTesting() const { return m_delayTesting; }
 QVariantList ClashClient::profiles() const { return m_profiles; }
 QVariantList ClashClient::groups() const { return m_groups; }
 int ClashClient::draftMixedPort() const { return m_draftMixedPort; }
@@ -157,12 +165,48 @@ void ClashClient::updateProfile(const QString &id)
 
 void ClashClient::selectProxy(const QString &group, const QString &name)
 {
-    asyncCall(QStringLiteral("SelectProxy"), {group, name}, false, true);
+    asyncCall(QStringLiteral("SelectProxy"), {group, name}, false, true, false);
 }
 
 void ClashClient::testGroupDelay(const QString &group)
 {
-    asyncCall(QStringLiteral("TestGroupDelay"), {group}, false, true);
+    setDelayTesting(true);
+    auto *watcher = new QDBusPendingCallWatcher(m_iface->asyncCall(QStringLiteral("TestGroupDelay"), group), this);
+    connect(watcher, &QDBusPendingCallWatcher::finished, this, [this](QDBusPendingCallWatcher *call) {
+        call->deleteLater();
+        setDelayTesting(false);
+        const QDBusPendingReply<> reply = *call;
+        if (!reply.isValid()) {
+            reportError(reply.error().message());
+        }
+    });
+}
+
+QString ClashClient::profileBody(const QString &id)
+{
+    const QDBusReply<QString> reply = m_iface->call(QStringLiteral("GetProfileBody"), id);
+    if (!reply.isValid()) {
+        reportError(reply.error().message());
+        return {};
+    }
+    return reply.value();
+}
+
+void ClashClient::setProfileBody(const QString &id, const QString &body)
+{
+    asyncCall(QStringLiteral("SetProfileBody"), {id, body}, false, true);
+}
+
+void ClashClient::setProfileMeta(const QString &id, const QString &name, const QString &url)
+{
+    asyncCall(QStringLiteral("SetProfileMeta"), {id, name, url}, true, false);
+}
+
+void ClashClient::importProfile(const QString &name, const QString &fileUrl)
+{
+    const QUrl url(fileUrl);
+    const QString path = url.isLocalFile() ? url.toLocalFile() : fileUrl;
+    asyncCall(QStringLiteral("ImportProfile"), {name, path}, true, false);
 }
 
 void ClashClient::refreshExitRegion()
@@ -175,6 +219,29 @@ void ClashClient::reload()
     refreshStatus();
     refreshProfiles();
     refreshProxies();
+}
+
+void ClashClient::revertDraft()
+{
+    m_draftDirty = false;
+    m_draftMixedPort = m_mixedPort;
+    m_draftControllerPort = m_controllerPort;
+    m_draftMihomoPath = m_mihomoPath;
+    Q_EMIT draftChanged();
+}
+
+void ClashClient::applyDefaultsToDraft()
+{
+    m_draftDirty = true;
+    m_draftMixedPort = 7890;
+    m_draftControllerPort = 9090;
+    m_draftMihomoPath = QStringLiteral("mihomo");
+    Q_EMIT draftChanged();
+}
+
+bool ClashClient::draftIsDefaults() const
+{
+    return m_draftMixedPort == 7890 && m_draftControllerPort == 9090 && m_draftMihomoPath == QStringLiteral("mihomo");
 }
 
 bool ClashClient::commitSettings()
@@ -237,6 +304,20 @@ void ClashClient::setBusy(bool busy)
     Q_EMIT busyChanged();
 }
 
+void ClashClient::setDelayTesting(bool testing)
+{
+    if (m_delayTesting == testing) {
+        return;
+    }
+    m_delayTesting = testing;
+    Q_EMIT delayTestingChanged();
+}
+
+void ClashClient::onDelayUpdated(const QString &group, const QString &name, qlonglong delayMs)
+{
+    Q_EMIT delayUpdated(group, name, delayMs);
+}
+
 void ClashClient::applyStatus(const QVariantMap &status)
 {
     m_coreDesired = status.value(QStringLiteral("core_desired")).toBool();
@@ -273,13 +354,17 @@ void ClashClient::reportError(const QString &message)
     Q_EMIT errorOccurred(message);
 }
 
-void ClashClient::asyncCall(const QString &method, const QVariantList &args, bool refreshProfilesAfter, bool refreshProxiesAfter)
+void ClashClient::asyncCall(const QString &method, const QVariantList &args, bool refreshProfilesAfter, bool refreshProxiesAfter, bool markBusy)
 {
-    setBusy(true);
+    if (markBusy) {
+        setBusy(true);
+    }
     auto *watcher = new QDBusPendingCallWatcher(m_iface->asyncCallWithArgumentList(method, args), this);
-    connect(watcher, &QDBusPendingCallWatcher::finished, this, [this, refreshProfilesAfter, refreshProxiesAfter](QDBusPendingCallWatcher *call) {
+    connect(watcher, &QDBusPendingCallWatcher::finished, this, [this, refreshProfilesAfter, refreshProxiesAfter, markBusy](QDBusPendingCallWatcher *call) {
         call->deleteLater();
-        setBusy(false);
+        if (markBusy) {
+            setBusy(false);
+        }
         QDBusPendingReply<> reply = *call;
         if (!reply.isValid()) {
             reportError(reply.error().message());

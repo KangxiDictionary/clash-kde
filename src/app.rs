@@ -14,11 +14,16 @@ use crate::profile::{self, Profile};
 use crate::proxy_settings;
 use crate::state::{self, Settings};
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub enum Event {
     Status,
     Profiles,
     Proxies,
+    Delay {
+        group: String,
+        name: String,
+        delay_ms: i64,
+    },
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -56,6 +61,7 @@ pub struct App {
     paths: Paths,
     inner: Mutex<Inner>,
     generation: AtomicU64,
+    region_epoch: AtomicU64,
     events: broadcast::Sender<Event>,
     exit_tx: mpsc::UnboundedSender<ExitNotice>,
     exit_rx: Mutex<Option<mpsc::UnboundedReceiver<ExitNotice>>>,
@@ -89,11 +95,12 @@ impl App {
         if state::ensure_secret(&mut settings) {
             settings.save(&paths).map_err(|error| error.to_string())?;
         }
-        let (events, _) = broadcast::channel(32);
+        let (events, _) = broadcast::channel(1024);
         let (exit_tx, exit_rx) = mpsc::unbounded_channel();
         Ok(Arc::new(Self {
             paths: paths.clone(),
             generation: AtomicU64::new(1),
+            region_epoch: AtomicU64::new(0),
             events,
             exit_tx,
             exit_rx: Mutex::new(Some(exit_rx)),
@@ -268,8 +275,8 @@ impl App {
         if !(url.starts_with("http://") || url.starts_with("https://")) {
             return Err("订阅地址需要以 http:// 或 https:// 开头".to_string());
         }
-        let body = controller::fetch_subscription(&url).await?;
-        let text = profile::subscription_yaml(&body)?;
+        let fetched = controller::fetch_subscription(&url).await?;
+        let text = profile::subscription_yaml(&fetched.body)?;
         let name = {
             let trimmed = name.trim();
             if trimmed.is_empty() {
@@ -286,6 +293,10 @@ impl App {
             name,
             url,
             updated_unix: profile::now_unix(),
+            upload: fetched.usage.upload,
+            download: fetched.usage.download,
+            total: fetched.usage.total,
+            expire_unix: fetched.usage.expire_unix,
         });
         profile::save_profiles(&self.paths, &profiles).map_err(|error| error.to_string())?;
         let mut inner = self.inner.lock().await;
@@ -356,12 +367,16 @@ impl App {
         if profile.url.is_empty() {
             return Err("这个配置没有订阅地址".to_string());
         }
-        let body = controller::fetch_subscription(&profile.url).await?;
-        let text = profile::subscription_yaml(&body)?;
+        let fetched = controller::fetch_subscription(&profile.url).await?;
+        let text = profile::subscription_yaml(&fetched.body)?;
         profile::write_profile_body(&self.paths, id, &text).map_err(|error| error.to_string())?;
         let mut profiles = profile::load_profiles(&self.paths);
         if let Some(profile) = profiles.iter_mut().find(|profile| profile.id == id) {
             profile.updated_unix = profile::now_unix();
+            profile.upload = fetched.usage.upload;
+            profile.download = fetched.usage.download;
+            profile.total = fetched.usage.total;
+            profile.expire_unix = fetched.usage.expire_unix;
         }
         profile::save_profiles(&self.paths, &profiles).map_err(|error| error.to_string())?;
         let active = {
@@ -411,7 +426,7 @@ impl App {
         Ok(serde_json::to_string(&groups).expect("proxies json"))
     }
 
-    pub async fn select_proxy(&self, group: &str, name: &str) -> Result<(), String> {
+    pub async fn select_proxy(self: &Arc<Self>, group: &str, name: &str) -> Result<(), String> {
         let (running, port, secret) = self.controller_endpoint().await;
         if !running {
             return Err("内核没有在运行".to_string());
@@ -432,6 +447,7 @@ impl App {
         drop(inner);
         self.emit(Event::Proxies);
         self.emit(Event::Status);
+        self.schedule_region_lookup();
         Ok(())
     }
 
@@ -446,7 +462,7 @@ impl App {
             return Err("找不到这个策略组".to_string());
         };
         let semaphore = Arc::new(tokio::sync::Semaphore::new(8));
-        let mut tasks = Vec::new();
+        let mut tasks = tokio::task::JoinSet::new();
         for node in found.nodes {
             if matches!(
                 node.name.as_str(),
@@ -457,19 +473,121 @@ impl App {
             let controller = controller.clone();
             let permit = Arc::clone(&semaphore);
             let name = node.name;
-            tasks.push(tokio::spawn(async move {
+            tasks.spawn(async move {
                 let _permit = permit.acquire_owned().await;
-                controller.test_delay(&name).await
-            }));
+                let delay_ms = controller.test_delay(&name).await;
+                (name, delay_ms)
+            });
         }
-        for task in tasks {
-            let _ = task.await;
+        while let Some(joined) = tasks.join_next().await {
+            if let Ok((name, delay_ms)) = joined {
+                self.emit(Event::Delay {
+                    group: group.to_string(),
+                    name,
+                    delay_ms,
+                });
+            }
         }
-        self.emit(Event::Proxies);
         Ok(())
     }
 
-    pub async fn refresh_exit_region(&self) -> Result<String, String> {
+    pub async fn profile_body(&self, id: &str) -> Result<String, String> {
+        if !profile::load_profiles(&self.paths)
+            .iter()
+            .any(|profile| profile.id == id)
+        {
+            return Err("找不到这个配置".to_string());
+        }
+        profile::read_profile_body(&self.paths, id)
+            .map_err(|error| format!("无法读取配置: {error}"))
+    }
+
+    pub async fn set_profile_body(self: &Arc<Self>, id: &str, body: String) -> Result<(), String> {
+        if !profile::load_profiles(&self.paths)
+            .iter()
+            .any(|profile| profile.id == id)
+        {
+            return Err("找不到这个配置".to_string());
+        }
+        let text = profile::subscription_yaml(&body)?;
+        profile::write_profile_body(&self.paths, id, &text).map_err(|error| error.to_string())?;
+        self.reload_active_if_running(id).await
+    }
+
+    pub async fn set_profile_meta(
+        &self,
+        id: &str,
+        name: String,
+        url: String,
+    ) -> Result<(), String> {
+        let name = name.trim().to_string();
+        let url = url.trim().to_string();
+        if name.is_empty() {
+            return Err("名称不能为空".to_string());
+        }
+        if !url.is_empty() && !(url.starts_with("http://") || url.starts_with("https://")) {
+            return Err("订阅地址需要以 http:// 或 https:// 开头".to_string());
+        }
+        let mut profiles = profile::load_profiles(&self.paths);
+        let Some(profile) = profiles.iter_mut().find(|profile| profile.id == id) else {
+            return Err("找不到这个配置".to_string());
+        };
+        profile.name = name;
+        profile.url = url;
+        profile::save_profiles(&self.paths, &profiles).map_err(|error| error.to_string())?;
+        self.inner.lock().await.message.clear();
+        self.emit(Event::Profiles);
+        self.emit(Event::Status);
+        Ok(())
+    }
+
+    pub async fn import_profile(&self, name: String, path: String) -> Result<String, String> {
+        let raw =
+            std::fs::read_to_string(&path).map_err(|error| format!("无法读取配置: {error}"))?;
+        let text = profile::subscription_yaml(&raw)?;
+        let name = {
+            let trimmed = name.trim();
+            if !trimmed.is_empty() {
+                trimmed.to_string()
+            } else {
+                std::path::Path::new(&path)
+                    .file_stem()
+                    .and_then(|stem| stem.to_str())
+                    .filter(|stem| !stem.is_empty())
+                    .unwrap_or("导入的配置")
+                    .to_string()
+            }
+        };
+        let id = uuid::Uuid::new_v4().to_string();
+        profile::write_profile_body(&self.paths, &id, &text).map_err(|error| error.to_string())?;
+        let mut profiles = profile::load_profiles(&self.paths);
+        profiles.push(Profile {
+            id: id.clone(),
+            name,
+            url: String::new(),
+            updated_unix: profile::now_unix(),
+            upload: 0,
+            download: 0,
+            total: 0,
+            expire_unix: 0,
+        });
+        profile::save_profiles(&self.paths, &profiles).map_err(|error| error.to_string())?;
+        let mut inner = self.inner.lock().await;
+        if inner.settings.active_profile.is_empty() {
+            inner.settings.active_profile = id.clone();
+            inner
+                .settings
+                .save(&self.paths)
+                .map_err(|error| error.to_string())?;
+        }
+        inner.message.clear();
+        drop(inner);
+        self.emit(Event::Profiles);
+        self.emit(Event::Status);
+        Ok(id)
+    }
+
+    pub async fn refresh_exit_region(self: &Arc<Self>) -> Result<String, String> {
         let (running, port) = {
             let inner = self.inner.lock().await;
             (inner.core_running, inner.settings.mixed_port)
@@ -477,19 +595,79 @@ impl App {
         if !running {
             return Err("内核没有在运行".to_string());
         }
+        let epoch = self.region_epoch.fetch_add(1, Ordering::Relaxed) + 1;
         match controller::lookup_exit_region(port).await {
             Ok(region) => {
-                self.inner.lock().await.exit_region = region.clone();
-                self.inner.lock().await.message.clear();
-                self.emit(Event::Status);
+                if self.region_epoch.load(Ordering::Relaxed) == epoch {
+                    let mut inner = self.inner.lock().await;
+                    inner.exit_region = region.clone();
+                    inner.message.clear();
+                    drop(inner);
+                    self.emit(Event::Status);
+                }
                 Ok(region)
             }
             Err(error) => {
-                self.set_message(error.clone()).await;
-                self.emit(Event::Status);
+                if self.region_epoch.load(Ordering::Relaxed) == epoch {
+                    self.set_message(error.clone()).await;
+                    self.emit(Event::Status);
+                }
                 Err(error)
             }
         }
+    }
+
+    fn schedule_region_lookup(self: &Arc<Self>) {
+        let epoch = self.region_epoch.fetch_add(1, Ordering::Relaxed) + 1;
+        let app = Arc::clone(self);
+        tokio::spawn(async move {
+            let (running, port) = {
+                let mut inner = app.inner.lock().await;
+                if !inner.core_running {
+                    return;
+                }
+                inner.exit_region = "正在检测".to_string();
+                let port = inner.settings.mixed_port;
+                drop(inner);
+                app.emit(Event::Status);
+                (true, port)
+            };
+            if !running {
+                return;
+            }
+            let result = controller::lookup_exit_region(port).await;
+            if app.region_epoch.load(Ordering::Relaxed) != epoch {
+                return;
+            }
+            let mut inner = app.inner.lock().await;
+            match result {
+                Ok(region) => {
+                    inner.exit_region = region;
+                    inner.message.clear();
+                }
+                Err(error) => {
+                    inner.exit_region.clear();
+                    inner.message = error;
+                }
+            }
+            drop(inner);
+            app.emit(Event::Status);
+        });
+    }
+
+    async fn reload_active_if_running(self: &Arc<Self>, id: &str) -> Result<(), String> {
+        let active = {
+            let mut inner = self.inner.lock().await;
+            inner.message.clear();
+            inner.settings.active_profile == id && inner.core_running
+        };
+        self.emit(Event::Profiles);
+        if active {
+            self.spawn_core().await?;
+        } else {
+            self.emit(Event::Status);
+        }
+        Ok(())
     }
 
     pub async fn status_json(&self) -> String {
@@ -724,8 +902,12 @@ impl App {
                 if !running {
                     break;
                 }
+                let epoch = app.region_epoch.load(Ordering::Relaxed);
                 if let Ok(region) = controller::lookup_exit_region(port).await {
-                    app.inner.lock().await.exit_region = region;
+                    if app.region_epoch.load(Ordering::Relaxed) == epoch {
+                        app.inner.lock().await.exit_region = region;
+                        app.emit(Event::Status);
+                    }
                 }
                 tokio::time::sleep(Duration::from_secs(60)).await;
             }

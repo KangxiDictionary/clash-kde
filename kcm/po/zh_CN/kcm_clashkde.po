@@ -193,6 +193,9 @@ msgstr "按当前配置重新启动。"
 msgid "While the core is running, KDE applications use it. Turning the core off withdraws it."
 msgstr "内核运行时，KDE 应用程序使用它。内核停止后会撤回。"
 
+msgid "While the core is running, KDE and browsers that follow the system proxy use it. Turning the core off withdraws it."
+msgstr "内核运行时，KDE 和遵循系统代理的浏览器会使用它。内核停止后会撤回。"
+
 msgid "Rule follows the profile. Global sends everything through the proxy. Direct connects directly."
 msgstr "规则按配置分流。全局全部走代理。直连全部直接连接。"
 
@@ -213,3 +216,63 @@ msgstr "系统里的 mihomo 程序。"
 
 msgid "Merged on top of the subscription. The listen address is still set here."
 msgstr "合并到订阅之上。监听地址仍由这里决定。"
+
+msgid "Profile order"
+msgstr "配置顺序"
+
+msgid "Delay"
+msgstr "延迟"
+
+msgid "Show unreachable"
+msgstr "显示不可达"
+
+msgid "Sort and filter"
+msgstr "排序和筛选"
+
+msgid "Import"
+msgstr "导入"
+
+msgid "Import configuration"
+msgstr "导入配置"
+
+msgid "Edit details"
+msgstr "编辑资料"
+
+msgid "Edit configuration"
+msgstr "编辑配置"
+
+msgid "Updating from the subscription replaces this text."
+msgstr "从订阅更新会覆盖这里的内容。"
+
+msgid "Remaining: %1"
+msgstr "剩余 %1"
+
+msgid "Expires: %1"
+msgstr "到期 %1"
+
+msgid "%1 B"
+msgstr "%1 B"
+
+msgid "%1 KB"
+msgstr "%1 KB"
+
+msgid "%1 MB"
+msgstr "%1 MB"
+
+msgid "%1 GB"
+msgstr "%1 GB"
+
+msgid "More actions"
+msgstr "更多操作"
+
+msgid "About"
+msgstr "关于"
+
+msgid "Version"
+msgstr "版本"
+
+msgid "License"
+msgstr "许可证"
+
+msgid "Website"
+msgstr "网站"

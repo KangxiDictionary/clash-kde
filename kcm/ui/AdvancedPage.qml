@@ -4,6 +4,15 @@ import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
 
 Item {
+    id: root
+
+    function noteDraftEdited() {
+        kcm.needsSave = true;
+        kcm.representsDefaults = kcm.client.draftMixedPort === 7890
+            && kcm.client.draftControllerPort === 9090
+            && kcm.client.draftMihomoPath === "mihomo";
+    }
+
     Tx {
         id: tx
     }
@@ -33,7 +42,7 @@ Item {
                 value: kcm.client.draftMixedPort
                 onValueModified: {
                     kcm.client.draftMixedPort = value;
-                    kcm.needsSave = true;
+                    root.noteDraftEdited();
                 }
 
                 QQC2.ToolTip.visible: hovered
@@ -49,7 +58,7 @@ Item {
                 value: kcm.client.draftControllerPort
                 onValueModified: {
                     kcm.client.draftControllerPort = value;
-                    kcm.needsSave = true;
+                    root.noteDraftEdited();
                 }
 
                 QQC2.ToolTip.visible: hovered
@@ -63,7 +72,7 @@ Item {
                 implicitWidth: Kirigami.Units.gridUnit * 16
                 onTextEdited: {
                     kcm.client.draftMihomoPath = text;
-                    kcm.needsSave = true;
+                    root.noteDraftEdited();
                 }
 
                 QQC2.ToolTip.visible: hovered
@@ -83,6 +92,43 @@ Item {
                 QQC2.ToolTip.visible: overrideHover.hovered
                 QQC2.ToolTip.delay: 700
                 QQC2.ToolTip.text: tx.i18n("Merged on top of the subscription. The listen address is still set here.")
+            }
+        }
+
+        Kirigami.Heading {
+            text: tx.i18n("About")
+            level: 3
+            Layout.fillWidth: true
+            Layout.topMargin: Kirigami.Units.largeSpacing
+        }
+
+        Kirigami.Separator {
+            Layout.fillWidth: true
+        }
+
+        Kirigami.FormLayout {
+            Layout.fillWidth: true
+
+            QQC2.Label {
+                Kirigami.FormData.label: tx.i18n("Name")
+                text: tx.i18n("Mihomo")
+            }
+
+            QQC2.Label {
+                Kirigami.FormData.label: tx.i18n("Version")
+                text: "0.1.0"
+            }
+
+            QQC2.Label {
+                Kirigami.FormData.label: tx.i18n("License")
+                text: "GNU GPL v3"
+            }
+
+            QQC2.Label {
+                Kirigami.FormData.label: tx.i18n("Website")
+                text: "<a href=\"https://github.com/KangxiDictionary/clash-kde\">github.com/KangxiDictionary/clash-kde</a>"
+                textFormat: Text.RichText
+                onLinkActivated: link => Qt.openUrlExternally(link)
             }
         }
 

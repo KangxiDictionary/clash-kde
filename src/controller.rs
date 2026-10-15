@@ -212,7 +212,40 @@ pub fn path_segment(name: &str) -> String {
     out
 }
 
-pub async fn fetch_subscription(url: &str) -> Result<String, String> {
+#[derive(Clone, Debug, Default)]
+pub struct SubscriptionUsage {
+    pub upload: u64,
+    pub download: u64,
+    pub total: u64,
+    pub expire_unix: i64,
+}
+
+pub struct SubscriptionDocument {
+    pub body: String,
+    pub usage: SubscriptionUsage,
+}
+
+pub fn parse_subscription_userinfo(header: &str) -> SubscriptionUsage {
+    let mut usage = SubscriptionUsage::default();
+    for part in header.split(';') {
+        let mut pair = part.splitn(2, '=');
+        let key = pair.next().unwrap_or("").trim();
+        let value = pair.next().unwrap_or("").trim();
+        let Ok(number) = value.parse::<u64>() else {
+            continue;
+        };
+        match key {
+            "upload" => usage.upload = number,
+            "download" => usage.download = number,
+            "total" => usage.total = number,
+            "expire" => usage.expire_unix = number as i64,
+            _ => {}
+        }
+    }
+    usage
+}
+
+pub async fn fetch_subscription(url: &str) -> Result<SubscriptionDocument, String> {
     let client = Client::builder()
         .timeout(Duration::from_secs(30))
         .user_agent("clash.meta")
@@ -227,10 +260,56 @@ pub async fn fetch_subscription(url: &str) -> Result<String, String> {
     if !response.status().is_success() {
         return Err(format!("无法下载订阅: HTTP {}", response.status()));
     }
-    response
+    let usage = response
+        .headers()
+        .get("subscription-userinfo")
+        .and_then(|value| value.to_str().ok())
+        .map(parse_subscription_userinfo)
+        .unwrap_or_default();
+    let body = response
         .text()
         .await
-        .map_err(|error| format!("无法读取订阅: {error}"))
+        .map_err(|error| format!("无法读取订阅: {error}"))?;
+    Ok(SubscriptionDocument { body, usage })
+}
+
+const REGION_URLS: [&str; 4] = [
+    "https://ipwho.is/",
+    "https://api.ip.sb/geoip",
+    "https://ipapi.co/json/",
+    "https://ipinfo.io/json",
+];
+
+pub fn describe_region(body: &Value) -> Option<String> {
+    if body.get("success").and_then(Value::as_bool) == Some(false) {
+        return None;
+    }
+    let country = first_text(body, &["country_name", "country"]);
+    let city = first_text(body, &["city"]);
+    let ip = first_text(body, &["ip", "query"]);
+    let place = match (country.is_empty(), city.is_empty()) {
+        (true, true) => String::new(),
+        (false, true) => country,
+        (true, false) => city,
+        (false, false) => format!("{country} · {city}"),
+    };
+    if place.is_empty() && ip.is_empty() {
+        None
+    } else if ip.is_empty() {
+        Some(place)
+    } else if place.is_empty() {
+        Some(ip)
+    } else {
+        Some(format!("{place} ({ip})"))
+    }
+}
+
+fn first_text(body: &Value, keys: &[&str]) -> String {
+    keys.iter()
+        .find_map(|key| body.get(*key).and_then(Value::as_str))
+        .unwrap_or("")
+        .trim()
+        .to_string()
 }
 
 pub async fn lookup_exit_region(port: u16) -> Result<String, String> {
@@ -239,10 +318,33 @@ pub async fn lookup_exit_region(port: u16) -> Result<String, String> {
     let client = Client::builder()
         .proxy(proxy)
         .timeout(Duration::from_secs(8))
+        .user_agent(
+            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+        )
         .build()
         .map_err(|error| error.to_string())?;
+    let mut tasks = tokio::task::JoinSet::new();
+    for url in REGION_URLS {
+        let client = client.clone();
+        tasks.spawn(async move { fetch_region(&client, url).await });
+    }
+    let mut last_error = "出口地区检测失败".to_string();
+    while let Some(joined) = tasks.join_next().await {
+        match joined {
+            Ok(Ok(region)) => {
+                tasks.abort_all();
+                return Ok(region);
+            }
+            Ok(Err(error)) => last_error = error,
+            Err(_) => {}
+        }
+    }
+    Err(last_error)
+}
+
+async fn fetch_region(client: &Client, url: &str) -> Result<String, String> {
     let response = client
-        .get("https://ipwho.is/")
+        .get(url)
         .send()
         .await
         .map_err(|error| format!("出口地区检测失败: {error}"))?;
@@ -253,28 +355,7 @@ pub async fn lookup_exit_region(port: u16) -> Result<String, String> {
         .json()
         .await
         .map_err(|error| format!("出口地区检测失败: {error}"))?;
-    if body.get("success").and_then(Value::as_bool) == Some(false) {
-        return Err("出口地区检测失败".to_string());
-    }
-    let country = body.get("country").and_then(Value::as_str).unwrap_or("");
-    let city = body.get("city").and_then(Value::as_str).unwrap_or("");
-    let ip = body.get("ip").and_then(Value::as_str).unwrap_or("");
-    let place = match (country.is_empty(), city.is_empty()) {
-        (true, true) => String::new(),
-        (false, true) => country.to_string(),
-        (true, false) => city.to_string(),
-        (false, false) => format!("{country} · {city}"),
-    };
-    if place.is_empty() && ip.is_empty() {
-        return Err("出口地区检测没有返回结果".to_string());
-    }
-    if ip.is_empty() {
-        Ok(place)
-    } else if place.is_empty() {
-        Ok(ip.to_string())
-    } else {
-        Ok(format!("{place} ({ip})"))
-    }
+    describe_region(&body).ok_or_else(|| "出口地区检测没有返回结果".to_string())
 }
 
 #[cfg(test)]
@@ -302,5 +383,31 @@ mod tests {
     fn path_segment_encodes_spaces_and_unicode() {
         assert_eq!(path_segment("a b"), "a%20b");
         assert_eq!(path_segment("香港"), "%E9%A6%99%E6%B8%AF");
+    }
+
+    #[test]
+    fn parses_subscription_userinfo() {
+        let usage =
+            parse_subscription_userinfo("upload=10; download=20; total=100; expire=1700000000");
+        assert_eq!(usage.upload, 10);
+        assert_eq!(usage.download, 20);
+        assert_eq!(usage.total, 100);
+        assert_eq!(usage.expire_unix, 1_700_000_000);
+    }
+
+    #[test]
+    fn describes_region_from_common_services() {
+        let ipwho = serde_json::json!({"success": true, "country": "Japan", "city": "Tokyo", "ip": "1.1.1.1"});
+        assert_eq!(
+            describe_region(&ipwho).as_deref(),
+            Some("Japan · Tokyo (1.1.1.1)")
+        );
+        let ipinfo = serde_json::json!({"ip": "8.8.8.8", "city": "Tokyo", "country": "JP"});
+        assert_eq!(
+            describe_region(&ipinfo).as_deref(),
+            Some("JP · Tokyo (8.8.8.8)")
+        );
+        let failed = serde_json::json!({"success": false});
+        assert!(describe_region(&failed).is_none());
     }
 }
