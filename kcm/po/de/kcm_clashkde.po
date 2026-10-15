@@ -66,3 +66,48 @@ msgstr "Starten"
 
 msgid "Stop"
 msgstr "Stoppen"
+
+msgid "Check"
+msgstr "Prüfen"
+
+msgid "Open in editor"
+msgstr "Im Editor öffnen"
+
+msgid "This configuration can be read."
+msgstr "Diese Konfiguration lässt sich lesen."
+
+msgid "No text editor was found."
+msgstr "Es wurde kein Texteditor gefunden."
+
+msgid "View log"
+msgstr "Protokoll ansehen"
+
+msgid "Core log"
+msgstr "Kernprotokoll"
+
+msgid "There is no log yet."
+msgstr "Es gibt noch kein Protokoll."
+
+msgid "Start this account's core"
+msgstr "Kern dieses Kontos starten"
+
+msgid "Stop this account's core"
+msgstr "Kern dieses Kontos stoppen"
+
+msgid "The core is running."
+msgstr "Der Kern läuft."
+
+msgid "The core is stopped."
+msgstr "Der Kern ist gestoppt."
+
+msgid "Traffic capture"
+msgstr "Verkehrsübernahme"
+
+msgid "This account"
+msgstr "Dieses Konto"
+
+msgid "No signed-in accounts."
+msgstr "Es ist kein Konto angemeldet."
+
+msgid "This page starts or stops the core of a signed-in account."
+msgstr "Diese Seite startet oder stoppt den Kern eines angemeldeten Kontos."

@@ -34,6 +34,7 @@ class ClashClient : public QObject
     Q_PROPERTY(QVariantList groups READ groups NOTIFY proxiesChanged)
     Q_PROPERTY(QVariantList accounts READ accounts NOTIFY accountsChanged)
     Q_PROPERTY(QString accountsError READ accountsError NOTIFY accountsChanged)
+    Q_PROPERTY(qulonglong ownUid READ ownUid CONSTANT)
     Q_PROPERTY(int draftMixedPort READ draftMixedPort WRITE setDraftMixedPort NOTIFY draftChanged)
     Q_PROPERTY(int draftControllerPort READ draftControllerPort WRITE setDraftControllerPort NOTIFY draftChanged)
     Q_PROPERTY(QString draftMihomoPath READ draftMihomoPath WRITE setDraftMihomoPath NOTIFY draftChanged)
@@ -63,6 +64,7 @@ public:
     QVariantList groups() const;
     QVariantList accounts() const;
     QString accountsError() const;
+    qulonglong ownUid() const;
 
     int draftMixedPort() const;
     void setDraftMixedPort(int port);
@@ -86,6 +88,9 @@ public:
     Q_INVOKABLE void selectProxy(const QString &group, const QString &name);
     Q_INVOKABLE void testGroupDelay(const QString &group);
     Q_INVOKABLE QString profileBody(const QString &id);
+    Q_INVOKABLE QString checkProfileText(const QString &body);
+    Q_INVOKABLE QString coreLog() const;
+    Q_INVOKABLE bool openBodyInEditor(const QString &body);
     Q_INVOKABLE void setProfileBody(const QString &id, const QString &body);
     Q_INVOKABLE void setProfileMeta(const QString &id, const QString &name, const QString &url);
     Q_INVOKABLE void importProfile(const QString &name, const QString &fileUrl);
@@ -106,6 +111,7 @@ Q_SIGNALS:
     void delayUpdated(const QString &group, const QString &name, qlonglong delayMs);
     void draftChanged();
     void errorOccurred(const QString &message);
+    void editorTextReady(const QString &body);
 
 private Q_SLOTS:
     void refreshStatus();
@@ -117,6 +123,7 @@ private:
     void setBusy(bool busy);
     void setDelayTesting(bool testing);
     void applyStatus(const QVariantMap &status);
+    void overlayCurrentAccount();
     void reportError(const QString &message);
     void asyncCall(const QString &method, const QVariantList &args, bool refreshProfilesAfter, bool refreshProxiesAfter, bool markBusy = true);
     void accountCall(const QString &method, qulonglong uid);

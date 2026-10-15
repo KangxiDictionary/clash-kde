@@ -15,6 +15,7 @@ _foreach_user() {
 post_install() {
     systemctl --global enable clash-kde.service || true
     systemctl daemon-reload || true
+    systemctl try-restart clash-kde-system.service || true
     _foreach_user systemctl --user daemon-reload
     _foreach_user systemctl --user start clash-kde.service
 }
@@ -22,6 +23,7 @@ post_install() {
 post_upgrade() {
     systemctl --global enable clash-kde.service || true
     systemctl daemon-reload || true
+    systemctl try-restart clash-kde-system.service || true
     _foreach_user systemctl --user daemon-reload
     _foreach_user systemctl --user try-restart clash-kde.service
 }

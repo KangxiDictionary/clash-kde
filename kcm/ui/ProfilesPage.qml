@@ -108,19 +108,101 @@ Item {
         implicitHeight: Kirigami.Units.gridUnit * 28
 
         onAccepted: kcm.client.setProfileBody(profileId, editorText.text)
+        onOpened: {
+            editorNote.text = "";
+            editorText.forceActiveFocus();
+        }
 
-        contentItem: QQC2.TextArea {
-            id: editorText
-            wrapMode: TextEdit.Wrap
-            selectByMouse: true
+        contentItem: Item {
+            ColumnLayout {
+                anchors.fill: parent
+                spacing: Kirigami.Units.smallSpacing
 
-            HoverHandler {
-                id: editorHover
+            Kirigami.InlineMessage {
+                id: editorNote
+                Layout.fillWidth: true
+                visible: text.length > 0
             }
 
-            QQC2.ToolTip.visible: editorHover.hovered
-            QQC2.ToolTip.delay: 700
-            QQC2.ToolTip.text: tx.i18n("A subscription update replaces the text written here.")
+            RowLayout {
+                QQC2.Button {
+                    text: tx.i18n("Check")
+                    onClicked: {
+                        const result = kcm.client.checkProfileText(editorText.text);
+                        editorNote.text = result.length === 0 ? tx.i18n("This configuration can be read.") : result;
+                        editorNote.type = result.length === 0 ? Kirigami.MessageType.Positive : Kirigami.MessageType.Error;
+                    }
+                }
+                QQC2.Button {
+                    text: tx.i18n("Open in editor")
+                    onClicked: {
+                        if (!kcm.client.openBodyInEditor(editorText.text)) {
+                            editorNote.text = tx.i18n("No text editor was found.");
+                            editorNote.type = Kirigami.MessageType.Error;
+                        }
+                    }
+                }
+                Item {
+                    Layout.fillWidth: true
+                }
+            }
+
+            Flickable {
+                id: editorFlick
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                clip: true
+                contentWidth: width
+                contentHeight: editorText.height
+                boundsBehavior: Flickable.StopAtBounds
+                QQC2.ScrollBar.vertical: QQC2.ScrollBar {
+                    policy: QQC2.ScrollBar.AsNeeded
+                }
+
+                function revealCursor() {
+                    const rect = editorText.cursorRectangle;
+                    const margin = Kirigami.Units.smallSpacing;
+                    if (rect.y < contentY) {
+                        contentY = Math.max(0, rect.y - margin);
+                    } else if (rect.y + rect.height > contentY + height) {
+                        contentY = rect.y + rect.height - height + margin;
+                    }
+                }
+
+                QQC2.TextArea {
+                    id: editorText
+                    width: editorFlick.width
+                    height: Math.max(editorFlick.height, contentHeight)
+                    wrapMode: TextEdit.Wrap
+                    selectByMouse: true
+                    padding: Kirigami.Units.smallSpacing
+                    onCursorRectangleChanged: editorFlick.revealCursor()
+
+                    WheelHandler {
+                        onWheel: function(event) {
+                            const maxY = Math.max(0, editorFlick.contentHeight - editorFlick.height);
+                            editorFlick.contentY = Math.max(0, Math.min(maxY, editorFlick.contentY - event.angleDelta.y));
+                            event.accepted = true;
+                        }
+                    }
+
+                    HoverHandler {
+                        id: editorHover
+                    }
+
+                    QQC2.ToolTip.visible: editorHover.hovered
+                    QQC2.ToolTip.delay: 700
+                    QQC2.ToolTip.text: tx.i18n("A subscription update replaces the text written here.")
+                }
+            }
+            }
+        }
+
+        Connections {
+            target: kcm.client
+            function onEditorTextReady(body) {
+                editorText.text = body;
+            }
         }
     }
 

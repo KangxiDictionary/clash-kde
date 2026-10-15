@@ -94,6 +94,24 @@ pub fn decode_subscription(body: &str) -> Result<Value, String> {
     parse_mapping(&text).ok_or_else(|| "订阅不是有效的 YAML".to_string())
 }
 
+pub fn check_profile_text(body: &str) -> Result<(), String> {
+    let text = body.trim().trim_start_matches('\u{feff}');
+    if text.is_empty() {
+        return Err("配置是空的".to_string());
+    }
+    match serde_yaml::from_str::<Value>(text) {
+        Ok(value) if value.as_mapping().is_some() => Ok(()),
+        Ok(_) => Err("配置需要是一组键值".to_string()),
+        Err(error) => {
+            if subscription_yaml(text).is_ok() {
+                Ok(())
+            } else {
+                Err(format!("YAML 读不出来: {error}"))
+            }
+        }
+    }
+}
+
 fn parse_mapping(text: &str) -> Option<Value> {
     let value: Value = serde_yaml::from_str(text).ok()?;
     value.as_mapping()?;
@@ -229,6 +247,14 @@ pub fn now_unix() -> i64 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn check_profile_text_reports_the_yaml_error() {
+        assert!(check_profile_text("mode: rule\n").is_ok());
+        let error = check_profile_text("mode: [\n").expect_err("broken");
+        assert!(error.contains("YAML"));
+        assert!(check_profile_text("").is_err());
+    }
 
     #[test]
     fn decodes_plain_yaml_and_base64() {

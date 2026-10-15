@@ -66,3 +66,48 @@ msgstr "啟動"
 
 msgid "Stop"
 msgstr "停止"
+
+msgid "Check"
+msgstr "檢查"
+
+msgid "Open in editor"
+msgstr "用編輯器開啟"
+
+msgid "This configuration can be read."
+msgstr "這份設定可以讀。"
+
+msgid "No text editor was found."
+msgstr "找不到文字編輯器。"
+
+msgid "View log"
+msgstr "查看日誌"
+
+msgid "Core log"
+msgstr "內核日誌"
+
+msgid "There is no log yet."
+msgstr "還沒有日誌。"
+
+msgid "Start this account's core"
+msgstr "啟動這個帳戶的內核"
+
+msgid "Stop this account's core"
+msgstr "停止這個帳戶的內核"
+
+msgid "The core is running."
+msgstr "內核正在執行。"
+
+msgid "The core is stopped."
+msgstr "內核已停止。"
+
+msgid "Traffic capture"
+msgstr "流量截取"
+
+msgid "This account"
+msgstr "目前帳戶"
+
+msgid "No signed-in accounts."
+msgstr "沒有已登入的帳戶。"
+
+msgid "This page starts or stops the core of a signed-in account."
+msgstr "這一頁用來啟動或停止已登入帳戶的內核。"

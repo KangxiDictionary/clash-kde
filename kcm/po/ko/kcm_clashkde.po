@@ -66,3 +66,48 @@ msgstr "시작"
 
 msgid "Stop"
 msgstr "중지"
+
+msgid "Check"
+msgstr "검사"
+
+msgid "Open in editor"
+msgstr "편집기로 열기"
+
+msgid "This configuration can be read."
+msgstr "이 구성을 읽을 수 있습니다."
+
+msgid "No text editor was found."
+msgstr "텍스트 편집기를 찾지 못했습니다."
+
+msgid "View log"
+msgstr "로그 보기"
+
+msgid "Core log"
+msgstr "코어 로그"
+
+msgid "There is no log yet."
+msgstr "아직 로그가 없습니다."
+
+msgid "Start this account's core"
+msgstr "이 계정의 코어 시작"
+
+msgid "Stop this account's core"
+msgstr "이 계정의 코어 중지"
+
+msgid "The core is running."
+msgstr "코어가 실행 중입니다."
+
+msgid "The core is stopped."
+msgstr "코어가 중지되어 있습니다."
+
+msgid "Traffic capture"
+msgstr "트래픽 가로채기"
+
+msgid "This account"
+msgstr "이 계정"
+
+msgid "No signed-in accounts."
+msgstr "로그인한 계정이 없습니다."
+
+msgid "This page starts or stops the core of a signed-in account."
+msgstr "이 페이지에서는 로그인한 계정의 코어를 시작하거나 중지합니다."

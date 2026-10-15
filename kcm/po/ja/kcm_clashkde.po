@@ -66,3 +66,48 @@ msgstr "起動"
 
 msgid "Stop"
 msgstr "停止"
+
+msgid "Check"
+msgstr "検査"
+
+msgid "Open in editor"
+msgstr "エディターで開く"
+
+msgid "This configuration can be read."
+msgstr "この設定は読み取れます。"
+
+msgid "No text editor was found."
+msgstr "テキストエディターが見つかりません。"
+
+msgid "View log"
+msgstr "ログを見る"
+
+msgid "Core log"
+msgstr "コアのログ"
+
+msgid "There is no log yet."
+msgstr "ログはまだありません。"
+
+msgid "Start this account's core"
+msgstr "このアカウントのコアを起動"
+
+msgid "Stop this account's core"
+msgstr "このアカウントのコアを停止"
+
+msgid "The core is running."
+msgstr "コアは動作中です。"
+
+msgid "The core is stopped."
+msgstr "コアは停止しています。"
+
+msgid "Traffic capture"
+msgstr "通信の取り込み"
+
+msgid "This account"
+msgstr "このアカウント"
+
+msgid "No signed-in accounts."
+msgstr "ログイン中のアカウントはありません。"
+
+msgid "This page starts or stops the core of a signed-in account."
+msgstr "このページでは、ログイン中のアカウントのコアを起動または停止します。"

@@ -183,10 +183,12 @@ pub fn enter_user(uid: u32, gid: u32, name: &str) -> io::Result<()> {
         return Err(io::Error::last_os_error());
     }
 
-    let permitted = caps::read(None, caps::CapSet::Permitted).map_err(io::Error::other)?;
-    caps::set(None, caps::CapSet::Effective, &permitted).map_err(io::Error::other)?;
-    caps::set(None, caps::CapSet::Permitted, &net).map_err(io::Error::other)?;
+    // setuid clears the effective set and, with keepcaps, leaves the full
+    // permitted set. capset refuses a permitted set that does not cover the
+    // effective set, so the effective set has to shrink first.
     caps::set(None, caps::CapSet::Effective, &net).map_err(io::Error::other)?;
+    caps::set(None, caps::CapSet::Permitted, &net).map_err(io::Error::other)?;
+    caps::securebits::set_keepcaps(false).map_err(io::Error::other)?;
     Ok(())
 }
 
@@ -257,7 +259,7 @@ fn prepare_exec(
         .stdout(std::process::Stdio::from(log_file))
         .stderr(std::process::Stdio::from(stderr))
         .exec();
-    Err(format!("无法启动 mihomo: {error}"))
+    Err(format!("无法启动 mihomo: {error} ({})", binary.display()))
 }
 
 #[cfg(test)]

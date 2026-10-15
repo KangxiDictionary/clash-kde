@@ -66,3 +66,48 @@ msgstr "Iniciar"
 
 msgid "Stop"
 msgstr "Detener"
+
+msgid "Check"
+msgstr "Comprobar"
+
+msgid "Open in editor"
+msgstr "Abrir en el editor"
+
+msgid "This configuration can be read."
+msgstr "Esta configuración se puede leer."
+
+msgid "No text editor was found."
+msgstr "No se encontró un editor de texto."
+
+msgid "View log"
+msgstr "Ver el registro"
+
+msgid "Core log"
+msgstr "Registro del núcleo"
+
+msgid "There is no log yet."
+msgstr "Aún no hay registro."
+
+msgid "Start this account's core"
+msgstr "Arrancar el núcleo de esta cuenta"
+
+msgid "Stop this account's core"
+msgstr "Detener el núcleo de esta cuenta"
+
+msgid "The core is running."
+msgstr "El núcleo está en marcha."
+
+msgid "The core is stopped."
+msgstr "El núcleo está detenido."
+
+msgid "Traffic capture"
+msgstr "Captura de tráfico"
+
+msgid "This account"
+msgstr "Esta cuenta"
+
+msgid "No signed-in accounts."
+msgstr "No hay cuentas con sesión iniciada."
+
+msgid "This page starts or stops the core of a signed-in account."
+msgstr "Esta página arranca o detiene el núcleo de una cuenta con sesión iniciada."

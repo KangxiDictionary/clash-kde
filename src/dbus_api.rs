@@ -88,6 +88,14 @@ impl Manager {
         self.app.set_profile_body(&id, body).await.map_err(failed)
     }
 
+    #[zbus(name = "CheckProfileText")]
+    async fn check_profile_text(&self, body: String) -> fdo::Result<String> {
+        Ok(match crate::profile::check_profile_text(&body) {
+            Ok(()) => String::new(),
+            Err(error) => error,
+        })
+    }
+
     #[zbus(name = "SetProfileMeta")]
     async fn set_profile_meta(&self, id: String, name: String, url: String) -> fdo::Result<()> {
         self.app

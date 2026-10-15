@@ -304,3 +304,48 @@ msgstr "启动"
 
 msgid "Stop"
 msgstr "停止"
+
+msgid "Check"
+msgstr "检查"
+
+msgid "Open in editor"
+msgstr "用编辑器打开"
+
+msgid "This configuration can be read."
+msgstr "这份配置可以读。"
+
+msgid "No text editor was found."
+msgstr "没有找到文本编辑器。"
+
+msgid "View log"
+msgstr "查看日志"
+
+msgid "Core log"
+msgstr "内核日志"
+
+msgid "There is no log yet."
+msgstr "还没有日志。"
+
+msgid "Start this account's core"
+msgstr "启动这个账户的内核"
+
+msgid "Stop this account's core"
+msgstr "停止这个账户的内核"
+
+msgid "The core is running."
+msgstr "内核正在运行。"
+
+msgid "The core is stopped."
+msgstr "内核已停止。"
+
+msgid "Traffic capture"
+msgstr "流量截取"
+
+msgid "This account"
+msgstr "当前账户"
+
+msgid "No signed-in accounts."
+msgstr "没有已登录的账户。"
+
+msgid "This page starts or stops the core of a signed-in account."
+msgstr "这一页用来启动或停止已登录账户的内核。"

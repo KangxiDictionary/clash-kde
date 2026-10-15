@@ -8,11 +8,17 @@
 #include <QDBusPendingCallWatcher>
 #include <QDBusPendingReply>
 #include <QDBusReply>
+#include <QDir>
+#include <QFile>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QProcess>
+#include <QStandardPaths>
+#include <QTemporaryFile>
 #include <QTimer>
 #include <QUrl>
+#include <unistd.h>
 
 namespace {
 QVariantList jsonArray(const QString &text)
@@ -97,6 +103,7 @@ QVariantList ClashClient::profiles() const { return m_profiles; }
 QVariantList ClashClient::groups() const { return m_groups; }
 QVariantList ClashClient::accounts() const { return m_accounts; }
 QString ClashClient::accountsError() const { return m_accountsError; }
+qulonglong ClashClient::ownUid() const { return ::getuid(); }
 int ClashClient::draftMixedPort() const { return m_draftMixedPort; }
 int ClashClient::draftControllerPort() const { return m_draftControllerPort; }
 QString ClashClient::draftMihomoPath() const { return m_draftMihomoPath; }
@@ -165,6 +172,7 @@ void ClashClient::reloadAccounts()
         } else {
             m_accountsError.clear();
             m_accounts = jsonArray(reply.value());
+            overlayCurrentAccount();
         }
         Q_EMIT accountsChanged();
     });
@@ -172,11 +180,19 @@ void ClashClient::reloadAccounts()
 
 void ClashClient::startAccount(qulonglong uid)
 {
+    if (uid == ownUid()) {
+        setCoreDesired(true);
+        return;
+    }
     accountCall(QStringLiteral("Start"), uid);
 }
 
 void ClashClient::stopAccount(qulonglong uid)
 {
+    if (uid == ownUid()) {
+        setCoreDesired(false);
+        return;
+    }
     accountCall(QStringLiteral("Stop"), uid);
 }
 
@@ -232,6 +248,68 @@ QString ClashClient::profileBody(const QString &id)
         return {};
     }
     return reply.value();
+}
+
+QString ClashClient::checkProfileText(const QString &body)
+{
+    const QDBusReply<QString> reply = m_iface->call(QStringLiteral("CheckProfileText"), body);
+    if (!reply.isValid()) {
+        return reply.error().message();
+    }
+    return reply.value();
+}
+
+QString ClashClient::coreLog() const
+{
+    QFile file(QDir::homePath() + QStringLiteral("/.local/share/clash-kde/runtime/mihomo.log"));
+    if (!file.open(QIODevice::ReadOnly)) {
+        return {};
+    }
+    constexpr qint64 keep = 48 * 1024;
+    if (file.size() > keep) {
+        file.seek(file.size() - keep);
+        file.readLine();
+    }
+    return QString::fromUtf8(file.readAll());
+}
+
+bool ClashClient::openBodyInEditor(const QString &body)
+{
+    QString editor = QStandardPaths::findExecutable(QStringLiteral("kwrite"));
+    if (editor.isEmpty()) {
+        editor = QStandardPaths::findExecutable(QStringLiteral("kate"));
+    }
+    if (editor.isEmpty()) {
+        return false;
+    }
+
+    auto *file = new QTemporaryFile(QDir::tempPath() + QStringLiteral("/clash-kde-XXXXXX.yaml"));
+    file->setAutoRemove(true);
+    if (!file->open() || file->write(body.toUtf8()) < 0) {
+        delete file;
+        return false;
+    }
+    file->flush();
+    const QString path = file->fileName();
+    file->close();
+
+    auto *process = new QProcess(this);
+    file->setParent(process);
+
+    connect(process, &QProcess::finished, this, [this, process, path]() {
+        QFile saved(path);
+        if (saved.open(QIODevice::ReadOnly)) {
+            Q_EMIT editorTextReady(QString::fromUtf8(saved.readAll()));
+        }
+        process->deleteLater();
+    });
+    connect(process, &QProcess::errorOccurred, process, [process](QProcess::ProcessError error) {
+        if (error == QProcess::FailedToStart) {
+            process->deleteLater();
+        }
+    });
+    process->start(editor, {path});
+    return true;
 }
 
 void ClashClient::setProfileBody(const QString &id, const QString &body)
@@ -378,6 +456,10 @@ void ClashClient::applyStatus(const QVariantMap &status)
     m_exitRegion = status.value(QStringLiteral("exit_region")).toString();
     m_activeProfile = status.value(QStringLiteral("active_profile")).toString();
     m_message = status.value(QStringLiteral("message")).toString();
+    const QString dbusPrefix = QStringLiteral("org.freedesktop.DBus.Error.Failed: ");
+    if (m_message.startsWith(dbusPrefix)) {
+        m_message = m_message.mid(dbusPrefix.size());
+    }
     if (!m_draftDirty) {
         const bool changed = m_draftMixedPort != m_mixedPort || m_draftControllerPort != m_controllerPort || m_draftMihomoPath != m_mihomoPath;
         m_draftMixedPort = m_mixedPort;
@@ -388,11 +470,47 @@ void ClashClient::applyStatus(const QVariantMap &status)
         }
     }
     Q_EMIT statusChanged();
+    overlayCurrentAccount();
+}
+
+void ClashClient::overlayCurrentAccount()
+{
+    const uint uid = static_cast<uint>(ownUid());
+    bool changed = false;
+    for (int i = 0; i < m_accounts.size(); ++i) {
+        QVariantMap map = m_accounts.at(i).toMap();
+        if (map.value(QStringLiteral("uid")).toUInt() != uid) {
+            continue;
+        }
+        const bool same = map.value(QStringLiteral("core_running")).toBool() == m_coreRunning
+            && map.value(QStringLiteral("tun_enabled")).toBool() == m_tunEnabled
+            && map.value(QStringLiteral("system_proxy_enabled")).toBool() == m_systemProxyEnabled
+            && map.value(QStringLiteral("mode")).toString() == m_mode
+            && map.value(QStringLiteral("error")).toString().isEmpty();
+        if (same) {
+            continue;
+        }
+        map.insert(QStringLiteral("core_running"), m_coreRunning);
+        map.insert(QStringLiteral("tun_enabled"), m_tunEnabled);
+        map.insert(QStringLiteral("system_proxy_enabled"), m_systemProxyEnabled);
+        map.insert(QStringLiteral("mode"), m_mode);
+        map.insert(QStringLiteral("error"), QString());
+        m_accounts[i] = map;
+        changed = true;
+    }
+    if (changed) {
+        Q_EMIT accountsChanged();
+    }
 }
 
 void ClashClient::reportError(const QString &message)
 {
-    m_message = message;
+    QString text = message;
+    const QString prefix = QStringLiteral("org.freedesktop.DBus.Error.Failed: ");
+    if (text.startsWith(prefix)) {
+        text = text.mid(prefix.size());
+    }
+    m_message = text;
     Q_EMIT statusChanged();
     Q_EMIT errorOccurred(message);
 }

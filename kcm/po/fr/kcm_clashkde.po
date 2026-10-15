@@ -66,3 +66,48 @@ msgstr "Démarrer"
 
 msgid "Stop"
 msgstr "Arrêter"
+
+msgid "Check"
+msgstr "Vérifier"
+
+msgid "Open in editor"
+msgstr "Ouvrir dans l'éditeur"
+
+msgid "This configuration can be read."
+msgstr "Cette configuration peut être lue."
+
+msgid "No text editor was found."
+msgstr "Aucun éditeur de texte n'a été trouvé."
+
+msgid "View log"
+msgstr "Voir le journal"
+
+msgid "Core log"
+msgstr "Journal du noyau"
+
+msgid "There is no log yet."
+msgstr "Il n'y a pas encore de journal."
+
+msgid "Start this account's core"
+msgstr "Démarrer le noyau de ce compte"
+
+msgid "Stop this account's core"
+msgstr "Arrêter le noyau de ce compte"
+
+msgid "The core is running."
+msgstr "Le noyau est en cours d'exécution."
+
+msgid "The core is stopped."
+msgstr "Le noyau est arrêté."
+
+msgid "Traffic capture"
+msgstr "Capture du trafic"
+
+msgid "This account"
+msgstr "Ce compte"
+
+msgid "No signed-in accounts."
+msgstr "Aucun compte n'est connecté."
+
+msgid "This page starts or stops the core of a signed-in account."
+msgstr "Cette page démarre ou arrête le noyau d'un compte connecté."

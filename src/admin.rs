@@ -63,7 +63,12 @@ impl Admin {
         #[zbus(connection)] connection: &zbus::Connection,
     ) -> fdo::Result<()> {
         let (uid, sender) = caller(&header, connection).await?;
-        allow(&sender, POLKIT_TUN).await?;
+        allow(
+            &sender,
+            POLKIT_TUN,
+            "capture this account's network traffic",
+        )
+        .await?;
         privilege::write_stamp(Path::new(privilege::STAMP_DIR), uid)
             .map_err(|error| fdo::Error::Failed(error.to_string()))
     }
@@ -122,7 +127,7 @@ impl Admin {
         #[zbus(connection)] connection: &zbus::Connection,
     ) -> fdo::Result<String> {
         let (_, sender) = caller(&header, connection).await?;
-        allow(&sender, POLKIT_USERS).await?;
+        allow(&sender, POLKIT_USERS, "查看已登录账户的 Mihomo").await?;
         let mut users = Vec::new();
         for uid in privilege::signed_in_uids() {
             users.push(describe(uid).await);
@@ -138,7 +143,7 @@ impl Admin {
         uid: u32,
     ) -> fdo::Result<()> {
         let (_, sender) = caller(&header, connection).await?;
-        allow(&sender, POLKIT_USERS).await?;
+        allow(&sender, POLKIT_USERS, "启动这个账户的 Mihomo").await?;
         bridge(uid, "Start").await.map_err(fdo::Error::Failed)?;
         Ok(())
     }
@@ -151,7 +156,7 @@ impl Admin {
         uid: u32,
     ) -> fdo::Result<()> {
         let (_, sender) = caller(&header, connection).await?;
-        allow(&sender, POLKIT_USERS).await?;
+        allow(&sender, POLKIT_USERS, "停止这个账户的 Mihomo").await?;
         bridge(uid, "Stop").await.map_err(fdo::Error::Failed)?;
         Ok(())
     }
@@ -239,7 +244,16 @@ where
             body,
         )
         .await
-        .map_err(|error| error.to_string())
+        .map_err(|error| plain_dbus(&error.to_string()))
+}
+
+fn plain_dbus(error: &str) -> String {
+    let Some(rest) = error.strip_prefix("org.freedesktop.DBus.Error.") else {
+        return error.to_string();
+    };
+    rest.split_once(": ")
+        .map(|(_, message)| message.to_string())
+        .unwrap_or_else(|| rest.to_string())
 }
 
 async fn caller(header: &Header<'_>, connection: &zbus::Connection) -> fdo::Result<(u32, String)> {
@@ -262,7 +276,7 @@ async fn caller(header: &Header<'_>, connection: &zbus::Connection) -> fdo::Resu
     Ok((uid, sender))
 }
 
-async fn allow(sender: &str, action: &str) -> fdo::Result<()> {
+async fn allow(sender: &str, action: &str, reason: &str) -> fdo::Result<()> {
     let status = Command::new("/usr/bin/pkcheck")
         .args([
             "--action-id",
@@ -270,6 +284,9 @@ async fn allow(sender: &str, action: &str) -> fdo::Result<()> {
             "--system-bus-name",
             sender,
             "--allow-user-interaction",
+            "--detail",
+            "reason",
+            reason,
         ])
         .status()
         .await
@@ -288,8 +305,8 @@ async fn launch(
     config: &str,
     log: &str,
 ) -> Result<(u32, Child), String> {
-    let exe = std::env::current_exe().map_err(|error| error.to_string())?;
-    let mut child = Command::new(exe)
+    let exe = service_binary();
+    let mut child = Command::new(&exe)
         .arg("--spawn-tun")
         .arg(uid.to_string())
         .arg(binary)
@@ -303,7 +320,7 @@ async fn launch(
         .stderr(std::process::Stdio::piped())
         .kill_on_drop(true)
         .spawn()
-        .map_err(|error| format!("无法启动 mihomo: {error}"))?;
+        .map_err(|error| format!("无法启动 mihomo: {error} ({})", exe.display()))?;
     for _ in 0..10 {
         match child.try_wait() {
             Ok(Some(status)) => {
@@ -349,8 +366,8 @@ async fn supervise(mut child: Child, mut stop: oneshot::Receiver<()>) {
 }
 
 async fn bridge(uid: u32, action: &str) -> Result<String, String> {
-    let exe = std::env::current_exe().map_err(|error| error.to_string())?;
-    let output = Command::new(exe)
+    let exe = service_binary();
+    let output = Command::new(&exe)
         .arg("--as-user")
         .arg(uid.to_string())
         .arg(action)
@@ -370,6 +387,14 @@ async fn bridge(uid: u32, action: &str) -> Result<String, String> {
     Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
 }
 
+fn service_binary() -> std::path::PathBuf {
+    let installed = std::path::PathBuf::from("/usr/bin/clash-kde");
+    if installed.is_file() {
+        return installed;
+    }
+    std::env::current_exe().unwrap_or(installed)
+}
+
 async fn describe(uid: u32) -> ListedUser {
     let name = privilege::lookup_account(uid)
         .map(|account| account.name)
@@ -377,8 +402,15 @@ async fn describe(uid: u32) -> ListedUser {
     let parsed = match bridge(uid, "Status").await {
         Ok(text) => serde_json::from_str::<SlimStatus>(&text).ok(),
         Err(error) => {
-            tracing::debug!("无法读取账户 {name} 的状态: {error}");
-            None
+            return ListedUser {
+                uid,
+                name,
+                core_running: false,
+                tun_enabled: false,
+                system_proxy_enabled: false,
+                mode: String::new(),
+                error,
+            };
         }
     };
     let status = parsed.unwrap_or(SlimStatus {
@@ -394,6 +426,7 @@ async fn describe(uid: u32) -> ListedUser {
         tun_enabled: status.tun_enabled,
         system_proxy_enabled: status.system_proxy_enabled,
         mode: status.mode,
+        error: String::new(),
     }
 }
 
@@ -405,6 +438,7 @@ struct ListedUser {
     tun_enabled: bool,
     system_proxy_enabled: bool,
     mode: String,
+    error: String,
 }
 
 #[derive(serde::Deserialize)]

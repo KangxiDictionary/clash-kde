@@ -66,3 +66,48 @@ msgstr "Avvia"
 
 msgid "Stop"
 msgstr "Ferma"
+
+msgid "Check"
+msgstr "Controlla"
+
+msgid "Open in editor"
+msgstr "Apri nell'editor"
+
+msgid "This configuration can be read."
+msgstr "Questa configurazione si può leggere."
+
+msgid "No text editor was found."
+msgstr "Non è stato trovato un editor di testo."
+
+msgid "View log"
+msgstr "Vedi il registro"
+
+msgid "Core log"
+msgstr "Registro del core"
+
+msgid "There is no log yet."
+msgstr "Non c'è ancora un registro."
+
+msgid "Start this account's core"
+msgstr "Avvia il core di questo account"
+
+msgid "Stop this account's core"
+msgstr "Ferma il core di questo account"
+
+msgid "The core is running."
+msgstr "Il core è in esecuzione."
+
+msgid "The core is stopped."
+msgstr "Il core è fermo."
+
+msgid "Traffic capture"
+msgstr "Acquisizione del traffico"
+
+msgid "This account"
+msgstr "Questo account"
+
+msgid "No signed-in accounts."
+msgstr "Nessun account ha effettuato l'accesso."
+
+msgid "This page starts or stops the core of a signed-in account."
+msgstr "Questa pagina avvia o ferma il core di un account che ha effettuato l'accesso."

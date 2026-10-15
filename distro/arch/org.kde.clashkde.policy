@@ -35,8 +35,8 @@
   </action>
 
   <action id="org.kde.clashkde.manage-users">
-    <description>Start or stop Mihomo for a signed-in account</description>
-    <description xml:lang="zh-Hans-CN">开关已登录账户的 Mihomo</description>
+    <description>View or change Mihomo for a signed-in account</description>
+    <description xml:lang="zh-Hans-CN">查看或开关已登录账户的 Mihomo</description>
     <description xml:lang="zh-Hant-TW">開關已登入帳戶的 Mihomo</description>
     <description xml:lang="ja">ログイン中のアカウントの Mihomo を起動または停止する</description>
     <description xml:lang="ko">로그인한 계정의 Mihomo를 켜거나 끄기</description>
@@ -46,17 +46,17 @@
     <description xml:lang="pt-BR">Iniciar ou parar o Mihomo de uma conta conectada</description>
     <description xml:lang="ru">Запускать или останавливать Mihomo вошедшей учётной записи</description>
     <description xml:lang="it">Avviare o fermare Mihomo per un account che ha effettuato l'accesso</description>
-    <message>Authentication is required to start or stop Mihomo for a signed-in account.</message>
-    <message xml:lang="zh-Hans-CN">需要认证才能开关已登录账户的 Mihomo。</message>
-    <message xml:lang="zh-Hant-TW">需要認證才能開關已登入帳戶的 Mihomo。</message>
-    <message xml:lang="ja">ログイン中のアカウントの Mihomo を起動または停止するには認証が必要です。</message>
-    <message xml:lang="ko">로그인한 계정의 Mihomo를 켜거나 끄려면 인증이 필요합니다.</message>
-    <message xml:lang="de">Zum Starten oder Stoppen von Mihomo für ein angemeldetes Konto ist eine Authentifizierung nötig.</message>
-    <message xml:lang="fr">Une authentification est nécessaire pour démarrer ou arrêter Mihomo pour un compte connecté.</message>
-    <message xml:lang="es">Hace falta autenticarse para arrancar o detener Mihomo de una cuenta con sesión iniciada.</message>
-    <message xml:lang="pt-BR">É preciso autenticar para iniciar ou parar o Mihomo de uma conta conectada.</message>
-    <message xml:lang="ru">Чтобы запускать или останавливать Mihomo у вошедшей учётной записи, нужна аутентификация.</message>
-    <message xml:lang="it">Serve un'autenticazione per avviare o fermare Mihomo per un account che ha effettuato l'accesso.</message>
+    <message>Authentication is required to view or change Mihomo for a signed-in account.</message>
+    <message xml:lang="zh-Hans-CN">需要认证才能$(reason)。</message>
+    <message xml:lang="zh-Hant-TW">需要認證才能查看或開關已登入帳戶的 Mihomo。</message>
+    <message xml:lang="ja">ログイン中のアカウントの Mihomo を表示または変更するには認証が必要です。</message>
+    <message xml:lang="ko">로그인한 계정의 Mihomo를 보거나 바꾸려면 인증이 필요합니다.</message>
+    <message xml:lang="de">Zum Anzeigen oder Ändern von Mihomo für ein angemeldetes Konto ist eine Authentifizierung nötig.</message>
+    <message xml:lang="fr">Une authentification est nécessaire pour afficher ou modifier Mihomo pour un compte connecté.</message>
+    <message xml:lang="es">Hace falta autenticarse para ver o cambiar Mihomo de una cuenta con sesión iniciada.</message>
+    <message xml:lang="pt-BR">É preciso autenticar para ver ou alterar o Mihomo de uma conta conectada.</message>
+    <message xml:lang="ru">Чтобы просматривать или менять Mihomo у вошедшей учётной записи, нужна аутентификация.</message>
+    <message xml:lang="it">Serve un'autenticazione per vedere o modificare Mihomo per un account che ha effettuato l'accesso.</message>
     <defaults>
       <allow_any>auth_admin_keep</allow_any>
       <allow_inactive>auth_admin_keep</allow_inactive>

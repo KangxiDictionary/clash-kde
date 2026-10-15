@@ -33,7 +33,7 @@ impl CoreProcess {
             .stderr(Stdio::from(stderr))
             .kill_on_drop(true)
             .spawn()
-            .map_err(|error| format!("无法启动 mihomo: {error}"))?;
+            .map_err(|error| format!("无法启动 mihomo: {error} ({})", binary.display()))?;
         let pid = child.id().ok_or_else(|| "mihomo 没有进程号".to_string())?;
         Ok(Self {
             child: Some(child),

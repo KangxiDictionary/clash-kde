@@ -6,8 +6,15 @@ import org.kde.kirigami as Kirigami
 Item {
     id: root
 
-    readonly property bool failed: kcm.client.message.indexOf("\n") >= 0
+    readonly property bool progress: kcm.client.message === "正在启动内核" || kcm.client.message === "正在下载地理数据"
+    readonly property bool failed: kcm.client.message.length > 0 && !progress
     readonly property bool starting: kcm.client.coreDesired && !kcm.client.coreRunning && !failed
+    property string dismissedMessage: ""
+    onFailedChanged: {
+        if (!failed) {
+            dismissedMessage = "";
+        }
+    }
     readonly property string stateText: {
         if (kcm.client.coreRunning) {
             return tx.i18n("Running");
@@ -18,7 +25,7 @@ Item {
         return tx.i18n("Stopped");
     }
     readonly property string detailText: {
-        if (starting && kcm.client.message.length > 0) {
+        if (progress) {
             return kcm.client.message;
         }
         const http = kcm.client.listenAddress;
@@ -44,10 +51,31 @@ Item {
         spacing: Kirigami.Units.largeSpacing
 
         Kirigami.InlineMessage {
+            id: errorBanner
             Layout.fillWidth: true
-            visible: kcm.client.message.length > 0 && root.failed
+            visible: root.failed && kcm.client.message !== root.dismissedMessage
             type: Kirigami.MessageType.Error
             text: kcm.client.message
+            showCloseButton: true
+            actions: [
+                Kirigami.Action {
+                    text: tx.i18n("View log")
+                    icon.name: "view-list-text"
+                    onTriggered: {
+                        const log = kcm.client.coreLog();
+                        logView.text = log.length > 0 ? log : tx.i18n("There is no log yet.");
+                        logDialog.open();
+                    }
+                }
+            ]
+            onVisibleChanged: {
+                if (!visible && root.failed && kcm.client.message !== root.dismissedMessage) {
+                    root.dismissedMessage = kcm.client.message;
+                    visible = Qt.binding(function() {
+                        return root.failed && kcm.client.message !== root.dismissedMessage;
+                    });
+                }
+            }
         }
 
         Rectangle {
@@ -285,6 +313,48 @@ Item {
             opacity: 0.65
             font: Kirigami.Theme.smallFont
             text: tx.i18n("There is a Mihomo widget for the panel.")
+        }
+    }
+
+    QQC2.Dialog {
+        id: logDialog
+        title: tx.i18n("Core log")
+        modal: true
+        standardButtons: QQC2.Dialog.Close
+        padding: Kirigami.Units.largeSpacing
+        implicitWidth: Kirigami.Units.gridUnit * 40
+        implicitHeight: Kirigami.Units.gridUnit * 28
+
+        contentItem: Item {
+            Flickable {
+                id: logFlick
+                anchors.fill: parent
+                clip: true
+                contentWidth: width
+                contentHeight: logView.height
+                boundsBehavior: Flickable.StopAtBounds
+                QQC2.ScrollBar.vertical: QQC2.ScrollBar {
+                    policy: QQC2.ScrollBar.AsNeeded
+                }
+
+                QQC2.TextArea {
+                    id: logView
+                    readOnly: true
+                    selectByMouse: true
+                    wrapMode: TextEdit.Wrap
+                    width: logFlick.width
+                    height: Math.max(logFlick.height, contentHeight)
+                    padding: Kirigami.Units.smallSpacing
+
+                    WheelHandler {
+                        onWheel: function(event) {
+                            const maxY = Math.max(0, logFlick.contentHeight - logFlick.height);
+                            logFlick.contentY = Math.max(0, Math.min(maxY, logFlick.contentY - event.angleDelta.y));
+                            event.accepted = true;
+                        }
+                    }
+                }
+            }
         }
     }
 }
