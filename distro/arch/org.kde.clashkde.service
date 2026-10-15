@@ -1,0 +1,4 @@
+[D-BUS Service]
+Name=org.kde.clashkde
+Exec=/usr/bin/clash-kde
+SystemdService=clash-kde.service

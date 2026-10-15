@@ -1,0 +1,33 @@
+cmake_minimum_required(VERSION 3.16)
+
+project(kcm_clashkde VERSION 0.1.0)
+
+set(QT_MIN_VERSION "6.6.0")
+set(KF6_MIN_VERSION "6.0.0")
+
+find_package(ECM ${KF6_MIN_VERSION} REQUIRED NO_MODULE)
+set(CMAKE_MODULE_PATH ${ECM_MODULE_PATH} ${CMAKE_MODULE_PATH})
+
+include(KDEInstallDirs)
+include(KDECMakeSettings)
+include(KDECompilerSettings NO_POLICY_SCOPE)
+
+find_package(Qt6 ${QT_MIN_VERSION} REQUIRED COMPONENTS Core Quick Gui Qml DBus)
+find_package(KF6 ${KF6_MIN_VERSION} REQUIRED COMPONENTS CoreAddons I18n KCMUtils)
+
+kcmutils_add_qml_kcm(kcm_clashkde SOURCES
+    kcm.cpp
+    clashclient.cpp
+)
+
+target_link_libraries(kcm_clashkde PRIVATE
+    Qt6::Core
+    Qt6::Quick
+    Qt6::DBus
+    KF6::CoreAddons
+    KF6::I18n
+    KF6::KCMUtils
+    KF6::KCMUtilsQuick
+)
+
+ki18n_install(po)

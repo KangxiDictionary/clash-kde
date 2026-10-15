@@ -1,0 +1,15 @@
+[Unit]
+Description=Clash KDE mihomo session service
+After=graphical-session.target dbus.service
+
+[Service]
+Type=dbus
+BusName=org.kde.clashkde
+ExecStart=/usr/bin/clash-kde
+Restart=on-failure
+RestartSec=2
+TimeoutStopSec=15
+Environment=PATH=/usr/local/bin:/usr/bin:/bin
+
+[Install]
+WantedBy=default.target

@@ -1,0 +1,5 @@
+/target
+/kcm/build
+/distro/arch/src
+/distro/arch/pkg
+/distro/arch/*.pkg.tar.*

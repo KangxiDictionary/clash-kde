@@ -1,0 +1,215 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: kcm_clashkde 0.1.0\n"
+"Language: zh_CN\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+msgid "%1 B/s"
+msgstr "%1 B/s"
+
+msgid "%1 KB/s"
+msgstr "%1 KB/s"
+
+msgid "%1 MB/s"
+msgstr "%1 MB/s"
+
+msgid "%1 ms"
+msgstr "%1 毫秒"
+
+msgid "Active"
+msgstr "当前使用"
+
+msgid "Add subscription"
+msgstr "添加订阅"
+
+msgid "Advanced"
+msgstr "高级"
+
+msgid "Check region"
+msgstr "检测地区"
+
+msgid "Controller port"
+msgstr "控制器端口"
+
+msgid "Core"
+msgstr "内核"
+
+msgid "Core is not running"
+msgstr "内核没有在运行"
+
+msgid "Core state"
+msgstr "内核状态"
+
+msgid "Direct"
+msgstr "直连"
+
+msgid "Download"
+msgstr "下载"
+
+msgid "Exit region"
+msgstr "出口地区"
+
+msgid "Global"
+msgstr "全局"
+
+msgid "Group"
+msgstr "策略组"
+
+msgid "KDE proxy is pointing at this core"
+msgstr "KDE 代理正指向这个内核"
+
+msgid "KDE proxy is unchanged"
+msgstr "KDE 代理未被改动"
+
+msgid "Last update: %1"
+msgstr "上次更新：%1"
+
+msgid "Listen address"
+msgstr "监听地址"
+
+msgid "Mixed port"
+msgstr "混合端口"
+
+msgid "Mode"
+msgstr "模式"
+
+msgid "Name"
+msgstr "名称"
+
+msgid "No proxy groups"
+msgstr "没有策略组"
+
+msgid "No subscriptions yet"
+msgstr "还没有订阅"
+
+msgid "Not checked yet"
+msgstr "尚未检测"
+
+msgid "Not tested"
+msgstr "未测试"
+
+msgid "Not updated yet"
+msgstr "尚未更新"
+
+msgid "Optional"
+msgstr "可选"
+
+msgid "Override file"
+msgstr "本地覆盖"
+
+msgid "Point KDE applications at this core while it is running"
+msgstr "内核运行时，让 KDE 应用程序使用它"
+
+msgid "Profiles"
+msgstr "配置"
+
+msgid "Proxies"
+msgstr "代理"
+
+msgid "Remove"
+msgstr "移除"
+
+msgid "Remove this subscription?"
+msgstr "移除这个订阅？"
+
+msgid "Restart core"
+msgstr "重启内核"
+
+msgid "Rule"
+msgstr "规则"
+
+msgid "Run mihomo without changing the KDE proxy"
+msgstr "运行 mihomo，不改动 KDE 代理"
+
+msgid "Running"
+msgstr "运行中"
+
+msgid "Status"
+msgstr "状态"
+
+msgid "Stopped"
+msgstr "已停止"
+
+msgid "System proxy"
+msgstr "系统代理"
+
+msgid "Test delays"
+msgstr "测试延迟"
+
+msgid "The controller listens only on this computer. TUN stays off in this version. Applying restarts the core when it is running."
+msgstr "控制器只监听本机。这一版不会开启 TUN。应用后如果内核正在运行，会重新启动它。"
+
+msgid "The system proxy choice is saved. It is applied while the core is running."
+msgstr "系统代理的选择会被记住，只在内核运行时写入。"
+
+msgid "Timeout"
+msgstr "超时"
+
+msgid "URL"
+msgstr "地址"
+
+msgid "Update"
+msgstr "更新"
+
+msgid "Upload"
+msgstr "上传"
+
+msgid "Use"
+msgstr "使用"
+
+msgid "Waiting to start"
+msgstr "等待启动"
+
+msgid "mihomo executable"
+msgstr "mihomo 可执行文件"
+
+msgid "Applied"
+msgstr "已生效"
+
+msgid "Not applied"
+msgstr "未生效"
+
+msgid "Restart"
+msgstr "重启"
+
+msgid "Traffic"
+msgstr "流量"
+
+msgid "Subscriptions"
+msgstr "订阅"
+
+msgid "Connection"
+msgstr "连接"
+
+msgid "Only starts the local proxy. System proxy is a separate switch."
+msgstr "只启动本机代理。系统代理另外开关。"
+
+msgid "Restart with the current configuration."
+msgstr "按当前配置重新启动。"
+
+msgid "While the core is running, KDE applications use it. Turning the core off withdraws it."
+msgstr "内核运行时，KDE 应用程序使用它。内核停止后会撤回。"
+
+msgid "Rule follows the profile. Global sends everything through the proxy. Direct connects directly."
+msgstr "规则按配置分流。全局全部走代理。直连全部直接连接。"
+
+msgid "Applications can use this address directly."
+msgstr "其他软件可以手动填写这个地址。"
+
+msgid "Look up the exit region through the current proxy."
+msgstr "通过当前代理查询出口地区。"
+
+msgid "HTTP and SOCKS share this port. Applying restarts a running core."
+msgstr "HTTP 和 SOCKS 共用这个端口。应用后如果内核在运行，会重新启动。"
+
+msgid "Used by this page. It listens only on this computer."
+msgstr "供这个页面读取状态，只监听本机。"
+
+msgid "The mihomo program installed on the system."
+msgstr "系统里的 mihomo 程序。"
+
+msgid "Merged on top of the subscription. The listen address is still set here."
+msgstr "合并到订阅之上。监听地址仍由这里决定。"

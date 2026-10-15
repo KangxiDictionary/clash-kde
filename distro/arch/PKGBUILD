@@ -1,0 +1,50 @@
+# Maintainer: clash-kde contributors
+pkgname=clash-kde
+pkgver=0.1.0
+pkgrel=1
+pkgdesc='KDE System Settings module for a per-user mihomo proxy'
+arch=('x86_64' 'aarch64')
+url='https://github.com/clash-kde/clash-kde'
+license=('GPL-3.0-or-later')
+depends=(
+    'mihomo'
+    'qt6-base'
+    'qt6-declarative'
+    'kcmutils'
+    'kirigami'
+    'ki18n'
+    'kconfig'
+    'kcoreaddons'
+    'dbus'
+)
+makedepends=(
+    'cargo'
+    'cmake'
+    'extra-cmake-modules'
+    'qt6-tools'
+    'kcmutils'
+)
+install=clash-kde.install
+options=('!lto')
+
+build() {
+    cd "${startdir}/../.."
+    export CARGO_TARGET_DIR="${srcdir}/target"
+    cargo build --release --locked
+    cmake -B "${srcdir}/kcm-build" -S "${startdir}/../../kcm" \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=/usr
+    cmake --build "${srcdir}/kcm-build"
+}
+
+package() {
+    cd "${startdir}/../.."
+    install -Dm755 "${srcdir}/target/release/clash-kde" "${pkgdir}/usr/bin/clash-kde"
+    DESTDIR="${pkgdir}" cmake --install "${srcdir}/kcm-build"
+    install -Dm644 distro/arch/clash-kde.service \
+        "${pkgdir}/usr/lib/systemd/user/clash-kde.service"
+    install -Dm644 distro/arch/org.kde.clashkde.service \
+        "${pkgdir}/usr/share/dbus-1/services/org.kde.clashkde.service"
+    install -Dm644 distro/arch/90-clash-kde.preset \
+        "${pkgdir}/usr/lib/systemd/user-preset/90-clash-kde.preset"
+}
