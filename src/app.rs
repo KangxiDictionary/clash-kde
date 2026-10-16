@@ -699,7 +699,33 @@ impl App {
         Ok(())
     }
 
+    pub async fn reset_preferences(self: &Arc<Self>) -> Result<(), String> {
+        let was_tun = {
+            let mut inner = self.inner.lock().await;
+            let was_tun = inner.settings.tun_enabled;
+            let active = inner.settings.active_profile.clone();
+            let secret = inner.settings.controller_secret.clone();
+            inner.settings = crate::state::Settings {
+                active_profile: active,
+                controller_secret: secret,
+                ..crate::state::Settings::default()
+            };
+            inner.message.clear();
+            inner
+                .settings
+                .save(&self.paths)
+                .map_err(|error| error.to_string())?;
+            was_tun
+        };
+        if was_tun {
+            let _ = crate::admin::revoke_tun().await;
+        }
+        self.stop().await?;
+        Ok(())
+    }
+
     pub async fn status_json(&self) -> String {
+        self.reconcile_external_proxy().await;
         let inner = self.inner.lock().await;
         let status = Status {
             core_desired: inner.settings.core_desired,
@@ -1057,7 +1083,48 @@ impl App {
         }
     }
 
+    async fn reconcile_external_proxy(&self) {
+        let (port, enabled) = {
+            let inner = self.inner.lock().await;
+            (
+                inner.settings.mixed_port,
+                inner.settings.system_proxy_enabled,
+            )
+        };
+        let released = if self.paths.proxy_flag().exists() {
+            if proxy_settings::still_points_at_us(&self.paths, port) {
+                false
+            } else {
+                match proxy_settings::release_ownership(&self.paths, port) {
+                    Ok(()) => true,
+                    Err(error) => {
+                        tracing::error!("放开被改过的系统代理失败: {error}");
+                        return;
+                    }
+                }
+            }
+        } else if enabled && proxy_settings::left_proxy_was_edited(&self.paths) {
+            let _ = std::fs::remove_file(self.paths.proxy_left());
+            true
+        } else {
+            false
+        };
+        if !released {
+            return;
+        }
+        let mut inner = self.inner.lock().await;
+        inner.settings.system_proxy_enabled = false;
+        inner.system_proxy_applied = false;
+        if let Err(error) = inner.settings.save(&self.paths) {
+            tracing::error!("保存系统代理开关失败: {error}");
+            return;
+        }
+        drop(inner);
+        self.emit(Event::Status);
+    }
+
     async fn sync_system_proxy(&self) -> Result<(), String> {
+        self.reconcile_external_proxy().await;
         let (enabled, running, port, tun) = {
             let inner = self.inner.lock().await;
             (

@@ -59,4 +59,8 @@ impl Paths {
     pub fn gnome_proxy_backup(&self) -> PathBuf {
         self.config_dir.join("proxy-gnome.backup")
     }
+
+    pub fn proxy_left(&self) -> PathBuf {
+        self.config_dir.join("proxy-left")
+    }
 }

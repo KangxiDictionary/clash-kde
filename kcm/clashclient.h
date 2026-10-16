@@ -39,6 +39,11 @@ class ClashClient : public QObject
     Q_PROPERTY(int draftMixedPort READ draftMixedPort WRITE setDraftMixedPort NOTIFY draftChanged)
     Q_PROPERTY(int draftControllerPort READ draftControllerPort WRITE setDraftControllerPort NOTIFY draftChanged)
     Q_PROPERTY(QString draftMihomoPath READ draftMihomoPath WRITE setDraftMihomoPath NOTIFY draftChanged)
+    Q_PROPERTY(bool draftCoreDesired READ draftCoreDesired WRITE setDraftCoreDesired NOTIFY draftChanged)
+    Q_PROPERTY(bool draftSystemProxyEnabled READ draftSystemProxyEnabled WRITE setDraftSystemProxyEnabled NOTIFY draftChanged)
+    Q_PROPERTY(bool draftTunEnabled READ draftTunEnabled WRITE setDraftTunEnabled NOTIFY draftChanged)
+    Q_PROPERTY(QString draftMode READ draftMode WRITE setDraftMode NOTIFY draftChanged)
+    Q_PROPERTY(bool settingsDirty READ settingsDirty NOTIFY draftChanged)
 
 public:
     explicit ClashClient(QObject *parent = nullptr);
@@ -74,6 +79,15 @@ public:
     void setDraftControllerPort(int port);
     QString draftMihomoPath() const;
     void setDraftMihomoPath(const QString &path);
+    bool draftCoreDesired() const;
+    void setDraftCoreDesired(bool desired);
+    bool draftSystemProxyEnabled() const;
+    void setDraftSystemProxyEnabled(bool enabled);
+    bool draftTunEnabled() const;
+    void setDraftTunEnabled(bool enabled);
+    QString draftMode() const;
+    void setDraftMode(const QString &mode);
+    bool settingsDirty() const;
 
     Q_INVOKABLE void setCoreDesired(bool desired);
     Q_INVOKABLE void restartCore();
@@ -125,6 +139,8 @@ private:
     void setBusy(bool busy);
     void setDelayTesting(bool testing);
     void applyStatus(const QVariantMap &status);
+    void copyLiveToDraft();
+    bool draftMatchesLive() const;
     void refreshFirewall();
     void overlayCurrentAccount();
     void reportError(const QString &message);
@@ -153,9 +169,14 @@ private:
     bool m_busy = false;
     bool m_delayTesting = false;
     bool m_draftDirty = false;
+    bool m_preferReset = false;
     int m_draftMixedPort = 7890;
     int m_draftControllerPort = 9090;
     QString m_draftMihomoPath = QStringLiteral("mihomo");
+    bool m_draftCoreDesired = false;
+    bool m_draftSystemProxyEnabled = false;
+    bool m_draftTunEnabled = false;
+    QString m_draftMode = QStringLiteral("rule");
     QVariantList m_profiles;
     QVariantList m_groups;
     QVariantList m_accounts;

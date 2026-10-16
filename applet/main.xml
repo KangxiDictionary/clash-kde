@@ -17,5 +17,8 @@
         <entry name="routeSort" type="String">
             <default>profile</default>
         </entry>
+        <entry name="showUnreachable" type="Bool">
+            <default>true</default>
+        </entry>
     </group>
 </kcfg>

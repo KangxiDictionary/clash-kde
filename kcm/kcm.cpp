@@ -40,11 +40,8 @@ void ClashKcm::save()
 void ClashKcm::defaults()
 {
     m_client->applyDefaultsToDraft();
-    const bool unchanged = m_client->draftMixedPort() == m_client->mixedPort()
-        && m_client->draftControllerPort() == m_client->controllerPort()
-        && m_client->draftMihomoPath() == m_client->mihomoPath();
-    setNeedsSave(!unchanged);
-    setRepresentsDefaults(true);
+    setNeedsSave(m_client->settingsDirty());
+    setRepresentsDefaults(m_client->draftIsDefaults());
 }
 
 #include "kcm.moc"

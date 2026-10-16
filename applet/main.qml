@@ -77,6 +77,7 @@ PlasmoidItem {
     }
 
     readonly property string routeSort: configured("routeSort", "profile")
+    readonly property bool showUnreachable: Plasmoid.configuration.showUnreachable !== false
 
     function sortedNodes(nodes, mode) {
         const copy = nodes.slice();
@@ -97,10 +98,15 @@ PlasmoidItem {
         return copy;
     }
 
-    readonly property var routeNodes: {
-        const group = currentRouteGroup();
-        return group ? sortedNodes(group.nodes || [], routeSort) : [];
+    function nodesFor(group) {
+        const nodes = sortedNodes(group.nodes || [], routeSort);
+        if (showUnreachable) {
+            return nodes;
+        }
+        return nodes.filter(node => node["delay_ms"] !== 0);
     }
+
+    readonly property var singleGroupNodes: selectorGroups.length === 1 ? nodesFor(selectorGroups[0]) : []
 
     function perform(action) {
         switch (action) {
@@ -111,7 +117,7 @@ PlasmoidItem {
             session.setCoreDesired(!session.coreDesired);
             break;
         case "toggleSystemProxy":
-            if (systemProxyUsable) {
+            if (session.systemProxyEnabled || systemProxyUsable) {
                 session.setSystemProxyEnabled(!session.systemProxyEnabled);
             }
             break;
@@ -186,11 +192,11 @@ PlasmoidItem {
         id: proxyAction
         text: i18n("System proxy")
         icon.name: "network-vpn"
-        enabled: root.systemProxyUsable
+        enabled: session.systemProxyEnabled || root.systemProxyUsable
         checkable: true
         checked: session.systemProxyEnabled
         onTriggered: {
-            if (root.systemProxyUsable) {
+            if (session.systemProxyEnabled || root.systemProxyUsable) {
                 session.setSystemProxyEnabled(!session.systemProxyEnabled);
             }
         }
@@ -408,7 +414,7 @@ PlasmoidItem {
                         anchors.fill: parent
                         text: i18n("System proxy")
                         checked: session.systemProxyEnabled
-                        enabled: root.systemProxyUsable
+                        enabled: session.systemProxyEnabled || root.systemProxyUsable
                         onToggled: {
                             if (checked !== session.systemProxyEnabled) {
                                 session.setSystemProxyEnabled(checked);
@@ -468,67 +474,15 @@ PlasmoidItem {
                 }
             }
 
-            PC3.Label {
+            PC3.Button {
                 visible: root.selectorGroups.length > 0
-                text: i18n("Route")
-                font: Kirigami.Theme.smallFont
-                opacity: 0.75
                 Layout.fillWidth: true
                 Layout.topMargin: Kirigami.Units.smallSpacing
-            }
-
-            PC3.ComboBox {
-                visible: root.selectorGroups.length > 1
-                Layout.fillWidth: true
-                model: root.selectorGroups
-                textRole: "name"
-                currentIndex: {
+                text: {
                     const group = root.currentRouteGroup();
-                    if (!group) {
-                        return 0;
-                    }
-                    for (let i = 0; i < root.selectorGroups.length; ++i) {
-                        if (root.selectorGroups[i].name === group.name) {
-                            return i;
-                        }
-                    }
-                    return 0;
+                    return group && group.now.length > 0 ? i18n("Route: %1", group.now) : i18n("Route");
                 }
-                onActivated: index => {
-                    root.routeGroup = root.selectorGroups[index].name;
-                }
-            }
-
-            Repeater {
-                model: root.routeNodes
-                delegate: RowLayout {
-                    required property var modelData
-                    Layout.fillWidth: true
-                    spacing: Kirigami.Units.largeSpacing
-
-                    PC3.RadioButton {
-                        text: modelData.name
-                        clip: true
-                        checked: {
-                            const group = root.currentRouteGroup();
-                            return !!group && group.now === modelData.name;
-                        }
-                        Layout.fillWidth: true
-                        onToggled: {
-                            const group = root.currentRouteGroup();
-                            if (checked && group && group.now !== modelData.name) {
-                                session.selectProxy(group.name, modelData.name);
-                            }
-                        }
-                    }
-
-                    PC3.Label {
-                        readonly property int delayMs: modelData["delay_ms"]
-                        visible: delayMs >= 0
-                        text: delayMs === 0 ? i18n("Timeout") : i18n("%1 ms", delayMs)
-                        color: root.delayColor(delayMs)
-                    }
-                }
+                onClicked: routeMenu.popup(this)
             }
 
             PC3.Button {
@@ -538,6 +492,82 @@ PlasmoidItem {
                 onClicked: root.perform("openSettings")
             }
         }
+        }
+
+        PC3.Menu {
+            id: routeMenu
+
+            Instantiator {
+                model: root.singleGroupNodes
+                delegate: PC3.MenuItem {
+                    required property var modelData
+                    checkable: true
+                    checked: {
+                        const group = root.selectorGroups.length === 1 ? root.selectorGroups[0] : null;
+                        return !!group && group.now === modelData.name;
+                    }
+                    onTriggered: {
+                        const group = root.selectorGroups.length === 1 ? root.selectorGroups[0] : null;
+                        if (group) {
+                            session.selectProxy(group.name, modelData.name);
+                        }
+                    }
+                    contentItem: RowLayout {
+                        spacing: Kirigami.Units.largeSpacing
+                        PC3.Label {
+                            text: modelData.name
+                            elide: Text.ElideRight
+                            Layout.fillWidth: true
+                            Layout.maximumWidth: Kirigami.Units.gridUnit * 14
+                        }
+                        PC3.Label {
+                            readonly property int delayMs: modelData["delay_ms"]
+                            visible: delayMs >= 0
+                            text: delayMs === 0 ? i18n("Timeout") : i18n("%1 ms", delayMs)
+                            color: root.delayColor(delayMs)
+                        }
+                    }
+                }
+                onObjectAdded: (index, object) => routeMenu.insertItem(index, object)
+                onObjectRemoved: (index, object) => routeMenu.removeItem(object)
+            }
+
+            Instantiator {
+                model: root.selectorGroups.length > 1 ? root.selectorGroups : []
+                delegate: PC3.Menu {
+                    id: groupMenu
+                    required property var modelData
+                    title: modelData.name
+                    Instantiator {
+                        model: root.nodesFor(groupMenu.modelData)
+                        delegate: PC3.MenuItem {
+                            required property var modelData
+                            checkable: true
+                            checked: groupMenu.modelData.now === modelData.name
+                            onTriggered: session.selectProxy(groupMenu.modelData.name, modelData.name)
+                            contentItem: RowLayout {
+                                spacing: Kirigami.Units.largeSpacing
+                                PC3.Label {
+                                    text: modelData.name
+                                    elide: Text.ElideRight
+                                    Layout.fillWidth: true
+                                    Layout.maximumWidth: Kirigami.Units.gridUnit * 14
+                                }
+                                PC3.Label {
+                                    readonly property int delayMs: modelData["delay_ms"]
+                                    visible: delayMs >= 0
+                                    text: delayMs === 0 ? i18n("Timeout") : i18n("%1 ms", delayMs)
+                                    color: root.delayColor(delayMs)
+                                }
+                            }
+                        }
+                        onObjectAdded: (index, object) => groupMenu.insertItem(index, object)
+                        onObjectRemoved: (index, object) => groupMenu.removeItem(object)
+                    }
+                }
+                onObjectAdded: (index, object) => routeMenu.insertMenu(index, object)
+                onObjectRemoved: (index, object) => routeMenu.removeMenu(object)
+            }
         }
     }
 }

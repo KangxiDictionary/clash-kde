@@ -14,6 +14,7 @@ Kirigami.FormLayout {
     property string cfg_middleClickAction
     property string cfg_wheelAction
     property string cfg_routeSort
+    property bool cfg_showUnreachable
 
     readonly property var clickActions: [
         { label: i18nc("@item:inlistbox", "Open the popup"), value: "popup" },
@@ -68,5 +69,11 @@ Kirigami.FormLayout {
         ]
         Component.onCompleted: currentIndex = Math.max(0, indexOfValue(root.cfg_routeSort))
         onActivated: root.cfg_routeSort = currentValue
+    }
+
+    QQC2.CheckBox {
+        text: i18nc("@option:check", "Show unreachable routes")
+        checked: root.cfg_showUnreachable
+        onToggled: root.cfg_showUnreachable = checked
     }
 }

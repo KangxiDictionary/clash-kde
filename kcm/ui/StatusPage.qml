@@ -142,10 +142,10 @@ Item {
                 }
 
                 QQC2.Switch {
-                    checked: kcm.client.coreDesired
+                    checked: kcm.client.draftCoreDesired
                     onToggled: {
-                        if (checked !== kcm.client.coreDesired) {
-                            kcm.client.setCoreDesired(checked);
+                        if (checked !== kcm.client.draftCoreDesired) {
+                            kcm.client.draftCoreDesired = checked;
                         }
                     }
 
@@ -171,11 +171,11 @@ Item {
                 QQC2.Switch {
                     id: proxySwitch
                     anchors.fill: parent
-                    checked: kcm.client.systemProxyEnabled
-                    enabled: kcm.client.coreRunning && !kcm.client.tunEnabled
+                    checked: kcm.client.draftSystemProxyEnabled
+                    enabled: checked || (kcm.client.draftCoreDesired && !kcm.client.draftTunEnabled)
                     onToggled: {
-                        if (checked !== kcm.client.systemProxyEnabled) {
-                            kcm.client.setSystemProxyEnabled(checked);
+                        if (checked !== kcm.client.draftSystemProxyEnabled) {
+                            kcm.client.draftSystemProxyEnabled = checked;
                         }
                     }
                 }
@@ -199,11 +199,11 @@ Item {
             }
 
             QQC2.Switch {
-                checked: kcm.client.tunEnabled
+                checked: kcm.client.draftTunEnabled
                 enabled: !kcm.client.busy
                 onToggled: {
-                    if (checked !== kcm.client.tunEnabled) {
-                        kcm.client.setTunEnabled(checked);
+                    if (checked !== kcm.client.draftTunEnabled) {
+                        kcm.client.draftTunEnabled = checked;
                     }
                 }
 
@@ -224,11 +224,11 @@ Item {
                 id: modeBox
                 model: [tx.i18n("Rule"), tx.i18n("Global"), tx.i18n("Direct")]
                 readonly property var modes: ["rule", "global", "direct"]
-                currentIndex: Math.max(0, modes.indexOf(kcm.client.mode))
+                currentIndex: Math.max(0, modes.indexOf(kcm.client.draftMode))
                 onActivated: index => {
                     const mode = modes[index];
-                    if (mode !== kcm.client.mode) {
-                        kcm.client.setMode(mode);
+                    if (mode !== kcm.client.draftMode) {
+                        kcm.client.draftMode = mode;
                     }
                 }
             }

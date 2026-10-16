@@ -11,6 +11,14 @@ Kirigami.Page {
         id: tx
     }
 
+    Connections {
+        target: kcm.client
+        function onDraftChanged() {
+            kcm.needsSave = kcm.client.settingsDirty;
+            kcm.representsDefaults = kcm.client.draftIsDefaults();
+        }
+    }
+
     ColumnLayout {
         anchors.fill: parent
         anchors.margins: Kirigami.Units.smallSpacing

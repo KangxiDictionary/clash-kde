@@ -23,6 +23,39 @@ pub fn apply_if_needed(paths: &Paths, port: u16) -> std::io::Result<()> {
     write_manual_proxy(&paths.kioslaverc, port)?;
     apply_gnome(port);
     notify_kio();
+    let _ = fs::remove_file(paths.proxy_left());
+    Ok(())
+}
+
+pub fn still_points_at_us(paths: &Paths, port: u16) -> bool {
+    let Ok(text) = fs::read_to_string(&paths.kioslaverc) else {
+        return false;
+    };
+    let Some(body) = extract_group_body(&text, "Proxy Settings") else {
+        return false;
+    };
+    let mut proxy_type = "";
+    let mut http_proxy = "";
+    for line in body.lines() {
+        let line = line.trim();
+        if let Some(value) = line.strip_prefix("ProxyType=") {
+            proxy_type = value.trim();
+        } else if let Some(value) = line.strip_prefix("httpProxy=") {
+            http_proxy = value.trim();
+        }
+    }
+    proxy_type == "1" && endpoint_is_local(http_proxy) && endpoint_port(http_proxy) == Some(port)
+}
+
+pub fn release_ownership(paths: &Paths, port: u16) -> std::io::Result<()> {
+    let _ = fs::remove_file(paths.proxy_flag());
+    let _ = fs::remove_file(paths.proxy_backup());
+    if gnome_still_ours(port) {
+        restore_gnome(paths);
+    } else {
+        let _ = fs::remove_file(paths.gnome_proxy_backup());
+    }
+    let _ = fs::remove_file(paths.proxy_left());
     Ok(())
 }
 
@@ -46,7 +79,50 @@ pub fn restore_if_applied(paths: &Paths) -> std::io::Result<()> {
     let _ = fs::remove_file(paths.proxy_backup());
     restore_gnome(paths);
     notify_kio();
+    remember_left_proxy(paths)?;
     Ok(())
+}
+
+pub fn left_proxy_was_edited(paths: &Paths) -> bool {
+    let Ok(expected) = fs::read_to_string(paths.proxy_left()) else {
+        return false;
+    };
+    current_proxy_fingerprint(&paths.kioslaverc) != expected
+}
+
+fn remember_left_proxy(paths: &Paths) -> std::io::Result<()> {
+    let fingerprint = current_proxy_fingerprint(&paths.kioslaverc);
+    crate::state::write_private(paths.proxy_left().as_path(), fingerprint.as_bytes())
+}
+
+fn current_proxy_fingerprint(path: &Path) -> String {
+    let text = fs::read_to_string(path).unwrap_or_default();
+    let body = extract_group_body(&text, "Proxy Settings").unwrap_or_default();
+    const KEYS: &[&str] = &[
+        "Authmode",
+        "ftpProxy",
+        "httpProxy",
+        "httpsProxy",
+        "NoProxyFor",
+        "ProxyType",
+        "ReversedException",
+        "socksProxy",
+    ];
+    let mut values = std::collections::BTreeMap::new();
+    for line in body.lines() {
+        let Some((key, value)) = line.trim().split_once('=') else {
+            continue;
+        };
+        let key = key.trim();
+        if KEYS.contains(&key) {
+            values.insert(key.to_string(), value.trim().to_string());
+        }
+    }
+    values
+        .into_iter()
+        .map(|(key, value)| format!("{key}={value}"))
+        .collect::<Vec<_>>()
+        .join("\n")
 }
 
 fn write_manual_proxy(path: &Path, port: u16) -> std::io::Result<()> {
@@ -226,6 +302,31 @@ fn restore_gnome(paths: &Paths) {
     let _ = fs::remove_file(paths.gnome_proxy_backup());
 }
 
+fn endpoint_is_local(value: &str) -> bool {
+    value.contains("127.0.0.1") || value.contains("localhost") || value.contains("[::1]")
+}
+
+fn endpoint_port(value: &str) -> Option<u16> {
+    value
+        .trim()
+        .trim_matches('"')
+        .rsplit([' ', ':'])
+        .next()?
+        .trim()
+        .parse()
+        .ok()
+}
+
+fn gnome_still_ours(port: u16) -> bool {
+    if cfg!(test) {
+        return false;
+    }
+    let mode = gsettings_get("org.gnome.system.proxy", "mode").unwrap_or_default();
+    let host = gsettings_get("org.gnome.system.proxy.http", "host").unwrap_or_default();
+    let current = gsettings_get("org.gnome.system.proxy.http", "port").unwrap_or_default();
+    mode == "'manual'" && endpoint_is_local(&host) && current == port.to_string()
+}
+
 fn gsettings_get(schema: &str, key: &str) -> Option<String> {
     let output = Command::new("gsettings")
         .args(["get", schema, key])
@@ -265,6 +366,34 @@ fn notify_kio() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_manual_kde_change_no_longer_points_at_us() {
+        let dir = tempfile::tempdir().unwrap();
+        let paths = Paths {
+            config_dir: dir.path().join("config"),
+            data_dir: dir.path().join("data"),
+            kioslaverc: dir.path().join("kioslaverc"),
+        };
+        fs::write(
+            &paths.kioslaverc,
+            "[Proxy Settings]\nProxyType=1\nhttpProxy=http://127.0.0.1 7890\n",
+        )
+        .unwrap();
+        assert!(still_points_at_us(&paths, 7890));
+        fs::write(&paths.kioslaverc, "[Proxy Settings]\nProxyType=0\n").unwrap();
+        assert!(!still_points_at_us(&paths, 7890));
+        fs::write(
+            &paths.kioslaverc,
+            "[Proxy Settings]\nProxyType=1\nhttpProxy=http://127.0.0.1 8080\n",
+        )
+        .unwrap();
+        assert!(!still_points_at_us(&paths, 7890));
+        remember_left_proxy(&paths).unwrap();
+        assert!(!left_proxy_was_edited(&paths));
+        fs::write(&paths.kioslaverc, "[Proxy Settings]\nProxyType=0\n").unwrap();
+        assert!(left_proxy_was_edited(&paths));
+    }
 
     #[test]
     fn tun_withdraws_the_system_proxy() {

@@ -6,13 +6,6 @@ import org.kde.kirigami as Kirigami
 Item {
     id: root
 
-    function noteDraftEdited() {
-        kcm.needsSave = true;
-        kcm.representsDefaults = kcm.client.draftMixedPort === 7890
-            && kcm.client.draftControllerPort === 9090
-            && kcm.client.draftMihomoPath === "mihomo";
-    }
-
     Tx {
         id: tx
     }
@@ -40,10 +33,7 @@ Item {
                 to: 65535
                 editable: true
                 value: kcm.client.draftMixedPort
-                onValueModified: {
-                    kcm.client.draftMixedPort = value;
-                    root.noteDraftEdited();
-                }
+                onValueModified: kcm.client.draftMixedPort = value
 
                 QQC2.ToolTip.visible: hovered
                 QQC2.ToolTip.delay: 700
@@ -56,10 +46,7 @@ Item {
                 to: 65535
                 editable: true
                 value: kcm.client.draftControllerPort
-                onValueModified: {
-                    kcm.client.draftControllerPort = value;
-                    root.noteDraftEdited();
-                }
+                onValueModified: kcm.client.draftControllerPort = value
 
                 QQC2.ToolTip.visible: hovered
                 QQC2.ToolTip.delay: 700
@@ -70,10 +57,7 @@ Item {
                 Kirigami.FormData.label: tx.i18n("mihomo executable")
                 text: kcm.client.draftMihomoPath
                 implicitWidth: Kirigami.Units.gridUnit * 16
-                onTextEdited: {
-                    kcm.client.draftMihomoPath = text;
-                    root.noteDraftEdited();
-                }
+                onTextEdited: kcm.client.draftMihomoPath = text
 
                 QQC2.ToolTip.visible: hovered
                 QQC2.ToolTip.delay: 700

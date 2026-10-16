@@ -45,6 +45,11 @@ impl Manager {
         self.app.set_mode(&mode).await.map_err(failed)
     }
 
+    #[zbus(name = "ResetPreferences")]
+    async fn reset_preferences(&self) -> fdo::Result<()> {
+        self.app.reset_preferences().await.map_err(failed)
+    }
+
     #[zbus(name = "SetSettings")]
     async fn set_settings(
         &self,

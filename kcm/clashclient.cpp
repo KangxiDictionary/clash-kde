@@ -133,6 +133,11 @@ qulonglong ClashClient::ownUid() const { return ::getuid(); }
 int ClashClient::draftMixedPort() const { return m_draftMixedPort; }
 int ClashClient::draftControllerPort() const { return m_draftControllerPort; }
 QString ClashClient::draftMihomoPath() const { return m_draftMihomoPath; }
+bool ClashClient::draftCoreDesired() const { return m_draftCoreDesired; }
+bool ClashClient::draftSystemProxyEnabled() const { return m_draftSystemProxyEnabled; }
+bool ClashClient::draftTunEnabled() const { return m_draftTunEnabled; }
+QString ClashClient::draftMode() const { return m_draftMode; }
+bool ClashClient::settingsDirty() const { return m_draftDirty; }
 
 void ClashClient::setDraftMixedPort(int port)
 {
@@ -141,6 +146,7 @@ void ClashClient::setDraftMixedPort(int port)
     }
     m_draftMixedPort = port;
     m_draftDirty = true;
+    m_preferReset = false;
     Q_EMIT draftChanged();
 }
 
@@ -151,6 +157,7 @@ void ClashClient::setDraftControllerPort(int port)
     }
     m_draftControllerPort = port;
     m_draftDirty = true;
+    m_preferReset = false;
     Q_EMIT draftChanged();
 }
 
@@ -161,6 +168,51 @@ void ClashClient::setDraftMihomoPath(const QString &path)
     }
     m_draftMihomoPath = path;
     m_draftDirty = true;
+    m_preferReset = false;
+    Q_EMIT draftChanged();
+}
+
+void ClashClient::setDraftCoreDesired(bool desired)
+{
+    if (m_draftCoreDesired == desired) {
+        return;
+    }
+    m_draftCoreDesired = desired;
+    m_draftDirty = true;
+    m_preferReset = false;
+    Q_EMIT draftChanged();
+}
+
+void ClashClient::setDraftSystemProxyEnabled(bool enabled)
+{
+    if (m_draftSystemProxyEnabled == enabled) {
+        return;
+    }
+    m_draftSystemProxyEnabled = enabled;
+    m_draftDirty = true;
+    m_preferReset = false;
+    Q_EMIT draftChanged();
+}
+
+void ClashClient::setDraftTunEnabled(bool enabled)
+{
+    if (m_draftTunEnabled == enabled) {
+        return;
+    }
+    m_draftTunEnabled = enabled;
+    m_draftDirty = true;
+    m_preferReset = false;
+    Q_EMIT draftChanged();
+}
+
+void ClashClient::setDraftMode(const QString &mode)
+{
+    if (m_draftMode == mode) {
+        return;
+    }
+    m_draftMode = mode;
+    m_draftDirty = true;
+    m_preferReset = false;
     Q_EMIT draftChanged();
 }
 
@@ -367,38 +419,110 @@ void ClashClient::reload()
     refreshProxies();
 }
 
-void ClashClient::revertDraft()
+void ClashClient::copyLiveToDraft()
 {
-    m_draftDirty = false;
     m_draftMixedPort = m_mixedPort;
     m_draftControllerPort = m_controllerPort;
     m_draftMihomoPath = m_mihomoPath;
+    m_draftCoreDesired = m_coreDesired;
+    m_draftSystemProxyEnabled = m_systemProxyEnabled;
+    m_draftTunEnabled = m_tunEnabled;
+    m_draftMode = m_mode;
+}
+
+bool ClashClient::draftMatchesLive() const
+{
+    return m_draftMixedPort == m_mixedPort
+        && m_draftControllerPort == m_controllerPort
+        && m_draftMihomoPath == m_mihomoPath
+        && m_draftCoreDesired == m_coreDesired
+        && m_draftSystemProxyEnabled == m_systemProxyEnabled
+        && m_draftTunEnabled == m_tunEnabled
+        && m_draftMode == m_mode;
+}
+
+void ClashClient::revertDraft()
+{
+    m_draftDirty = false;
+    m_preferReset = false;
+    copyLiveToDraft();
     Q_EMIT draftChanged();
 }
 
 void ClashClient::applyDefaultsToDraft()
 {
-    m_draftDirty = true;
     m_draftMixedPort = 7890;
     m_draftControllerPort = 9090;
     m_draftMihomoPath = QStringLiteral("mihomo");
+    m_draftCoreDesired = false;
+    m_draftSystemProxyEnabled = false;
+    m_draftTunEnabled = false;
+    m_draftMode = QStringLiteral("rule");
+    m_draftDirty = !draftMatchesLive();
+    m_preferReset = true;
     Q_EMIT draftChanged();
 }
 
 bool ClashClient::draftIsDefaults() const
 {
-    return m_draftMixedPort == 7890 && m_draftControllerPort == 9090 && m_draftMihomoPath == QStringLiteral("mihomo");
+    return m_draftMixedPort == 7890 && m_draftControllerPort == 9090 && m_draftMihomoPath == QStringLiteral("mihomo")
+        && !m_draftCoreDesired && !m_draftSystemProxyEnabled && !m_draftTunEnabled && m_draftMode == QStringLiteral("rule");
 }
 
 bool ClashClient::commitSettings()
 {
-    QDBusReply<void> reply = m_iface->call(QStringLiteral("SetSettings"),
-                                           static_cast<quint32>(m_draftMixedPort),
-                                           static_cast<quint32>(m_draftControllerPort),
-                                           m_draftMihomoPath);
-    if (!reply.isValid()) {
-        reportError(reply.error().message());
+    auto failed = [this](const QDBusError &error) {
+        reportError(error.message());
         return false;
+    };
+    if (m_preferReset && draftIsDefaults()) {
+        const QDBusReply<void> reply = m_iface->call(QStringLiteral("ResetPreferences"));
+        if (!reply.isValid()) {
+            return failed(reply.error());
+        }
+        m_draftDirty = false;
+        m_preferReset = false;
+        refreshStatus();
+        return true;
+    }
+    if (!m_draftCoreDesired && m_coreDesired) {
+        const QDBusReply<void> reply = m_iface->call(QStringLiteral("Stop"));
+        if (!reply.isValid()) {
+            return failed(reply.error());
+        }
+    }
+    if (m_draftMixedPort != m_mixedPort || m_draftControllerPort != m_controllerPort || m_draftMihomoPath != m_mihomoPath) {
+        const QDBusReply<void> reply = m_iface->call(QStringLiteral("SetSettings"),
+                                                     static_cast<quint32>(m_draftMixedPort),
+                                                     static_cast<quint32>(m_draftControllerPort),
+                                                     m_draftMihomoPath);
+        if (!reply.isValid()) {
+            return failed(reply.error());
+        }
+    }
+    if (m_draftMode != m_mode) {
+        const QDBusReply<void> reply = m_iface->call(QStringLiteral("SetMode"), m_draftMode);
+        if (!reply.isValid()) {
+            return failed(reply.error());
+        }
+    }
+    if (m_draftTunEnabled != m_tunEnabled) {
+        const QDBusReply<void> reply = m_iface->call(QStringLiteral("SetTun"), m_draftTunEnabled);
+        if (!reply.isValid()) {
+            return failed(reply.error());
+        }
+    }
+    if (m_draftSystemProxyEnabled != m_systemProxyEnabled) {
+        const QDBusReply<void> reply = m_iface->call(QStringLiteral("SetSystemProxy"), m_draftSystemProxyEnabled);
+        if (!reply.isValid()) {
+            return failed(reply.error());
+        }
+    }
+    if (m_draftCoreDesired && !m_coreDesired) {
+        const QDBusReply<void> reply = m_iface->call(QStringLiteral("Start"));
+        if (!reply.isValid()) {
+            return failed(reply.error());
+        }
     }
     m_draftDirty = false;
     refreshStatus();
@@ -477,6 +601,7 @@ void ClashClient::onDelayUpdated(const QString &group, const QString &name, qlon
 
 void ClashClient::applyStatus(const QVariantMap &status)
 {
+    const bool proxyWasEnabled = m_systemProxyEnabled;
     m_coreDesired = status.value(QStringLiteral("core_desired")).toBool();
     m_coreRunning = status.value(QStringLiteral("core_running")).toBool();
     m_systemProxyEnabled = status.value(QStringLiteral("system_proxy_enabled")).toBool();
@@ -497,14 +622,15 @@ void ClashClient::applyStatus(const QVariantMap &status)
     if (m_message.startsWith(dbusPrefix)) {
         m_message = m_message.mid(dbusPrefix.size());
     }
-    if (!m_draftDirty) {
-        const bool changed = m_draftMixedPort != m_mixedPort || m_draftControllerPort != m_controllerPort || m_draftMihomoPath != m_mihomoPath;
-        m_draftMixedPort = m_mixedPort;
-        m_draftControllerPort = m_controllerPort;
-        m_draftMihomoPath = m_mihomoPath;
-        if (changed) {
-            Q_EMIT draftChanged();
-        }
+    const bool releasedOutside = proxyWasEnabled && !m_systemProxyEnabled;
+    if (!m_draftDirty && !draftMatchesLive()) {
+        copyLiveToDraft();
+        Q_EMIT draftChanged();
+    } else if (releasedOutside && m_draftSystemProxyEnabled) {
+        m_draftSystemProxyEnabled = false;
+        m_preferReset = false;
+        m_draftDirty = !draftMatchesLive();
+        Q_EMIT draftChanged();
     }
     Q_EMIT statusChanged();
     overlayCurrentAccount();
