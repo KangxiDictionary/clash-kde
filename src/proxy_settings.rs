@@ -18,7 +18,7 @@ pub fn apply_if_needed(paths: &Paths, port: u16) -> std::io::Result<()> {
         };
         crate::state::write_private(&paths.proxy_backup(), backup.as_bytes())?;
         backup_gnome(paths)?;
-        fs::write(&paths.proxy_flag(), b"1")?;
+        fs::write(paths.proxy_flag(), b"1")?;
     }
     write_manual_proxy(&paths.kioslaverc, port)?;
     apply_gnome(port);
@@ -171,16 +171,14 @@ pub fn replace_group(text: &str, group: &str, new_body: Option<&str>) -> String 
         }
         out.push_str(line);
     }
-    if !found {
-        if let Some(body) = new_body {
-            if !out.is_empty() && !out.ends_with('\n') {
-                out.push('\n');
-            }
-            push_header(&mut out, group);
-            out.push_str(body);
-            if !body.is_empty() && !body.ends_with('\n') {
-                out.push('\n');
-            }
+    if !found && let Some(body) = new_body {
+        if !out.is_empty() && !out.ends_with('\n') {
+            out.push('\n');
+        }
+        push_header(&mut out, group);
+        out.push_str(body);
+        if !body.is_empty() && !body.ends_with('\n') {
+            out.push('\n');
         }
     }
     out
@@ -261,7 +259,7 @@ fn apply_gnome(port: u16) {
     if cfg!(test) || gsettings_get("org.gnome.system.proxy", "mode").is_none() {
         return;
     }
-    let address = format!("'127.0.0.1'");
+    let address = "'127.0.0.1'".to_string();
     let port = port.to_string();
     gsettings_set("org.gnome.system.proxy", "mode", "'manual'");
     gsettings_set("org.gnome.system.proxy.http", "enabled", "true");

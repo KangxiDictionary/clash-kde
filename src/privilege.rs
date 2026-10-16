@@ -75,7 +75,7 @@ pub fn judge_runtime(
     owner: u32,
 ) -> Result<(), String> {
     if runtime != expected_runtime
-        || config.parent() != Some(runtime.as_ref())
+        || config.parent() != Some(runtime)
         || config.file_name() != Some(std::ffi::OsStr::new("config.yaml"))
     {
         return Err("TUN 只能使用这个账户自己的运行配置".to_string());

@@ -187,24 +187,24 @@ pub fn prepare_runtime_config(profile: Value, overlay: Value, settings: &Setting
     let mut config = profile;
     deep_merge(&mut config, &overlay);
     deep_merge(&mut config, &managed_keys(settings));
-    if settings.tun_enabled {
-        if let Value::Mapping(map) = &mut config {
-            let uid = unsafe { libc::getuid() };
-            map.insert(Value::String("tun".into()), enabled_tun(uid));
-            // 系统代理把域名交给内核。TUN 截到的是 IP，域名规则对不上，
-            // 握手会打到错误的地址。嗅探 TLS 里的域名后再解析，才和系统代理同一条路。
-            map.insert(Value::String("sniffer".into()), tun_sniffer());
-        }
+    if settings.tun_enabled
+        && let Value::Mapping(map) = &mut config
+    {
+        let uid = unsafe { libc::getuid() };
+        map.insert(Value::String("tun".into()), enabled_tun(uid));
+        // 系统代理把域名交给内核。TUN 截到的是 IP，域名规则对不上，
+        // 握手会打到错误的地址。嗅探 TLS 里的域名后再解析，才和系统代理同一条路。
+        map.insert(Value::String("sniffer".into()), tun_sniffer());
     }
     config
 }
 
 fn enabled_tun(uid: u32) -> Value {
-    let mut hijack = serde_yaml::Sequence::new();
-    hijack.push(Value::String("any:53".into()));
-    hijack.push(Value::String("tcp://any:53".into()));
-    let mut include = serde_yaml::Sequence::new();
-    include.push(Value::Number(uid.into()));
+    let hijack = vec![
+        Value::String("any:53".into()),
+        Value::String("tcp://any:53".into()),
+    ];
+    let include = vec![Value::Number(uid.into())];
 
     let mut tun = Mapping::new();
     tun.insert(Value::String("enable".into()), Value::Bool(true));
@@ -227,12 +227,8 @@ fn enabled_tun(uid: u32) -> Value {
 }
 
 fn tun_sniffer() -> Value {
-    let mut http_ports = serde_yaml::Sequence::new();
-    http_ports.push(Value::Number(80.into()));
-    http_ports.push(Value::String("8080-8880".into()));
-    let mut tls_ports = serde_yaml::Sequence::new();
-    tls_ports.push(Value::Number(443.into()));
-    tls_ports.push(Value::Number(8443.into()));
+    let http_ports = vec![Value::Number(80.into()), Value::String("8080-8880".into())];
+    let tls_ports = vec![Value::Number(443.into()), Value::Number(8443.into())];
 
     let mut http = Mapping::new();
     http.insert(Value::String("ports".into()), Value::Sequence(http_ports));
@@ -261,9 +257,10 @@ fn tun_sniffer() -> Value {
     sniff.insert(Value::String("TLS".into()), Value::Mapping(tls));
     sniff.insert(Value::String("QUIC".into()), Value::Mapping(quic));
 
-    let mut skip = serde_yaml::Sequence::new();
-    skip.push(Value::String("Mijia Cloud".into()));
-    skip.push(Value::String("+.push.apple.com".into()));
+    let skip = vec![
+        Value::String("Mijia Cloud".into()),
+        Value::String("+.push.apple.com".into()),
+    ];
 
     let mut sniffer = Mapping::new();
     sniffer.insert(Value::String("enable".into()), Value::Bool(true));

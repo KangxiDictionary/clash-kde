@@ -11,11 +11,11 @@ impl Paths {
     pub fn from_env() -> Self {
         let config_home = std::env::var_os("XDG_CONFIG_HOME")
             .map(PathBuf::from)
-            .or_else(|| dirs::config_dir())
+            .or_else(dirs::config_dir)
             .unwrap_or_else(|| PathBuf::from(".config"));
         let data_home = std::env::var_os("XDG_DATA_HOME")
             .map(PathBuf::from)
-            .or_else(|| dirs::data_dir())
+            .or_else(dirs::data_dir)
             .unwrap_or_else(|| PathBuf::from(".local/share"));
         Self {
             kioslaverc: config_home.join("kioslaverc"),

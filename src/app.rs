@@ -1105,11 +1105,11 @@ impl App {
                     break;
                 }
                 let epoch = app.region_epoch.load(Ordering::Relaxed);
-                if let Ok(region) = controller::lookup_exit_region(port).await {
-                    if app.region_epoch.load(Ordering::Relaxed) == epoch {
-                        app.inner.lock().await.exit_region = region;
-                        app.emit(Event::Status);
-                    }
+                if let Ok(region) = controller::lookup_exit_region(port).await
+                    && app.region_epoch.load(Ordering::Relaxed) == epoch
+                {
+                    app.inner.lock().await.exit_region = region;
+                    app.emit(Event::Status);
                 }
                 tokio::time::sleep(Duration::from_secs(60)).await;
             }
@@ -1126,10 +1126,10 @@ impl App {
             let Some(selected) = selections.get(&group.name) else {
                 continue;
             };
-            if group.nodes.iter().any(|node| &node.name == selected) {
-                if let Err(error) = controller.select_proxy(&group.name, selected).await {
-                    tracing::warn!("{error}");
-                }
+            if group.nodes.iter().any(|node| &node.name == selected)
+                && let Err(error) = controller.select_proxy(&group.name, selected).await
+            {
+                tracing::warn!("{error}");
             }
         }
     }
