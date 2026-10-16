@@ -72,3 +72,100 @@ msgstr "已複製"
 
 msgid "Copy a command that sets this proxy in the terminal."
 msgstr "把給終端機設定這個代理的命令複製到剪貼簿。"
+
+msgctxt "@title"
+msgid "Behavior"
+msgstr "行為"
+
+msgctxt "@item:inlistbox"
+msgid "Open the popup"
+msgstr "開啟彈出面板"
+
+msgctxt "@item:inlistbox"
+msgid "Toggle the core"
+msgstr "切換核心"
+
+msgctxt "@item:inlistbox"
+msgid "Toggle the system proxy"
+msgstr "切換系統代理"
+
+msgctxt "@item:inlistbox"
+msgid "Cycle mode"
+msgstr "切換模式"
+
+msgctxt "@item:inlistbox"
+msgid "Open settings"
+msgstr "開啟設定"
+
+msgctxt "@item:inlistbox"
+msgid "Do nothing"
+msgstr "不動作"
+
+msgctxt "@label:listbox"
+msgid "Left click"
+msgstr "左鍵點一下"
+
+msgctxt "@label:listbox"
+msgid "Middle click"
+msgstr "中鍵點一下"
+
+msgctxt "@label:listbox"
+msgid "Scroll wheel"
+msgstr "滾輪"
+
+msgid "Running"
+msgstr "執行中"
+
+msgid "Waiting to start"
+msgstr "正在啟動"
+
+msgid "Stopped"
+msgstr "已停止"
+
+msgid "System proxy on"
+msgstr "系統代理已開啟"
+
+msgid "System proxy off"
+msgstr "系統代理已關閉"
+
+msgid "The status could not be read."
+msgstr "讀不到目前狀態。"
+
+msgid "The service is not available."
+msgstr "服務無法使用。"
+
+msgid "%1 B/s"
+msgstr "%1 B/秒"
+
+msgid "%1 KB/s"
+msgstr "%1 KB/秒"
+
+msgid "%1 MB/s"
+msgstr "%1 MB/秒"
+
+msgid "Stop"
+msgstr "停止"
+
+msgid "Start"
+msgstr "啟動"
+
+msgid "System proxy"
+msgstr "系統代理"
+
+msgid "Settings"
+msgstr "設定"
+
+msgid "Mihomo"
+msgstr "Mihomo"
+
+msgid "Core"
+msgstr "核心"
+
+msgid "Rule"
+msgstr "規則"
+
+msgid "Global"
+msgstr "全域"
+
+msgid "Direct"
+msgstr "直連"

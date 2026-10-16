@@ -135,3 +135,240 @@ msgstr "打開策略組時自動測試它的延遲。"
 
 msgid "Keeps one sort and filter for every group and profile."
 msgstr "記住一套排序和篩選，用在每個策略組和每個設定檔上。"
+
+msgid "%1 B/s"
+msgstr "%1 B/秒"
+
+msgid "%1 KB/s"
+msgstr "%1 KB/秒"
+
+msgid "%1 MB/s"
+msgstr "%1 MB/秒"
+
+msgid "%1 ms"
+msgstr "%1 毫秒"
+
+msgid "Active"
+msgstr "使用中"
+
+msgid "Add subscription"
+msgstr "新增訂閱"
+
+msgid "Advanced"
+msgstr "進階"
+
+msgid "Check region"
+msgstr "檢測地區"
+
+msgid "Controller port"
+msgstr "控制器埠"
+
+msgid "Core"
+msgstr "核心"
+
+msgid "Core is not running"
+msgstr "核心沒有在執行"
+
+msgid "Core state"
+msgstr "核心狀態"
+
+msgid "Direct"
+msgstr "直連"
+
+msgid "Download"
+msgstr "下載"
+
+msgid "Exit region"
+msgstr "出口地區"
+
+msgid "Global"
+msgstr "全域"
+
+msgid "Group"
+msgstr "策略組"
+
+msgid "KDE proxy is pointing at this core"
+msgstr "KDE 代理正指向這個核心"
+
+msgid "KDE proxy is unchanged"
+msgstr "KDE 代理未被改動"
+
+msgid "Last update: %1"
+msgstr "上次更新：%1"
+
+msgid "Listen address"
+msgstr "監聽位址"
+
+msgid "Mixed port"
+msgstr "混合埠"
+
+msgid "Mode"
+msgstr "模式"
+
+msgid "Name"
+msgstr "名稱"
+
+msgid "No proxy groups"
+msgstr "沒有策略組"
+
+msgid "No subscriptions yet"
+msgstr "還沒有訂閱"
+
+msgid "Not checked yet"
+msgstr "尚未檢測"
+
+msgid "Not tested"
+msgstr "未測試"
+
+msgid "Not updated yet"
+msgstr "尚未更新"
+
+msgid "Optional"
+msgstr "選填"
+
+msgid "Override file"
+msgstr "本地覆蓋"
+
+msgid "Point KDE applications at this core while it is running"
+msgstr "核心執行時，讓 KDE 應用程式使用它"
+
+msgid "Proxies"
+msgstr "代理"
+
+msgid "Remove"
+msgstr "移除"
+
+msgid "Remove this subscription?"
+msgstr "移除這個訂閱？"
+
+msgid "Restart core"
+msgstr "重新啟動核心"
+
+msgid "Rule"
+msgstr "規則"
+
+msgid "Run mihomo without changing the KDE proxy"
+msgstr "執行 mihomo，不改動 KDE 代理"
+
+msgid "Running"
+msgstr "執行中"
+
+msgid "Status"
+msgstr "狀態"
+
+msgid "Stopped"
+msgstr "已停止"
+
+msgid "System proxy"
+msgstr "系統代理"
+
+msgid "Test delays"
+msgstr "測試延遲"
+
+msgid "The controller listens only on this computer. TUN stays off in this version. Applying restarts the core when it is running."
+msgstr "控制器只監聽這台電腦。這一版不會開啟 TUN。套用後如果核心正在執行，會重新啟動它。"
+
+msgid "The system proxy choice is saved. It is applied while the core is running."
+msgstr "系統代理的選擇會被記住，只在核心執行時寫入。"
+
+msgid "Timeout"
+msgstr "逾時"
+
+msgid "URL"
+msgstr "網址"
+
+msgid "Update"
+msgstr "更新"
+
+msgid "Upload"
+msgstr "上傳"
+
+msgid "Use"
+msgstr "使用"
+
+msgid "Waiting to start"
+msgstr "正在啟動"
+
+msgid "mihomo executable"
+msgstr "mihomo 執行檔"
+
+msgid "Applied"
+msgstr "已生效"
+
+msgid "Not applied"
+msgstr "未生效"
+
+msgid "Restart"
+msgstr "重新啟動"
+
+msgid "Traffic"
+msgstr "流量"
+
+msgid "Subscriptions"
+msgstr "訂閱"
+
+msgid "Connection"
+msgstr "連線"
+
+msgid "While the core is running, KDE applications use it. Turning the core off withdraws it."
+msgstr "核心執行時，KDE 應用程式使用它。核心停止後會撤回。"
+
+msgid "Profile order"
+msgstr "設定檔順序"
+
+msgid "Delay"
+msgstr "延遲"
+
+msgid "Show unreachable"
+msgstr "顯示不可達"
+
+msgid "Sort and filter"
+msgstr "排序和篩選"
+
+msgid "Import"
+msgstr "匯入"
+
+msgid "Import configuration"
+msgstr "匯入設定"
+
+msgid "Edit details"
+msgstr "編輯資料"
+
+msgid "Edit configuration"
+msgstr "編輯設定"
+
+msgid "Remaining: %1"
+msgstr "剩餘 %1"
+
+msgid "Expires: %1"
+msgstr "到期：%1"
+
+msgid "%1 B"
+msgstr "%1 B"
+
+msgid "%1 KB"
+msgstr "%1 KB"
+
+msgid "%1 MB"
+msgstr "%1 MB"
+
+msgid "%1 GB"
+msgstr "%1 GB"
+
+msgid "More actions"
+msgstr "更多操作"
+
+msgid "About"
+msgstr "關於"
+
+msgid "Version"
+msgstr "版本"
+
+msgid "License"
+msgstr "授權條款"
+
+msgid "Website"
+msgstr "網站"
+
+msgid "Mihomo"
+msgstr "Mihomo"

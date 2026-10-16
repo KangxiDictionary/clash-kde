@@ -1,0 +1,30 @@
+#!/bin/sh
+set -e
+
+restore_one() {
+    dir=$1
+    uid=${dir##*/}
+    case $uid in
+        ''|*[!0-9]*) return ;;
+    esac
+    [ -S "$dir/bus" ] || return 0
+    user=$(id -nu "$uid" 2>/dev/null) || return 0
+    XDG_RUNTIME_DIR=$dir \
+    DBUS_SESSION_BUS_ADDRESS=unix:path=$dir/bus \
+        runuser -u "$user" -- systemctl --user stop clash-kde.service >/dev/null 2>&1 || true
+    XDG_RUNTIME_DIR=$dir \
+    DBUS_SESSION_BUS_ADDRESS=unix:path=$dir/bus \
+        runuser -u "$user" -- /usr/bin/clash-kde --restore-proxy >/dev/null 2>&1 || true
+}
+
+if [ "$1" = remove ] && [ -x /usr/bin/clash-kde ]; then
+    systemctl stop clash-kde-system.service >/dev/null 2>&1 || true
+    for dir in /run/user/*; do
+        [ -d "$dir" ] || continue
+        restore_one "$dir"
+    done
+fi
+
+#DEBHELPER#
+
+exit 0

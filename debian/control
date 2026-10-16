@@ -1,0 +1,53 @@
+Source: clash-kde
+Section: kde
+Priority: optional
+Maintainer: KangxiDictionary <108598928+KangxiDictionary@users.noreply.github.com>
+Rules-Requires-Root: no
+Build-Depends:
+ cargo,
+ cmake,
+ debhelper-compat (= 13),
+ extra-cmake-modules,
+ gettext,
+ libicu-dev,
+ libkf6config-dev,
+ libkf6coreaddons-dev,
+ libkf6i18n-dev,
+ libkf6kcmutils-dev,
+ libplasma-dev,
+ pkgconf,
+ qt6-base-dev,
+ qt6-declarative-dev,
+ qt6-tools-dev,
+ rustc,
+Standards-Version: 4.7.2
+Homepage: https://github.com/KangxiDictionary/clash-kde
+Vcs-Browser: https://github.com/KangxiDictionary/clash-kde
+Vcs-Git: https://github.com/KangxiDictionary/clash-kde.git
+
+Package: clash-kde
+Architecture: any
+Depends:
+ ${misc:Depends},
+ ${shlibs:Depends},
+ dbus,
+ mihomo,
+ plasma-workspace,
+ polkitd | policykit-1,
+ qml6-module-org-kde-kcmutils,
+ qml6-module-org-kde-kirigami,
+ qml6-module-org-kde-plasma-components,
+ qml6-module-org-kde-quickcharts,
+ qml6-module-qtquick,
+ qml6-module-qtquick-controls,
+ qml6-module-qtquick-layouts,
+Recommends:
+ systemd,
+Description: KDE settings page and panel widget for a per-user mihomo proxy
+ Each signed-in account gets its own mihomo process, profiles, and route
+ choices. System Settings applies those choices with the Apply button. The
+ panel widget changes them immediately. The mihomo program itself comes from
+ the system package and is not bundled here.
+ .
+ Plasma 6 is required. On Debian that means Debian 13 or newer, and on
+ Ubuntu 25.04 or newer.

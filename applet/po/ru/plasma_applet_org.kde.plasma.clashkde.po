@@ -72,3 +72,100 @@ msgstr "Скопировано"
 
 msgid "Copy a command that sets this proxy in the terminal."
 msgstr "Копирует команду, которая задаёт этот прокси в терминале."
+
+msgctxt "@title"
+msgid "Behavior"
+msgstr "Поведение"
+
+msgctxt "@item:inlistbox"
+msgid "Open the popup"
+msgstr "Открыть панель"
+
+msgctxt "@item:inlistbox"
+msgid "Toggle the core"
+msgstr "Переключить ядро"
+
+msgctxt "@item:inlistbox"
+msgid "Toggle the system proxy"
+msgstr "Переключить системный прокси"
+
+msgctxt "@item:inlistbox"
+msgid "Cycle mode"
+msgstr "Сменить режим"
+
+msgctxt "@item:inlistbox"
+msgid "Open settings"
+msgstr "Открыть параметры"
+
+msgctxt "@item:inlistbox"
+msgid "Do nothing"
+msgstr "Ничего не делать"
+
+msgctxt "@label:listbox"
+msgid "Left click"
+msgstr "Щелчок левой кнопкой"
+
+msgctxt "@label:listbox"
+msgid "Middle click"
+msgstr "Щелчок средней кнопкой"
+
+msgctxt "@label:listbox"
+msgid "Scroll wheel"
+msgstr "Колёсико"
+
+msgid "Running"
+msgstr "Запущено"
+
+msgid "Waiting to start"
+msgstr "Ожидание запуска"
+
+msgid "Stopped"
+msgstr "Остановлено"
+
+msgid "System proxy on"
+msgstr "Системный прокси включён"
+
+msgid "System proxy off"
+msgstr "Системный прокси выключен"
+
+msgid "The status could not be read."
+msgstr "Не удалось прочитать состояние."
+
+msgid "The service is not available."
+msgstr "Служба недоступна."
+
+msgid "%1 B/s"
+msgstr "%1 Б/с"
+
+msgid "%1 KB/s"
+msgstr "%1 КБ/с"
+
+msgid "%1 MB/s"
+msgstr "%1 МБ/с"
+
+msgid "Stop"
+msgstr "Остановить"
+
+msgid "Start"
+msgstr "Запустить"
+
+msgid "System proxy"
+msgstr "Системный прокси"
+
+msgid "Settings"
+msgstr "Параметры"
+
+msgid "Mihomo"
+msgstr "Mihomo"
+
+msgid "Core"
+msgstr "Ядро"
+
+msgid "Rule"
+msgstr "Правила"
+
+msgid "Global"
+msgstr "Глобальный"
+
+msgid "Direct"
+msgstr "Напрямую"

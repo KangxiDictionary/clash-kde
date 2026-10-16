@@ -135,3 +135,240 @@ msgstr "表示中のグループの遅延を自動で測ります。"
 
 msgid "Keeps one sort and filter for every group and profile."
 msgstr "並べ替えと絞り込みを一つ覚えて、すべてのグループとプロファイルに使います。"
+
+msgid "%1 B/s"
+msgstr "%1 B/秒"
+
+msgid "%1 KB/s"
+msgstr "%1 KB/秒"
+
+msgid "%1 MB/s"
+msgstr "%1 MB/秒"
+
+msgid "%1 ms"
+msgstr "%1 ミリ秒"
+
+msgid "Active"
+msgstr "使用中"
+
+msgid "Add subscription"
+msgstr "サブスクリプションを追加"
+
+msgid "Advanced"
+msgstr "詳細"
+
+msgid "Check region"
+msgstr "地域を調べる"
+
+msgid "Controller port"
+msgstr "コントローラーのポート"
+
+msgid "Core"
+msgstr "コア"
+
+msgid "Core is not running"
+msgstr "コアは動いていません"
+
+msgid "Core state"
+msgstr "コアの状態"
+
+msgid "Direct"
+msgstr "直接"
+
+msgid "Download"
+msgstr "ダウンロード"
+
+msgid "Exit region"
+msgstr "出口地域"
+
+msgid "Global"
+msgstr "グローバル"
+
+msgid "Group"
+msgstr "グループ"
+
+msgid "KDE proxy is pointing at this core"
+msgstr "KDE のプロキシはこのコアを向いています"
+
+msgid "KDE proxy is unchanged"
+msgstr "KDE のプロキシは変わっていません"
+
+msgid "Last update: %1"
+msgstr "前回の更新：%1"
+
+msgid "Listen address"
+msgstr "待ち受けアドレス"
+
+msgid "Mixed port"
+msgstr "共用ポート"
+
+msgid "Mode"
+msgstr "モード"
+
+msgid "Name"
+msgstr "名前"
+
+msgid "No proxy groups"
+msgstr "グループがありません"
+
+msgid "No subscriptions yet"
+msgstr "サブスクリプションはまだありません"
+
+msgid "Not checked yet"
+msgstr "まだ調べていません"
+
+msgid "Not tested"
+msgstr "未計測"
+
+msgid "Not updated yet"
+msgstr "まだ更新していません"
+
+msgid "Optional"
+msgstr "省略可"
+
+msgid "Override file"
+msgstr "上書きファイル"
+
+msgid "Point KDE applications at this core while it is running"
+msgstr "コアの実行中は KDE アプリケーションをそこへ向ける"
+
+msgid "Proxies"
+msgstr "プロキシ"
+
+msgid "Remove"
+msgstr "削除"
+
+msgid "Remove this subscription?"
+msgstr "このサブスクリプションを削除しますか？"
+
+msgid "Restart core"
+msgstr "コアを再起動"
+
+msgid "Rule"
+msgstr "ルール"
+
+msgid "Run mihomo without changing the KDE proxy"
+msgstr "KDE のプロキシを変えずに mihomo を動かす"
+
+msgid "Running"
+msgstr "実行中"
+
+msgid "Status"
+msgstr "状態"
+
+msgid "Stopped"
+msgstr "停止"
+
+msgid "System proxy"
+msgstr "システムプロキシ"
+
+msgid "Test delays"
+msgstr "遅延を測る"
+
+msgid "The controller listens only on this computer. TUN stays off in this version. Applying restarts the core when it is running."
+msgstr "コントローラーはこのコンピューターだけで待ち受けます。この版では TUN はオフのままです。適用すると、動いているコアは再起動します。"
+
+msgid "The system proxy choice is saved. It is applied while the core is running."
+msgstr "システムプロキシの選択は保存され、コアの実行中だけ適用されます。"
+
+msgid "Timeout"
+msgstr "時間切れ"
+
+msgid "URL"
+msgstr "URL"
+
+msgid "Update"
+msgstr "更新"
+
+msgid "Upload"
+msgstr "アップロード"
+
+msgid "Use"
+msgstr "使う"
+
+msgid "Waiting to start"
+msgstr "起動待ち"
+
+msgid "mihomo executable"
+msgstr "mihomo の実行ファイル"
+
+msgid "Applied"
+msgstr "適用中"
+
+msgid "Not applied"
+msgstr "未適用"
+
+msgid "Restart"
+msgstr "再起動"
+
+msgid "Traffic"
+msgstr "通信量"
+
+msgid "Subscriptions"
+msgstr "サブスクリプション"
+
+msgid "Connection"
+msgstr "接続"
+
+msgid "While the core is running, KDE applications use it. Turning the core off withdraws it."
+msgstr "コアの実行中は KDE アプリケーションがそれを使います。コアを止めるとその設定は戻ります。"
+
+msgid "Profile order"
+msgstr "プロファイルの順"
+
+msgid "Delay"
+msgstr "遅延"
+
+msgid "Show unreachable"
+msgstr "到達できないものを表示"
+
+msgid "Sort and filter"
+msgstr "並べ替えと絞り込み"
+
+msgid "Import"
+msgstr "読み込む"
+
+msgid "Import configuration"
+msgstr "設定を読み込む"
+
+msgid "Edit details"
+msgstr "詳細を編集"
+
+msgid "Edit configuration"
+msgstr "設定を編集"
+
+msgid "Remaining: %1"
+msgstr "残り %1"
+
+msgid "Expires: %1"
+msgstr "期限：%1"
+
+msgid "%1 B"
+msgstr "%1 B"
+
+msgid "%1 KB"
+msgstr "%1 KB"
+
+msgid "%1 MB"
+msgstr "%1 MB"
+
+msgid "%1 GB"
+msgstr "%1 GB"
+
+msgid "More actions"
+msgstr "その他の操作"
+
+msgid "About"
+msgstr "情報"
+
+msgid "Version"
+msgstr "バージョン"
+
+msgid "License"
+msgstr "ライセンス"
+
+msgid "Website"
+msgstr "ウェブサイト"
+
+msgid "Mihomo"
+msgstr "Mihomo"

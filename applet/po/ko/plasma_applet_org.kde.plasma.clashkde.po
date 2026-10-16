@@ -72,3 +72,100 @@ msgstr "복사됨"
 
 msgid "Copy a command that sets this proxy in the terminal."
 msgstr "터미널에서 이 프록시를 쓰는 명령을 복사합니다."
+
+msgctxt "@title"
+msgid "Behavior"
+msgstr "동작"
+
+msgctxt "@item:inlistbox"
+msgid "Open the popup"
+msgstr "팝업 열기"
+
+msgctxt "@item:inlistbox"
+msgid "Toggle the core"
+msgstr "코어 전환"
+
+msgctxt "@item:inlistbox"
+msgid "Toggle the system proxy"
+msgstr "시스템 프록시 전환"
+
+msgctxt "@item:inlistbox"
+msgid "Cycle mode"
+msgstr "모드 순환"
+
+msgctxt "@item:inlistbox"
+msgid "Open settings"
+msgstr "설정 열기"
+
+msgctxt "@item:inlistbox"
+msgid "Do nothing"
+msgstr "아무것도 안 함"
+
+msgctxt "@label:listbox"
+msgid "Left click"
+msgstr "왼쪽 클릭"
+
+msgctxt "@label:listbox"
+msgid "Middle click"
+msgstr "가운데 클릭"
+
+msgctxt "@label:listbox"
+msgid "Scroll wheel"
+msgstr "스크롤 휠"
+
+msgid "Running"
+msgstr "실행 중"
+
+msgid "Waiting to start"
+msgstr "시작 대기"
+
+msgid "Stopped"
+msgstr "중지됨"
+
+msgid "System proxy on"
+msgstr "시스템 프록시 켜짐"
+
+msgid "System proxy off"
+msgstr "시스템 프록시 꺼짐"
+
+msgid "The status could not be read."
+msgstr "상태를 읽지 못했습니다."
+
+msgid "The service is not available."
+msgstr "서비스를 사용할 수 없습니다."
+
+msgid "%1 B/s"
+msgstr "%1 B/초"
+
+msgid "%1 KB/s"
+msgstr "%1 KB/초"
+
+msgid "%1 MB/s"
+msgstr "%1 MB/초"
+
+msgid "Stop"
+msgstr "중지"
+
+msgid "Start"
+msgstr "시작"
+
+msgid "System proxy"
+msgstr "시스템 프록시"
+
+msgid "Settings"
+msgstr "설정"
+
+msgid "Mihomo"
+msgstr "Mihomo"
+
+msgid "Core"
+msgstr "코어"
+
+msgid "Rule"
+msgstr "규칙"
+
+msgid "Global"
+msgstr "전역"
+
+msgid "Direct"
+msgstr "직접"

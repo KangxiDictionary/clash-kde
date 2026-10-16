@@ -135,3 +135,240 @@ msgstr "Mesure le délai du groupe affiché."
 
 msgid "Keeps one sort and filter for every group and profile."
 msgstr "Retient un tri et un filtre pour chaque groupe et chaque profil."
+
+msgid "%1 B/s"
+msgstr "%1 o/s"
+
+msgid "%1 KB/s"
+msgstr "%1 Ko/s"
+
+msgid "%1 MB/s"
+msgstr "%1 Mo/s"
+
+msgid "%1 ms"
+msgstr "%1 ms"
+
+msgid "Active"
+msgstr "Actif"
+
+msgid "Add subscription"
+msgstr "Ajouter un abonnement"
+
+msgid "Advanced"
+msgstr "Avancé"
+
+msgid "Check region"
+msgstr "Vérifier la région"
+
+msgid "Controller port"
+msgstr "Port du contrôleur"
+
+msgid "Core"
+msgstr "Noyau"
+
+msgid "Core is not running"
+msgstr "Le noyau n’est pas lancé"
+
+msgid "Core state"
+msgstr "État du noyau"
+
+msgid "Direct"
+msgstr "Direct"
+
+msgid "Download"
+msgstr "Téléchargement"
+
+msgid "Exit region"
+msgstr "Région de sortie"
+
+msgid "Global"
+msgstr "Global"
+
+msgid "Group"
+msgstr "Groupe"
+
+msgid "KDE proxy is pointing at this core"
+msgstr "Le proxy KDE pointe vers ce noyau"
+
+msgid "KDE proxy is unchanged"
+msgstr "Le proxy KDE n’a pas changé"
+
+msgid "Last update: %1"
+msgstr "Dernière mise à jour : %1"
+
+msgid "Listen address"
+msgstr "Adresse d’écoute"
+
+msgid "Mixed port"
+msgstr "Port mixte"
+
+msgid "Mode"
+msgstr "Mode"
+
+msgid "Name"
+msgstr "Nom"
+
+msgid "No proxy groups"
+msgstr "Aucun groupe"
+
+msgid "No subscriptions yet"
+msgstr "Pas encore d’abonnement"
+
+msgid "Not checked yet"
+msgstr "Pas encore vérifié"
+
+msgid "Not tested"
+msgstr "Non testé"
+
+msgid "Not updated yet"
+msgstr "Pas encore mis à jour"
+
+msgid "Optional"
+msgstr "Facultatif"
+
+msgid "Override file"
+msgstr "Fichier de remplacement"
+
+msgid "Point KDE applications at this core while it is running"
+msgstr "Tant que le noyau tourne, y envoyer les applications KDE"
+
+msgid "Proxies"
+msgstr "Proxys"
+
+msgid "Remove"
+msgstr "Retirer"
+
+msgid "Remove this subscription?"
+msgstr "Retirer cet abonnement ?"
+
+msgid "Restart core"
+msgstr "Redémarrer le noyau"
+
+msgid "Rule"
+msgstr "Règles"
+
+msgid "Run mihomo without changing the KDE proxy"
+msgstr "Lancer mihomo sans changer le proxy KDE"
+
+msgid "Running"
+msgstr "En cours"
+
+msgid "Status"
+msgstr "État"
+
+msgid "Stopped"
+msgstr "Arrêté"
+
+msgid "System proxy"
+msgstr "Proxy système"
+
+msgid "Test delays"
+msgstr "Tester les délais"
+
+msgid "The controller listens only on this computer. TUN stays off in this version. Applying restarts the core when it is running."
+msgstr "Le contrôleur n’écoute que sur cet ordinateur. Dans cette version, TUN reste arrêté. Appliquer redémarre le noyau s’il tourne."
+
+msgid "The system proxy choice is saved. It is applied while the core is running."
+msgstr "Le choix du proxy système est mémorisé et n’est appliqué que pendant que le noyau tourne."
+
+msgid "Timeout"
+msgstr "Délai dépassé"
+
+msgid "URL"
+msgstr "URL"
+
+msgid "Update"
+msgstr "Mettre à jour"
+
+msgid "Upload"
+msgstr "Envoi"
+
+msgid "Use"
+msgstr "Utiliser"
+
+msgid "Waiting to start"
+msgstr "En attente de démarrage"
+
+msgid "mihomo executable"
+msgstr "Exécutable mihomo"
+
+msgid "Applied"
+msgstr "Appliqué"
+
+msgid "Not applied"
+msgstr "Non appliqué"
+
+msgid "Restart"
+msgstr "Redémarrer"
+
+msgid "Traffic"
+msgstr "Trafic"
+
+msgid "Subscriptions"
+msgstr "Abonnements"
+
+msgid "Connection"
+msgstr "Connexion"
+
+msgid "While the core is running, KDE applications use it. Turning the core off withdraws it."
+msgstr "Tant que le noyau tourne, les applications KDE l’utilisent. L’arrêter retire ce réglage."
+
+msgid "Profile order"
+msgstr "Ordre du profil"
+
+msgid "Delay"
+msgstr "Délai"
+
+msgid "Show unreachable"
+msgstr "Afficher les injoignables"
+
+msgid "Sort and filter"
+msgstr "Trier et filtrer"
+
+msgid "Import"
+msgstr "Importer"
+
+msgid "Import configuration"
+msgstr "Importer une configuration"
+
+msgid "Edit details"
+msgstr "Modifier les détails"
+
+msgid "Edit configuration"
+msgstr "Modifier la configuration"
+
+msgid "Remaining: %1"
+msgstr "Reste : %1"
+
+msgid "Expires: %1"
+msgstr "Expire le %1"
+
+msgid "%1 B"
+msgstr "%1 o"
+
+msgid "%1 KB"
+msgstr "%1 Ko"
+
+msgid "%1 MB"
+msgstr "%1 Mo"
+
+msgid "%1 GB"
+msgstr "%1 Go"
+
+msgid "More actions"
+msgstr "Autres actions"
+
+msgid "About"
+msgstr "À propos"
+
+msgid "Version"
+msgstr "Version"
+
+msgid "License"
+msgstr "Licence"
+
+msgid "Website"
+msgstr "Site web"
+
+msgid "Mihomo"
+msgstr "Mihomo"

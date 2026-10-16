@@ -72,3 +72,100 @@ msgstr "Kopiert"
 
 msgid "Copy a command that sets this proxy in the terminal."
 msgstr "Kopiert einen Befehl, der diesen Proxy im Terminal setzt."
+
+msgctxt "@title"
+msgid "Behavior"
+msgstr "Verhalten"
+
+msgctxt "@item:inlistbox"
+msgid "Open the popup"
+msgstr "Das Fenster öffnen"
+
+msgctxt "@item:inlistbox"
+msgid "Toggle the core"
+msgstr "Kern umschalten"
+
+msgctxt "@item:inlistbox"
+msgid "Toggle the system proxy"
+msgstr "Systemproxy umschalten"
+
+msgctxt "@item:inlistbox"
+msgid "Cycle mode"
+msgstr "Modus wechseln"
+
+msgctxt "@item:inlistbox"
+msgid "Open settings"
+msgstr "Einstellungen öffnen"
+
+msgctxt "@item:inlistbox"
+msgid "Do nothing"
+msgstr "Nichts tun"
+
+msgctxt "@label:listbox"
+msgid "Left click"
+msgstr "Linksklick"
+
+msgctxt "@label:listbox"
+msgid "Middle click"
+msgstr "Mittelklick"
+
+msgctxt "@label:listbox"
+msgid "Scroll wheel"
+msgstr "Mausrad"
+
+msgid "Running"
+msgstr "Läuft"
+
+msgid "Waiting to start"
+msgstr "Wartet auf den Start"
+
+msgid "Stopped"
+msgstr "Gestoppt"
+
+msgid "System proxy on"
+msgstr "Systemproxy an"
+
+msgid "System proxy off"
+msgstr "Systemproxy aus"
+
+msgid "The status could not be read."
+msgstr "Der Status ließ sich nicht lesen."
+
+msgid "The service is not available."
+msgstr "Der Dienst ist nicht verfügbar."
+
+msgid "%1 B/s"
+msgstr "%1 B/s"
+
+msgid "%1 KB/s"
+msgstr "%1 KB/s"
+
+msgid "%1 MB/s"
+msgstr "%1 MB/s"
+
+msgid "Stop"
+msgstr "Stoppen"
+
+msgid "Start"
+msgstr "Starten"
+
+msgid "System proxy"
+msgstr "Systemproxy"
+
+msgid "Settings"
+msgstr "Einstellungen"
+
+msgid "Mihomo"
+msgstr "Mihomo"
+
+msgid "Core"
+msgstr "Kern"
+
+msgid "Rule"
+msgstr "Regeln"
+
+msgid "Global"
+msgstr "Global"
+
+msgid "Direct"
+msgstr "Direkt"

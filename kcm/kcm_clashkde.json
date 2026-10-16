@@ -2,6 +2,15 @@
     "KPlugin": {
         "Description": "Run mihomo and choose when KDE applications use it",
         "Description[zh_CN]": "运行 mihomo，并选择 KDE 应用程序何时使用它",
+        "Description[zh_TW]": "執行 mihomo，並選擇 KDE 應用程式何時使用它",
+        "Description[ja]": "mihomo を動かし、KDE アプリケーションが使うタイミングを選びます",
+        "Description[ko]": "mihomo를 실행하고 KDE 프로그램이 언제 쓸지 고릅니다",
+        "Description[de]": "mihomo starten und festlegen, wann KDE-Anwendungen ihn nutzen",
+        "Description[fr]": "Lance mihomo et choisit quand les applications KDE l’utilisent",
+        "Description[es]": "Ejecuta mihomo y elige cuándo lo usan las aplicaciones de KDE",
+        "Description[pt_BR]": "Executa o mihomo e escolhe quando os aplicativos do KDE o usam",
+        "Description[ru]": "Запускает mihomo и выбирает, когда приложения KDE им пользуются",
+        "Description[it]": "Avvia mihomo e sceglie quando le applicazioni KDE lo usano",
         "FormFactors": [
             "desktop",
             "tablet",
@@ -13,5 +22,14 @@
     },
     "X-KDE-Keywords": "proxy,clash,mihomo,subscription",
     "X-KDE-Keywords[zh_CN]": "代理,clash,mihomo,订阅",
+    "X-KDE-Keywords[zh_TW]": "代理,clash,mihomo,訂閱",
+    "X-KDE-Keywords[ja]": "プロキシ,clash,mihomo,サブスクリプション",
+    "X-KDE-Keywords[ko]": "프록시,clash,mihomo,구독",
+    "X-KDE-Keywords[de]": "Proxy,clash,mihomo,Abo",
+    "X-KDE-Keywords[fr]": "proxy,clash,mihomo,abonnement",
+    "X-KDE-Keywords[es]": "proxy,clash,mihomo,suscripción",
+    "X-KDE-Keywords[pt_BR]": "proxy,clash,mihomo,assinatura",
+    "X-KDE-Keywords[ru]": "прокси,clash,mihomo,подписка",
+    "X-KDE-Keywords[it]": "proxy,clash,mihomo,abbonamento",
     "X-KDE-System-Settings-Parent-Category": "network"
 }

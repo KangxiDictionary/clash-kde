@@ -135,3 +135,240 @@ msgstr "Проверяет задержку открытой группы."
 
 msgid "Keeps one sort and filter for every group and profile."
 msgstr "Запоминает одну сортировку и фильтр для каждой группы и каждого профиля."
+
+msgid "%1 B/s"
+msgstr "%1 Б/с"
+
+msgid "%1 KB/s"
+msgstr "%1 КБ/с"
+
+msgid "%1 MB/s"
+msgstr "%1 МБ/с"
+
+msgid "%1 ms"
+msgstr "%1 мс"
+
+msgid "Active"
+msgstr "Активен"
+
+msgid "Add subscription"
+msgstr "Добавить подписку"
+
+msgid "Advanced"
+msgstr "Дополнительно"
+
+msgid "Check region"
+msgstr "Проверить регион"
+
+msgid "Controller port"
+msgstr "Порт контроллера"
+
+msgid "Core"
+msgstr "Ядро"
+
+msgid "Core is not running"
+msgstr "Ядро не запущено"
+
+msgid "Core state"
+msgstr "Состояние ядра"
+
+msgid "Direct"
+msgstr "Напрямую"
+
+msgid "Download"
+msgstr "Загрузка"
+
+msgid "Exit region"
+msgstr "Регион выхода"
+
+msgid "Global"
+msgstr "Глобальный"
+
+msgid "Group"
+msgstr "Группа"
+
+msgid "KDE proxy is pointing at this core"
+msgstr "Прокси KDE указывает на это ядро"
+
+msgid "KDE proxy is unchanged"
+msgstr "Прокси KDE не изменён"
+
+msgid "Last update: %1"
+msgstr "Последнее обновление: %1"
+
+msgid "Listen address"
+msgstr "Адрес прослушивания"
+
+msgid "Mixed port"
+msgstr "Общий порт"
+
+msgid "Mode"
+msgstr "Режим"
+
+msgid "Name"
+msgstr "Имя"
+
+msgid "No proxy groups"
+msgstr "Нет групп"
+
+msgid "No subscriptions yet"
+msgstr "Подписок пока нет"
+
+msgid "Not checked yet"
+msgstr "Ещё не проверено"
+
+msgid "Not tested"
+msgstr "Не проверено"
+
+msgid "Not updated yet"
+msgstr "Ещё не обновлялось"
+
+msgid "Optional"
+msgstr "Необязательно"
+
+msgid "Override file"
+msgstr "Файл замены"
+
+msgid "Point KDE applications at this core while it is running"
+msgstr "Пока ядро запущено, направлять на него приложения KDE"
+
+msgid "Proxies"
+msgstr "Прокси"
+
+msgid "Remove"
+msgstr "Удалить"
+
+msgid "Remove this subscription?"
+msgstr "Удалить эту подписку?"
+
+msgid "Restart core"
+msgstr "Перезапустить ядро"
+
+msgid "Rule"
+msgstr "Правила"
+
+msgid "Run mihomo without changing the KDE proxy"
+msgstr "Запустить mihomo, не меняя прокси KDE"
+
+msgid "Running"
+msgstr "Запущено"
+
+msgid "Status"
+msgstr "Состояние"
+
+msgid "Stopped"
+msgstr "Остановлено"
+
+msgid "System proxy"
+msgstr "Системный прокси"
+
+msgid "Test delays"
+msgstr "Проверить задержку"
+
+msgid "The controller listens only on this computer. TUN stays off in this version. Applying restarts the core when it is running."
+msgstr "Контроллер слушает только этот компьютер. В этой версии TUN выключен. Применение перезапускает ядро, если оно запущено."
+
+msgid "The system proxy choice is saved. It is applied while the core is running."
+msgstr "Выбор системного прокси сохраняется и применяется, только пока ядро запущено."
+
+msgid "Timeout"
+msgstr "Таймаут"
+
+msgid "URL"
+msgstr "Адрес"
+
+msgid "Update"
+msgstr "Обновить"
+
+msgid "Upload"
+msgstr "Отдача"
+
+msgid "Use"
+msgstr "Использовать"
+
+msgid "Waiting to start"
+msgstr "Ожидание запуска"
+
+msgid "mihomo executable"
+msgstr "Исполняемый файл mihomo"
+
+msgid "Applied"
+msgstr "Применено"
+
+msgid "Not applied"
+msgstr "Не применено"
+
+msgid "Restart"
+msgstr "Перезапустить"
+
+msgid "Traffic"
+msgstr "Трафик"
+
+msgid "Subscriptions"
+msgstr "Подписки"
+
+msgid "Connection"
+msgstr "Подключение"
+
+msgid "While the core is running, KDE applications use it. Turning the core off withdraws it."
+msgstr "Пока ядро запущено, приложения KDE им пользуются. Выключение ядра отменяет эту настройку."
+
+msgid "Profile order"
+msgstr "Порядок профиля"
+
+msgid "Delay"
+msgstr "Задержка"
+
+msgid "Show unreachable"
+msgstr "Показывать недоступные"
+
+msgid "Sort and filter"
+msgstr "Сортировка и фильтр"
+
+msgid "Import"
+msgstr "Импорт"
+
+msgid "Import configuration"
+msgstr "Импортировать конфигурацию"
+
+msgid "Edit details"
+msgstr "Изменить сведения"
+
+msgid "Edit configuration"
+msgstr "Изменить конфигурацию"
+
+msgid "Remaining: %1"
+msgstr "Осталось: %1"
+
+msgid "Expires: %1"
+msgstr "Истекает: %1"
+
+msgid "%1 B"
+msgstr "%1 Б"
+
+msgid "%1 KB"
+msgstr "%1 КБ"
+
+msgid "%1 MB"
+msgstr "%1 МБ"
+
+msgid "%1 GB"
+msgstr "%1 ГБ"
+
+msgid "More actions"
+msgstr "Другие действия"
+
+msgid "About"
+msgstr "О программе"
+
+msgid "Version"
+msgstr "Версия"
+
+msgid "License"
+msgstr "Лицензия"
+
+msgid "Website"
+msgstr "Сайт"
+
+msgid "Mihomo"
+msgstr "Mihomo"

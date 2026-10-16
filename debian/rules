@@ -1,0 +1,27 @@
+#!/usr/bin/make -f
+
+%:
+	dh $@ --buildsystem=cmake --sourcedirectory=kcm
+
+override_dh_auto_build:
+	cargo build --locked --release
+	dh_auto_build
+
+override_dh_auto_install:
+	dh_auto_install --destdir=debian/tmp
+	install -Dm755 target/release/clash-kde debian/tmp/usr/bin/clash-kde
+	install -Dm644 distro/arch/clash-kde.service debian/tmp/usr/lib/systemd/user/clash-kde.service
+	install -Dm644 distro/arch/org.kde.clashkde.service debian/tmp/usr/share/dbus-1/services/org.kde.clashkde.service
+	install -Dm644 distro/arch/90-clash-kde.preset debian/tmp/usr/lib/systemd/user-preset/90-clash-kde.preset
+	install -Dm644 distro/arch/clash-kde-system.service debian/tmp/usr/lib/systemd/system/clash-kde-system.service
+	install -Dm644 distro/arch/org.kde.clashkde.Admin.service debian/tmp/usr/share/dbus-1/system-services/org.kde.clashkde.Admin.service
+	install -Dm644 distro/arch/org.kde.clashkde.Admin.conf debian/tmp/usr/share/dbus-1/system.d/org.kde.clashkde.Admin.conf
+	install -Dm644 distro/arch/org.kde.clashkde.policy debian/tmp/usr/share/polkit-1/actions/org.kde.clashkde.policy
+
+override_dh_auto_test:
+
+override_dh_installsystemd:
+	dh_installsystemd --name=clash-kde-system
+
+override_dh_installsystemduser:
+	dh_installsystemduser --name=clash-kde

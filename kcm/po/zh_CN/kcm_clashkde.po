@@ -370,3 +370,6 @@ msgstr "打开策略组时自动测试它的延迟。"
 
 msgid "Keeps one sort and filter for every group and profile."
 msgstr "记住一套排序和筛选，用在每个策略组和每个配置上。"
+
+msgid "Mihomo"
+msgstr "Mihomo"

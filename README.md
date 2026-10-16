@@ -20,11 +20,29 @@ Each signed-in account has its own core, profiles, and node choices. One account
 
 ## Install
 
+`mihomo` has to be installed separately. This package does not ship it.
+
 On Arch Linux, from a checkout of this repository:
 
 ```sh
 cd distro/arch
 makepkg -fsi
+```
+
+On Debian 13 or Ubuntu 25.04 and newer, from the repository root:
+
+```sh
+sudo apt install cargo rustc cmake extra-cmake-modules pkgconf qt6-base-dev qt6-declarative-dev qt6-tools-dev libkf6kcmutils-dev libkf6i18n-dev libkf6coreaddons-dev libkf6config-dev libplasma-dev libicu-dev gettext debhelper
+dpkg-buildpackage -us -uc -b
+sudo apt install ../clash-kde_*.deb
+```
+
+On Fedora 41 and newer:
+
+```sh
+git archive --format=tar.gz --prefix=clash-kde-0.1.0/ -o ~/rpmbuild/SOURCES/clash-kde-0.1.0.tar.gz HEAD
+sudo dnf builddep distro/rpm/clash-kde.spec
+rpmbuild -bb distro/rpm/clash-kde.spec
 ```
 
 Use the same command after pulling newer code. The package enables a per-user service. Open **System Settings → Network → Mihomo**, and add the Mihomo widget from the panel.

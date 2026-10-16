@@ -72,3 +72,100 @@ msgstr "コピーしました"
 
 msgid "Copy a command that sets this proxy in the terminal."
 msgstr "端末でこのプロキシを使うコマンドをコピーします。"
+
+msgctxt "@title"
+msgid "Behavior"
+msgstr "動作"
+
+msgctxt "@item:inlistbox"
+msgid "Open the popup"
+msgstr "ポップアップを開く"
+
+msgctxt "@item:inlistbox"
+msgid "Toggle the core"
+msgstr "コアを切り替える"
+
+msgctxt "@item:inlistbox"
+msgid "Toggle the system proxy"
+msgstr "システムプロキシを切り替える"
+
+msgctxt "@item:inlistbox"
+msgid "Cycle mode"
+msgstr "モードを順に切り替え"
+
+msgctxt "@item:inlistbox"
+msgid "Open settings"
+msgstr "設定を開く"
+
+msgctxt "@item:inlistbox"
+msgid "Do nothing"
+msgstr "何もしない"
+
+msgctxt "@label:listbox"
+msgid "Left click"
+msgstr "左クリック"
+
+msgctxt "@label:listbox"
+msgid "Middle click"
+msgstr "中クリック"
+
+msgctxt "@label:listbox"
+msgid "Scroll wheel"
+msgstr "ホイール"
+
+msgid "Running"
+msgstr "実行中"
+
+msgid "Waiting to start"
+msgstr "起動待ち"
+
+msgid "Stopped"
+msgstr "停止"
+
+msgid "System proxy on"
+msgstr "システムプロキシはオン"
+
+msgid "System proxy off"
+msgstr "システムプロキシはオフ"
+
+msgid "The status could not be read."
+msgstr "状態を読めませんでした。"
+
+msgid "The service is not available."
+msgstr "サービスを利用できません。"
+
+msgid "%1 B/s"
+msgstr "%1 B/秒"
+
+msgid "%1 KB/s"
+msgstr "%1 KB/秒"
+
+msgid "%1 MB/s"
+msgstr "%1 MB/秒"
+
+msgid "Stop"
+msgstr "停止"
+
+msgid "Start"
+msgstr "起動"
+
+msgid "System proxy"
+msgstr "システムプロキシ"
+
+msgid "Settings"
+msgstr "設定"
+
+msgid "Mihomo"
+msgstr "Mihomo"
+
+msgid "Core"
+msgstr "コア"
+
+msgid "Rule"
+msgstr "ルール"
+
+msgid "Global"
+msgstr "グローバル"
+
+msgid "Direct"
+msgstr "直接"

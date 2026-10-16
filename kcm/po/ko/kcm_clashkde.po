@@ -135,3 +135,240 @@ msgstr "보고 있는 그룹의 지연을 자동으로 측정합니다."
 
 msgid "Keeps one sort and filter for every group and profile."
 msgstr "정렬과 필터를 하나로 기억해서 모든 그룹과 프로필에 씁니다."
+
+msgid "%1 B/s"
+msgstr "%1 B/초"
+
+msgid "%1 KB/s"
+msgstr "%1 KB/초"
+
+msgid "%1 MB/s"
+msgstr "%1 MB/초"
+
+msgid "%1 ms"
+msgstr "%1밀리초"
+
+msgid "Active"
+msgstr "사용 중"
+
+msgid "Add subscription"
+msgstr "구독 추가"
+
+msgid "Advanced"
+msgstr "고급"
+
+msgid "Check region"
+msgstr "지역 확인"
+
+msgid "Controller port"
+msgstr "컨트롤러 포트"
+
+msgid "Core"
+msgstr "코어"
+
+msgid "Core is not running"
+msgstr "코어가 실행 중이 아닙니다"
+
+msgid "Core state"
+msgstr "코어 상태"
+
+msgid "Direct"
+msgstr "직접"
+
+msgid "Download"
+msgstr "다운로드"
+
+msgid "Exit region"
+msgstr "출구 지역"
+
+msgid "Global"
+msgstr "전역"
+
+msgid "Group"
+msgstr "그룹"
+
+msgid "KDE proxy is pointing at this core"
+msgstr "KDE 프록시가 이 코어를 가리킵니다"
+
+msgid "KDE proxy is unchanged"
+msgstr "KDE 프록시는 그대로입니다"
+
+msgid "Last update: %1"
+msgstr "마지막 업데이트: %1"
+
+msgid "Listen address"
+msgstr "수신 주소"
+
+msgid "Mixed port"
+msgstr "혼합 포트"
+
+msgid "Mode"
+msgstr "모드"
+
+msgid "Name"
+msgstr "이름"
+
+msgid "No proxy groups"
+msgstr "그룹이 없습니다"
+
+msgid "No subscriptions yet"
+msgstr "아직 구독이 없습니다"
+
+msgid "Not checked yet"
+msgstr "아직 확인하지 않음"
+
+msgid "Not tested"
+msgstr "측정 안 함"
+
+msgid "Not updated yet"
+msgstr "아직 업데이트하지 않음"
+
+msgid "Optional"
+msgstr "선택"
+
+msgid "Override file"
+msgstr "덮어쓰기 파일"
+
+msgid "Point KDE applications at this core while it is running"
+msgstr "코어가 실행 중일 때 KDE 프로그램을 그쪽으로 보냅니다"
+
+msgid "Proxies"
+msgstr "프록시"
+
+msgid "Remove"
+msgstr "제거"
+
+msgid "Remove this subscription?"
+msgstr "이 구독을 제거할까요?"
+
+msgid "Restart core"
+msgstr "코어 다시 시작"
+
+msgid "Rule"
+msgstr "규칙"
+
+msgid "Run mihomo without changing the KDE proxy"
+msgstr "KDE 프록시를 바꾸지 않고 mihomo 실행"
+
+msgid "Running"
+msgstr "실행 중"
+
+msgid "Status"
+msgstr "상태"
+
+msgid "Stopped"
+msgstr "중지됨"
+
+msgid "System proxy"
+msgstr "시스템 프록시"
+
+msgid "Test delays"
+msgstr "지연 테스트"
+
+msgid "The controller listens only on this computer. TUN stays off in this version. Applying restarts the core when it is running."
+msgstr "컨트롤러는 이 컴퓨터에서만 수신합니다. 이 버전에서는 TUN이 꺼져 있습니다. 적용하면 실행 중인 코어가 다시 시작됩니다."
+
+msgid "The system proxy choice is saved. It is applied while the core is running."
+msgstr "시스템 프록시 선택은 저장되며, 코어가 실행 중일 때만 적용됩니다."
+
+msgid "Timeout"
+msgstr "시간 초과"
+
+msgid "URL"
+msgstr "URL"
+
+msgid "Update"
+msgstr "업데이트"
+
+msgid "Upload"
+msgstr "업로드"
+
+msgid "Use"
+msgstr "사용"
+
+msgid "Waiting to start"
+msgstr "시작 대기"
+
+msgid "mihomo executable"
+msgstr "mihomo 실행 파일"
+
+msgid "Applied"
+msgstr "적용됨"
+
+msgid "Not applied"
+msgstr "적용 안 됨"
+
+msgid "Restart"
+msgstr "다시 시작"
+
+msgid "Traffic"
+msgstr "트래픽"
+
+msgid "Subscriptions"
+msgstr "구독"
+
+msgid "Connection"
+msgstr "연결"
+
+msgid "While the core is running, KDE applications use it. Turning the core off withdraws it."
+msgstr "코어가 실행 중이면 KDE 프로그램이 그것을 사용합니다. 코어를 끄면 그 설정은 거두어집니다."
+
+msgid "Profile order"
+msgstr "프로필 순서"
+
+msgid "Delay"
+msgstr "지연"
+
+msgid "Show unreachable"
+msgstr "도달할 수 없는 항목 표시"
+
+msgid "Sort and filter"
+msgstr "정렬과 필터"
+
+msgid "Import"
+msgstr "가져오기"
+
+msgid "Import configuration"
+msgstr "구성 가져오기"
+
+msgid "Edit details"
+msgstr "정보 편집"
+
+msgid "Edit configuration"
+msgstr "구성 편집"
+
+msgid "Remaining: %1"
+msgstr "남음: %1"
+
+msgid "Expires: %1"
+msgstr "만료: %1"
+
+msgid "%1 B"
+msgstr "%1 B"
+
+msgid "%1 KB"
+msgstr "%1 KB"
+
+msgid "%1 MB"
+msgstr "%1 MB"
+
+msgid "%1 GB"
+msgstr "%1 GB"
+
+msgid "More actions"
+msgstr "다른 동작"
+
+msgid "About"
+msgstr "정보"
+
+msgid "Version"
+msgstr "버전"
+
+msgid "License"
+msgstr "라이선스"
+
+msgid "Website"
+msgstr "웹사이트"
+
+msgid "Mihomo"
+msgstr "Mihomo"

@@ -1,0 +1,17 @@
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: clash-kde
+Upstream-Contact: KangxiDictionary <108598928+KangxiDictionary@users.noreply.github.com>
+Source: https://github.com/KangxiDictionary/clash-kde
+
+Files: *
+Copyright: 2026 clash-kde contributors
+License: GPL-3.0-or-later
+
+Files: debian/*
+Copyright: 2026 clash-kde contributors
+License: GPL-3.0-or-later
+
+License: GPL-3.0-or-later
+ The full text of the GNU General Public License version 3 is distributed
+ in /usr/share/common-licenses/GPL-3 on Debian systems and in the file
+ LICENSE at the root of the source tree.
