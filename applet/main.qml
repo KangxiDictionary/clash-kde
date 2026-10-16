@@ -45,7 +45,6 @@ PlasmoidItem {
     }
 
     readonly property bool systemProxyUsable: session.coreRunning && !session.tunEnabled
-    property string routeGroup: ""
 
     // GLOBAL only carries traffic while the mode is global. In rule mode it is a
     // synthetic list, and choosing a node there leaves the real group unchanged.
@@ -63,23 +62,6 @@ PlasmoidItem {
             out.push(groups[i]);
         }
         return out;
-    }
-
-    function currentRouteGroup() {
-        const groups = selectorGroups;
-        for (let i = 0; i < groups.length; ++i) {
-            if (routeGroup.length > 0 && groups[i].name === routeGroup) {
-                return groups[i];
-            }
-        }
-        if (session.mode === "global") {
-            for (let i = 0; i < groups.length; ++i) {
-                if (groups[i].name === "GLOBAL") {
-                    return groups[i];
-                }
-            }
-        }
-        return groups.length > 0 ? groups[0] : null;
     }
 
     function delayColor(ms) {
@@ -144,7 +126,115 @@ PlasmoidItem {
         });
     }
 
-    readonly property var singleGroupNodes: selectorGroups.length === 1 ? nodesFor(selectorGroups[0]) : []
+    function clearMenu(menu) {
+        let guard = menu.count;
+        while (menu.count > 0 && guard >= 0) {
+            guard -= 1;
+            const sub = menu.menuAt(0);
+            if (sub) {
+                root.clearMenu(sub);
+                menu.takeMenu(0);
+                sub.destroy();
+                continue;
+            }
+            const item = menu.takeItem(0);
+            if (!item) {
+                break;
+            }
+            item.destroy();
+        }
+    }
+
+    function appendNodes(menu, groupName, now, nodes) {
+        for (let i = 0; i < nodes.length; ++i) {
+            const node = nodes[i];
+            const rawDelay = node["delay_ms"];
+            const item = routeNodeComponent.createObject(menu, {
+                groupName: groupName,
+                nodeName: String(node.name),
+                currentName: now,
+                delayMs: typeof rawDelay === "number" ? rawDelay : -1
+            });
+            if (item) {
+                menu.insertItem(menu.count, item);
+            }
+        }
+    }
+
+    // Copy names into the items. A later refresh must not rebuild this menu.
+    function rebuildRouteMenu() {
+        clearMenu(routeMenu);
+        const groups = root.selectorGroups;
+        if (groups.length === 1) {
+            const group = groups[0];
+            appendNodes(routeMenu, String(group.name), String(group.now || ""), root.nodesFor(group));
+            root.fitRouteMenu(routeMenu, routeMenu.count);
+            return;
+        }
+        for (let i = 0; i < groups.length; ++i) {
+            const group = groups[i];
+            const groupName = String(group.name);
+            const sub = routeGroupComponent.createObject(routeMenu, {
+                title: groupName,
+                groupName: groupName
+            });
+            if (!sub) {
+                continue;
+            }
+            appendNodes(sub, groupName, String(group.now || ""), root.nodesFor(group));
+            routeMenu.insertMenu(routeMenu.count, sub);
+        }
+        root.fitRouteMenu(routeMenu, routeMenu.count);
+    }
+
+    function patchMenu(menu, byName) {
+        for (let i = 0; i < menu.count; ++i) {
+            const sub = menu.menuAt(i);
+            if (sub) {
+                patchMenu(sub, byName);
+                continue;
+            }
+            const item = menu.itemAt(i);
+            if (!item || !item.groupName) {
+                continue;
+            }
+            const state = byName[item.groupName];
+            if (!state) {
+                continue;
+            }
+            if (item.currentName !== state.now) {
+                item.currentName = state.now;
+            }
+            const delay = state.delays[item.nodeName];
+            if (typeof delay === "number" && item.delayMs !== delay) {
+                item.delayMs = delay;
+            }
+        }
+    }
+
+    function syncOpenRouteMenu() {
+        if (!routeMenu.opened) {
+            return;
+        }
+        const groups = root.selectorGroups;
+        const byName = {};
+        for (let i = 0; i < groups.length; ++i) {
+            const group = groups[i];
+            const delays = {};
+            const nodes = group.nodes || [];
+            for (let n = 0; n < nodes.length; ++n) {
+                const rawDelay = nodes[n]["delay_ms"];
+                if (typeof rawDelay === "number") {
+                    delays[String(nodes[n].name)] = rawDelay;
+                }
+            }
+            byName[String(group.name)] = {
+                now: String(group.now || ""),
+                delays: delays
+            };
+        }
+        patchMenu(routeMenu, byName);
+    }
 
     function perform(action) {
         switch (action) {
@@ -542,13 +632,17 @@ PlasmoidItem {
                 Layout.fillWidth: true
                 Layout.topMargin: Kirigami.Units.smallSpacing
                 text: {
-                    const group = root.currentRouteGroup();
-                    return group && group.now.length > 0 ? i18n("Route: %1", group.now) : i18n("Route");
+                    const groups = root.selectorGroups;
+                    if (groups.length === 1 && groups[0].now && groups[0].now.length > 0) {
+                        return i18n("Route: %1", groups[0].now);
+                    }
+                    return i18n("Route");
                 }
                 onClicked: {
                     if (routeMenu.opened) {
                         routeMenu.close();
                     } else {
+                        root.rebuildRouteMenu();
                         // Opens to the right of the button, as its own window, so it is not clipped by this popup.
                         routeMenu.popup(routeButton, routeButton.width, 0);
                     }
@@ -599,16 +693,21 @@ PlasmoidItem {
 
         component RouteMenuItem: PC3.MenuItem {
             id: nodeItem
-            required property var modelData
-            required property string groupName
-            required property string currentName
+            property string groupName: ""
+            property string nodeName: ""
+            property string currentName: ""
+            property int delayMs: -1
 
-            readonly property int delayMs: modelData["delay_ms"]
-            readonly property bool current: currentName === modelData.name
+            readonly property bool current: nodeName.length > 0 && currentName === nodeName
 
             // The stock check mark is drawn under the label. Draw our own, in its own column.
             checkable: false
-            onTriggered: session.selectProxy(groupName, modelData.name)
+            text: nodeName
+            onTriggered: {
+                if (groupName.length > 0 && nodeName.length > 0) {
+                    session.selectProxy(groupName, nodeName);
+                }
+            }
 
             leftPadding: Kirigami.Units.largeSpacing
             rightPadding: Kirigami.Units.gridUnit + Kirigami.Units.smallSpacing
@@ -650,7 +749,7 @@ PlasmoidItem {
                     PC3.Label {
                         id: nameLabel
                         anchors.fill: parent
-                        text: nodeItem.modelData.name
+                        text: nodeItem.nodeName
                         elide: Text.ElideRight
                         font.bold: nodeItem.current
                         verticalAlignment: Text.AlignVCenter
@@ -668,45 +767,33 @@ PlasmoidItem {
             }
         }
 
+        Component {
+            id: routeNodeComponent
+            RouteMenuItem {}
+        }
+
+        Component {
+            id: routeGroupComponent
+            PC3.Menu {
+                id: groupMenu
+                property string groupName: ""
+                popupType: QQC2.Popup.Window
+                cascade: true
+                onAboutToShow: root.fitRouteMenu(groupMenu, count)
+            }
+        }
+
         PC3.Menu {
             id: routeMenu
             // Popup.Item is clipped to the applet window. Popup.Window is the stock menu window.
             popupType: QQC2.Popup.Window
             cascade: true
-            readonly property int entryCount: root.selectorGroups.length > 1 ? root.selectorGroups.length : root.singleGroupNodes.length
-            onAboutToShow: root.fitRouteMenu(routeMenu, entryCount)
+        }
 
-            Instantiator {
-                model: root.singleGroupNodes
-                delegate: RouteMenuItem {
-                    groupName: root.selectorGroups.length === 1 ? root.selectorGroups[0].name : ""
-                    currentName: root.selectorGroups.length === 1 ? root.selectorGroups[0].now : ""
-                }
-                onObjectAdded: (index, object) => routeMenu.insertItem(index, object)
-                onObjectRemoved: (index, object) => routeMenu.removeItem(object)
-            }
-
-            Instantiator {
-                model: root.selectorGroups.length > 1 ? root.selectorGroups : []
-                delegate: PC3.Menu {
-                    id: groupMenu
-                    required property var modelData
-                    title: modelData.name
-                    popupType: QQC2.Popup.Window
-                    cascade: true
-                    onAboutToShow: root.fitRouteMenu(groupMenu, root.nodesFor(groupMenu.modelData).length)
-                    Instantiator {
-                        model: root.nodesFor(groupMenu.modelData)
-                        delegate: RouteMenuItem {
-                            groupName: groupMenu.modelData.name
-                            currentName: groupMenu.modelData.now
-                        }
-                        onObjectAdded: (index, object) => groupMenu.insertItem(index, object)
-                        onObjectRemoved: (index, object) => groupMenu.removeItem(object)
-                    }
-                }
-                onObjectAdded: (index, object) => routeMenu.insertMenu(index, object)
-                onObjectRemoved: (index, object) => routeMenu.removeMenu(object)
+        Connections {
+            target: session
+            function onChanged() {
+                root.syncOpenRouteMenu();
             }
         }
     }
