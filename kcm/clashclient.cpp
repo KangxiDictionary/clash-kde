@@ -702,6 +702,25 @@ void ClashClient::setDelayTesting(bool testing)
 
 void ClashClient::onDelayUpdated(const QString &group, const QString &name, qlonglong delayMs)
 {
+    for (int i = 0; i < m_groups.size(); ++i) {
+        auto entry = m_groups.at(i).toMap();
+        if (entry.value(QStringLiteral("name")).toString() != group) {
+            continue;
+        }
+        auto nodes = entry.value(QStringLiteral("nodes")).toList();
+        for (int nodeIndex = 0; nodeIndex < nodes.size(); ++nodeIndex) {
+            auto node = nodes.at(nodeIndex).toMap();
+            if (node.value(QStringLiteral("name")).toString() != name) {
+                continue;
+            }
+            node.insert(QStringLiteral("delay_ms"), delayMs);
+            nodes[nodeIndex] = node;
+            entry.insert(QStringLiteral("nodes"), nodes);
+            m_groups[i] = entry;
+            break;
+        }
+        break;
+    }
     Q_EMIT delayUpdated(group, name, delayMs);
 }
 

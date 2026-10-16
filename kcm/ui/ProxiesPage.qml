@@ -218,6 +218,9 @@ Item {
         } else {
             const nodes = group.nodes || [];
             for (let i = 0; i < nodes.length; ++i) {
+                if (nodes[i].delay_ms < 0) {
+                    continue;
+                }
                 root.setNodeDelay(nodes[i].name, nodes[i].delay_ms);
             }
         }
@@ -254,8 +257,13 @@ Item {
                 root.loadedProfile = kcm.client.draftActiveProfile;
                 root.groupSignature = "";
                 root.nodeSignature = "";
+                root.syncFromClient();
+                return;
             }
-            root.syncFromClient();
+            const group = root.currentGroup();
+            if (group) {
+                root.groupNow = root.chosenName(group);
+            }
         }
         function onStatusChanged() {
             const key = (kcm.client.coreRunning ? "1" : "0") + "\n" + kcm.client.activeProfile;
