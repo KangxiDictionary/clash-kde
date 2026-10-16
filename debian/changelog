@@ -1,3 +1,9 @@
+clash-kde (1.0.0) unstable; urgency=medium
+
+  * First stable release. Replaces 0.1.0.
+
+ -- KangxiDictionary <108598928+KangxiDictionary@users.noreply.github.com>  Fri, 16 Oct 2026 23:34:00 +0800
+
 clash-kde (0.1.0) unstable; urgency=medium
 
   * First release.

@@ -1,5 +1,5 @@
 Name:           clash-kde
-Version:        0.1.0
+Version:        1.0.0
 Release:        1%{?dist}
 Summary:        KDE settings page and panel widget for a per-user mihomo proxy
 License:        GPL-3.0-or-later
@@ -103,5 +103,8 @@ fi
 %{_datadir}/locale/*/LC_MESSAGES/plasma_applet_org.kde.plasma.clashkde.mo
 
 %changelog
+* Fri Oct 16 2026 KangxiDictionary <108598928+KangxiDictionary@users.noreply.github.com> - 1.0.0-1
+- First stable release. Replaces 0.1.0.
+
 * Fri Oct 16 2026 KangxiDictionary <108598928+KangxiDictionary@users.noreply.github.com> - 0.1.0-1
 - First release.
