@@ -16,8 +16,8 @@ msgstr "Outros programas podem usar este endereço como está."
 msgid "This switch only starts the local proxy."
 msgstr "Este interruptor só inicia o proxy local."
 
-msgid "KDE and browsers follow this only while the core is running."
-msgstr "O KDE e os navegadores só seguem isto enquanto o núcleo está em execução."
+msgid "This takes effect only while the core is running and TUN is off."
+msgstr "Isso só vale enquanto o núcleo está em execução e o TUN está desligado."
 
 msgid "Restart the core with the configuration it already has."
 msgstr "Reiniciar o núcleo com a configuração que ele já tem."

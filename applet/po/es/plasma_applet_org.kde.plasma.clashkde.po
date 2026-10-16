@@ -13,11 +13,39 @@ msgstr "Otros programas pueden usar esta dirección tal cual."
 msgid "This switch only starts the local proxy."
 msgstr "Este interruptor solo arranca el proxy local."
 
-msgid "KDE and browsers follow this only while the core is running."
-msgstr "KDE y los navegadores lo siguen solo mientras el núcleo está en marcha."
+msgid "This takes effect only while the core is running and TUN is off."
+msgstr "Esto solo surte efecto mientras el núcleo está en marcha y TUN está apagado."
 
 msgid "TUN is on."
 msgstr "TUN está activo."
 
 msgid "TUN is off."
 msgstr "TUN está inactivo."
+
+msgid "Profile"
+msgstr "Perfil"
+
+msgid "Route"
+msgstr "Ruta"
+
+msgid "Timeout"
+msgstr "Tiempo agotado"
+
+msgid "%1 ms"
+msgstr "%1 ms"
+
+msgctxt "@label:listbox"
+msgid "Route order"
+msgstr "Orden de las rutas"
+
+msgctxt "@item:inlistbox"
+msgid "Profile order"
+msgstr "Orden del perfil"
+
+msgctxt "@item:inlistbox"
+msgid "Name"
+msgstr "Nombre"
+
+msgctxt "@item:inlistbox"
+msgid "Delay"
+msgstr "Latencia"

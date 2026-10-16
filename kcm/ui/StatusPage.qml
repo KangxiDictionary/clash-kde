@@ -164,22 +164,29 @@ Item {
                 text: tx.i18n("System proxy")
             }
 
-            QQC2.Switch {
-                checked: kcm.client.systemProxyEnabled
-                onToggled: {
-                    if (checked !== kcm.client.systemProxyEnabled) {
-                        kcm.client.setSystemProxyEnabled(checked);
+            Item {
+                implicitWidth: proxySwitch.implicitWidth
+                implicitHeight: proxySwitch.implicitHeight
+
+                QQC2.Switch {
+                    id: proxySwitch
+                    anchors.fill: parent
+                    checked: kcm.client.systemProxyEnabled
+                    enabled: kcm.client.coreRunning && !kcm.client.tunEnabled
+                    onToggled: {
+                        if (checked !== kcm.client.systemProxyEnabled) {
+                            kcm.client.setSystemProxyEnabled(checked);
+                        }
                     }
                 }
 
-                QQC2.ToolTip.visible: hovered
-                QQC2.ToolTip.delay: 700
-                QQC2.ToolTip.text: tx.i18n("KDE and browsers follow this only while the core is running.")
-            }
+                HoverHandler {
+                    id: proxyHover
+                }
 
-            QQC2.Label {
-                text: kcm.client.systemProxyApplied ? tx.i18n("Applied") : tx.i18n("Not applied")
-                opacity: 0.7
+                QQC2.ToolTip.visible: proxyHover.hovered
+                QQC2.ToolTip.delay: 700
+                QQC2.ToolTip.text: tx.i18n("This takes effect only while the core is running and TUN is off.")
             }
         }
 

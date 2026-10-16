@@ -16,8 +16,8 @@ msgstr "Другие программы могут использовать эт
 msgid "This switch only starts the local proxy."
 msgstr "Этот переключатель только запускает локальный прокси."
 
-msgid "KDE and browsers follow this only while the core is running."
-msgstr "KDE и браузеры идут через это, только пока ядро запущено."
+msgid "This takes effect only while the core is running and TUN is off."
+msgstr "Это действует только пока ядро запущено, а TUN выключен."
 
 msgid "Restart the core with the configuration it already has."
 msgstr "Перезапустить ядро с текущей конфигурацией."

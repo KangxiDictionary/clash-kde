@@ -16,8 +16,8 @@ msgstr "다른 프로그램도 이 주소를 그대로 쓸 수 있습니다."
 msgid "This switch only starts the local proxy."
 msgstr "이 스위치는 로컬 프록시만 켭니다."
 
-msgid "KDE and browsers follow this only while the core is running."
-msgstr "코어가 켜져 있을 때만 KDE와 브라우저가 시스템 프록시를 따라갑니다."
+msgid "This takes effect only while the core is running and TUN is off."
+msgstr "코어가 실행 중이고 TUN이 꺼져 있을 때만 적용됩니다."
 
 msgid "Restart the core with the configuration it already has."
 msgstr "지금 설정 그대로 코어를 다시 시작합니다."

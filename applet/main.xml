@@ -14,5 +14,8 @@
         <entry name="wheelAction" type="String">
             <default>none</default>
         </entry>
+        <entry name="routeSort" type="String">
+            <default>profile</default>
+        </entry>
     </group>
 </kcfg>

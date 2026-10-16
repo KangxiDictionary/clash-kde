@@ -13,11 +13,39 @@ msgstr "다른 프로그램도 이 주소를 그대로 쓸 수 있습니다."
 msgid "This switch only starts the local proxy."
 msgstr "이 스위치는 로컬 프록시만 켭니다."
 
-msgid "KDE and browsers follow this only while the core is running."
-msgstr "코어가 켜져 있을 때만 KDE와 브라우저가 시스템 프록시를 따라갑니다."
+msgid "This takes effect only while the core is running and TUN is off."
+msgstr "코어가 실행 중이고 TUN이 꺼져 있을 때만 적용됩니다."
 
 msgid "TUN is on."
 msgstr "TUN이 켜져 있습니다."
 
 msgid "TUN is off."
 msgstr "TUN이 꺼져 있습니다."
+
+msgid "Profile"
+msgstr "구성"
+
+msgid "Route"
+msgstr "노선"
+
+msgid "Timeout"
+msgstr "시간 초과"
+
+msgid "%1 ms"
+msgstr "%1 ms"
+
+msgctxt "@label:listbox"
+msgid "Route order"
+msgstr "노선 정렬"
+
+msgctxt "@item:inlistbox"
+msgid "Profile order"
+msgstr "구성 파일 순서"
+
+msgctxt "@item:inlistbox"
+msgid "Name"
+msgstr "이름"
+
+msgctxt "@item:inlistbox"
+msgid "Delay"
+msgstr "지연"

@@ -4,6 +4,7 @@
 #pragma once
 
 #include <QObject>
+#include <QVariantList>
 #include <qqmlregistration.h>
 
 class QDBusInterface;
@@ -26,6 +27,9 @@ class ClashCalls : public QObject
     Q_PROPERTY(QString listenAddress READ listenAddress NOTIFY changed)
     Q_PROPERTY(double uploadBps READ uploadBps NOTIFY changed)
     Q_PROPERTY(double downloadBps READ downloadBps NOTIFY changed)
+    Q_PROPERTY(QString activeProfile READ activeProfile NOTIFY changed)
+    Q_PROPERTY(QVariantList profiles READ profiles NOTIFY changed)
+    Q_PROPERTY(QVariantList groups READ groups NOTIFY changed)
 
 public:
     explicit ClashCalls(QObject *parent = nullptr);
@@ -43,13 +47,20 @@ public:
     QString listenAddress() const;
     double uploadBps() const;
     double downloadBps() const;
+    QString activeProfile() const;
+    QVariantList profiles() const;
+    QVariantList groups() const;
 
     Q_INVOKABLE void setCoreDesired(bool desired);
     Q_INVOKABLE void setSystemProxyEnabled(bool enabled);
     Q_INVOKABLE void setMode(const QString &mode);
+    Q_INVOKABLE void setActiveProfile(const QString &id);
+    Q_INVOKABLE void selectProxy(const QString &group, const QString &name);
 
 public Q_SLOTS:
     void refresh();
+    void refreshLists();
+    void onDelayUpdated(const QString &group, const QString &name, qlonglong delayMs);
 
 Q_SIGNALS:
     void changed();
@@ -73,4 +84,7 @@ private:
     QString m_listenAddress;
     double m_uploadBps = 0;
     double m_downloadBps = 0;
+    QString m_activeProfile;
+    QVariantList m_profiles;
+    QVariantList m_groups;
 };

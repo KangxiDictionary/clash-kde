@@ -13,11 +13,39 @@ msgstr "他のアプリも、このアドレスをそのまま使えます。"
 msgid "This switch only starts the local proxy."
 msgstr "このスイッチはローカルプロキシを起動するだけです。"
 
-msgid "KDE and browsers follow this only while the core is running."
-msgstr "コアが動いている間だけ、KDE とブラウザはシステムのプロキシに従います。"
+msgid "This takes effect only while the core is running and TUN is off."
+msgstr "コアが動いていて、TUN がオフのときだけ有効になります。"
 
 msgid "TUN is on."
 msgstr "TUN はオンです。"
 
 msgid "TUN is off."
 msgstr "TUN はオフです。"
+
+msgid "Profile"
+msgstr "設定"
+
+msgid "Route"
+msgstr "ルート"
+
+msgid "Timeout"
+msgstr "タイムアウト"
+
+msgid "%1 ms"
+msgstr "%1 ms"
+
+msgctxt "@label:listbox"
+msgid "Route order"
+msgstr "ルートの並び"
+
+msgctxt "@item:inlistbox"
+msgid "Profile order"
+msgstr "設定ファイルの順"
+
+msgctxt "@item:inlistbox"
+msgid "Name"
+msgstr "名前"
+
+msgctxt "@item:inlistbox"
+msgid "Delay"
+msgstr "遅延"

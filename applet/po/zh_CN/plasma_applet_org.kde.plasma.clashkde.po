@@ -101,8 +101,8 @@ msgstr "内核"
 msgid "This switch only starts the local proxy."
 msgstr "这个开关只负责打开本地代理。"
 
-msgid "KDE and browsers follow this only while the core is running."
-msgstr "只有内核开着的时候，KDE 和浏览器才会跟着系统代理走。"
+msgid "This takes effect only while the core is running and TUN is off."
+msgstr "只有内核开着、而且 TUN 关着的时候，这个才会生效。"
 
 msgid "Rule"
 msgstr "规则"
@@ -118,3 +118,31 @@ msgstr "TUN 开着。"
 
 msgid "TUN is off."
 msgstr "TUN 关着。"
+
+msgid "Profile"
+msgstr "配置"
+
+msgid "Route"
+msgstr "路线"
+
+msgid "Timeout"
+msgstr "超时"
+
+msgid "%1 ms"
+msgstr "%1 ms"
+
+msgctxt "@label:listbox"
+msgid "Route order"
+msgstr "路线排序"
+
+msgctxt "@item:inlistbox"
+msgid "Profile order"
+msgstr "配置里的顺序"
+
+msgctxt "@item:inlistbox"
+msgid "Name"
+msgstr "名称"
+
+msgctxt "@item:inlistbox"
+msgid "Delay"
+msgstr "延迟"

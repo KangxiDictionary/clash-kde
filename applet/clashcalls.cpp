@@ -8,6 +8,7 @@
 #include <QDBusInterface>
 #include <QDBusPendingCallWatcher>
 #include <QDBusPendingReply>
+#include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
 
@@ -19,12 +20,37 @@ ClashCalls::ClashCalls(QObject *parent)
                                  QDBusConnection::sessionBus(),
                                  this))
 {
-    QDBusConnection::sessionBus().connect(QStringLiteral("org.kde.clashkde"),
-                                          QStringLiteral("/org/kde/clashkde"),
-                                          QStringLiteral("org.kde.clashkde.Manager"),
-                                          QStringLiteral("StatusChanged"),
-                                          this,
-                                          SLOT(refresh()));
+    auto bus = QDBusConnection::sessionBus();
+    bus.connect(QStringLiteral("org.kde.clashkde"),
+                QStringLiteral("/org/kde/clashkde"),
+                QStringLiteral("org.kde.clashkde.Manager"),
+                QStringLiteral("StatusChanged"),
+                this,
+                SLOT(refresh()));
+    bus.connect(QStringLiteral("org.kde.clashkde"),
+                QStringLiteral("/org/kde/clashkde"),
+                QStringLiteral("org.kde.clashkde.Manager"),
+                QStringLiteral("ProfilesChanged"),
+                this,
+                SLOT(refreshLists()));
+    bus.connect(QStringLiteral("org.kde.clashkde"),
+                QStringLiteral("/org/kde/clashkde"),
+                QStringLiteral("org.kde.clashkde.Manager"),
+                QStringLiteral("DelayUpdated"),
+                this,
+                SLOT(onDelayUpdated(QString,QString,qlonglong)));
+}
+
+namespace {
+QVariantList jsonArray(const QString &text)
+{
+    QVariantList items;
+    const auto values = QJsonDocument::fromJson(text.toUtf8()).array();
+    for (const auto &value : values) {
+        items.append(value.toObject().toVariantMap());
+    }
+    return items;
+}
 }
 
 bool ClashCalls::ready() const
@@ -92,6 +118,21 @@ double ClashCalls::downloadBps() const
     return m_downloadBps;
 }
 
+QString ClashCalls::activeProfile() const
+{
+    return m_activeProfile;
+}
+
+QVariantList ClashCalls::profiles() const
+{
+    return m_profiles;
+}
+
+QVariantList ClashCalls::groups() const
+{
+    return m_groups;
+}
+
 void ClashCalls::refresh()
 {
     auto *watcher = new QDBusPendingCallWatcher(m_iface->asyncCall(QStringLiteral("GetStatus")), this);
@@ -121,6 +162,70 @@ void ClashCalls::setMode(const QString &mode)
     call(QStringLiteral("SetMode"), {mode});
 }
 
+void ClashCalls::setActiveProfile(const QString &id)
+{
+    call(QStringLiteral("SetActiveProfile"), {id});
+}
+
+void ClashCalls::selectProxy(const QString &group, const QString &name)
+{
+    call(QStringLiteral("SelectProxy"), {group, name});
+}
+
+void ClashCalls::refreshLists()
+{
+    auto *profiles = new QDBusPendingCallWatcher(m_iface->asyncCall(QStringLiteral("GetProfiles")), this);
+    connect(profiles, &QDBusPendingCallWatcher::finished, this, [this](QDBusPendingCallWatcher *call) {
+        call->deleteLater();
+        const QDBusPendingReply<QString> reply = *call;
+        if (reply.isError()) {
+            return;
+        }
+        const QVariantList next = jsonArray(reply.value());
+        if (next != m_profiles) {
+            m_profiles = next;
+            Q_EMIT changed();
+        }
+    });
+
+    auto *proxies = new QDBusPendingCallWatcher(m_iface->asyncCall(QStringLiteral("GetProxies")), this);
+    connect(proxies, &QDBusPendingCallWatcher::finished, this, [this](QDBusPendingCallWatcher *call) {
+        call->deleteLater();
+        const QDBusPendingReply<QString> reply = *call;
+        if (reply.isError()) {
+            return;
+        }
+        const QVariantList next = jsonArray(reply.value());
+        if (next != m_groups) {
+            m_groups = next;
+            Q_EMIT changed();
+        }
+    });
+}
+
+void ClashCalls::onDelayUpdated(const QString &group, const QString &name, qlonglong delayMs)
+{
+    for (int i = 0; i < m_groups.size(); ++i) {
+        QVariantMap map = m_groups.at(i).toMap();
+        if (map.value(QStringLiteral("name")).toString() != group) {
+            continue;
+        }
+        QVariantList nodes = map.value(QStringLiteral("nodes")).toList();
+        for (int j = 0; j < nodes.size(); ++j) {
+            QVariantMap node = nodes.at(j).toMap();
+            if (node.value(QStringLiteral("name")).toString() != name) {
+                continue;
+            }
+            node.insert(QStringLiteral("delay_ms"), delayMs);
+            nodes[j] = node;
+            map.insert(QStringLiteral("nodes"), nodes);
+            m_groups[i] = map;
+            Q_EMIT changed();
+            return;
+        }
+    }
+}
+
 void ClashCalls::call(const QString &member, const QVariantList &arguments)
 {
     auto *watcher = new QDBusPendingCallWatcher(m_iface->asyncCallWithArgumentList(member, arguments), this);
@@ -132,6 +237,7 @@ void ClashCalls::call(const QString &member, const QVariantList &arguments)
             return;
         }
         refresh();
+        refreshLists();
     });
 }
 
@@ -155,6 +261,7 @@ void ClashCalls::applyStatus(const QString &json)
     m_listenAddress = QStringLiteral("127.0.0.1:%1").arg(object.value(QStringLiteral("mixed_port")).toInt(7890));
     m_uploadBps = object.value(QStringLiteral("upload_bps")).toDouble();
     m_downloadBps = object.value(QStringLiteral("download_bps")).toDouble();
+    m_activeProfile = object.value(QStringLiteral("active_profile")).toString();
     Q_EMIT changed();
 }
 

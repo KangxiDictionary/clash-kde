@@ -193,8 +193,8 @@ msgstr "用现在这份配置重新启动内核。"
 msgid "While the core is running, KDE applications use it. Turning the core off withdraws it."
 msgstr "内核运行时，KDE 应用程序使用它。内核停止后会撤回。"
 
-msgid "KDE and browsers follow this only while the core is running."
-msgstr "只有内核开着的时候，KDE 和浏览器才会跟着系统代理走。"
+msgid "This takes effect only while the core is running and TUN is off."
+msgstr "只有内核开着、而且 TUN 关着的时候，这个才会生效。"
 
 msgid "Other programs can use this address as it is."
 msgstr "别的程序可以直接用这个地址。"

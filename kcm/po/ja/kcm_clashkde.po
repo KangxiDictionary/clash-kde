@@ -16,8 +16,8 @@ msgstr "他のアプリも、このアドレスをそのまま使えます。"
 msgid "This switch only starts the local proxy."
 msgstr "このスイッチはローカルプロキシを起動するだけです。"
 
-msgid "KDE and browsers follow this only while the core is running."
-msgstr "コアが動いている間だけ、KDE とブラウザはシステムのプロキシに従います。"
+msgid "This takes effect only while the core is running and TUN is off."
+msgstr "コアが動いていて、TUN がオフのときだけ有効になります。"
 
 msgid "Restart the core with the configuration it already has."
 msgstr "今の設定のままコアを再起動します。"

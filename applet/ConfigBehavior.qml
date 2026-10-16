@@ -13,6 +13,7 @@ Kirigami.FormLayout {
     property string cfg_clickAction
     property string cfg_middleClickAction
     property string cfg_wheelAction
+    property string cfg_routeSort
 
     readonly property var clickActions: [
         { label: i18nc("@item:inlistbox", "Open the popup"), value: "popup" },
@@ -54,5 +55,18 @@ Kirigami.FormLayout {
         model: root.wheelActions
         Component.onCompleted: currentIndex = Math.max(0, indexOfValue(root.cfg_wheelAction))
         onActivated: root.cfg_wheelAction = currentValue
+    }
+
+    QQC2.ComboBox {
+        Kirigami.FormData.label: i18nc("@label:listbox", "Route order")
+        textRole: "label"
+        valueRole: "value"
+        model: [
+            { label: i18nc("@item:inlistbox", "Profile order"), value: "profile" },
+            { label: i18nc("@item:inlistbox", "Name"), value: "name" },
+            { label: i18nc("@item:inlistbox", "Delay"), value: "delay" }
+        ]
+        Component.onCompleted: currentIndex = Math.max(0, indexOfValue(root.cfg_routeSort))
+        onActivated: root.cfg_routeSort = currentValue
     }
 }

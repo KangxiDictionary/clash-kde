@@ -13,11 +13,39 @@ msgstr "其他程式可以直接用這個位址。"
 msgid "This switch only starts the local proxy."
 msgstr "這個開關只負責打開本機代理。"
 
-msgid "KDE and browsers follow this only while the core is running."
-msgstr "只有核心開著的時候，KDE 和瀏覽器才會跟著系統代理走。"
+msgid "This takes effect only while the core is running and TUN is off."
+msgstr "只有內核開著、而且 TUN 關著的時候，這個才會生效。"
 
 msgid "TUN is on."
 msgstr "TUN 開著。"
 
 msgid "TUN is off."
 msgstr "TUN 關著。"
+
+msgid "Profile"
+msgstr "設定"
+
+msgid "Route"
+msgstr "路線"
+
+msgid "Timeout"
+msgstr "逾時"
+
+msgid "%1 ms"
+msgstr "%1 ms"
+
+msgctxt "@label:listbox"
+msgid "Route order"
+msgstr "路線排序"
+
+msgctxt "@item:inlistbox"
+msgid "Profile order"
+msgstr "設定裡的順序"
+
+msgctxt "@item:inlistbox"
+msgid "Name"
+msgstr "名稱"
+
+msgctxt "@item:inlistbox"
+msgid "Delay"
+msgstr "延遲"
