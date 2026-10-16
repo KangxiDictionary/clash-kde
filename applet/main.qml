@@ -47,13 +47,20 @@ PlasmoidItem {
     readonly property bool systemProxyUsable: session.coreRunning && !session.tunEnabled
     property string routeGroup: ""
 
+    // GLOBAL only carries traffic while the mode is global. In rule mode it is a
+    // synthetic list, and choosing a node there leaves the real group unchanged.
     readonly property var selectorGroups: {
         const groups = session.groups;
         const out = [];
         for (let i = 0; i < groups.length; ++i) {
-            if (groups[i]["type"] === "Selector") {
-                out.push(groups[i]);
+            if (groups[i]["type"] !== "Selector") {
+                continue;
             }
+            const synthetic = groups[i].name === "GLOBAL";
+            if (session.mode === "global" ? !synthetic : synthetic) {
+                continue;
+            }
+            out.push(groups[i]);
         }
         return out;
     }

@@ -9,6 +9,7 @@ Item {
     property string selectedGroup: ""
     property string autoTested: ""
     property string loadedProfile: ""
+    property string loadedMode: ""
     property string sourceKey: ""
     property bool sawAutoTest: false
     property string groupSignature: ""
@@ -50,10 +51,18 @@ Item {
     }
 
     function sourceGroups() {
-        if (kcm.client.coreRunning && kcm.client.draftActiveProfile === kcm.client.activeProfile) {
-            return kcm.client.groups;
+        const groups = kcm.client.coreRunning && kcm.client.draftActiveProfile === kcm.client.activeProfile
+                ? kcm.client.groups : kcm.client.profileGroups(kcm.client.draftActiveProfile);
+        // GLOBAL only carries traffic while the mode is global. Rule mode uses the groups from the profile.
+        const out = [];
+        for (let i = 0; i < groups.length; ++i) {
+            const synthetic = groups[i].name === "GLOBAL";
+            if (kcm.client.draftMode === "global" ? !synthetic : synthetic) {
+                continue;
+            }
+            out.push(groups[i]);
         }
-        return kcm.client.profileGroups(kcm.client.draftActiveProfile);
+        return out.length > 0 ? out : groups;
     }
 
     function viewPref() {
@@ -187,12 +196,23 @@ Item {
                     name: groups[i].name
                 });
             }
-            let index = 0;
+            let index = -1;
             for (let i = 0; i < groups.length; ++i) {
                 if (groups[i].name === keep) {
                     index = i;
                     break;
                 }
+            }
+            if (index < 0) {
+                for (let i = 0; i < groups.length; ++i) {
+                    if (groups[i]["type"] === "Selector") {
+                        index = i;
+                        break;
+                    }
+                }
+            }
+            if (index < 0) {
+                index = 0;
             }
             root.selectedGroup = groups[index].name;
             groupBox.currentIndex = index;
@@ -253,8 +273,9 @@ Item {
             }
         }
         function onDraftChanged() {
-            if (root.loadedProfile !== kcm.client.draftActiveProfile) {
+            if (root.loadedProfile !== kcm.client.draftActiveProfile || root.loadedMode !== kcm.client.draftMode) {
                 root.loadedProfile = kcm.client.draftActiveProfile;
+                root.loadedMode = kcm.client.draftMode;
                 root.groupSignature = "";
                 root.nodeSignature = "";
                 root.syncFromClient();
