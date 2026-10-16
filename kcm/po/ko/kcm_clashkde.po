@@ -114,3 +114,24 @@ msgstr "이 페이지에서는 로그인한 계정의 코어를 시작하거나 
 
 msgid "The firewall is on, and it can drop TUN traffic."
 msgstr "방화벽이 켜져 있어 TUN 트래픽이 버려질 수 있습니다."
+
+msgid "Profiles"
+msgstr "프로필"
+
+msgid "No profiles yet"
+msgstr "아직 프로필이 없습니다"
+
+msgid "Remove this profile?"
+msgstr "이 프로필을 제거할까요?"
+
+msgid "Test delay automatically"
+msgstr "지연을 자동으로 측정"
+
+msgid "Use the same sort for every group"
+msgstr "모든 그룹에 같은 정렬 사용"
+
+msgid "Tests the delay of the group you are looking at."
+msgstr "보고 있는 그룹의 지연을 자동으로 측정합니다."
+
+msgid "Keeps one sort and filter for every group and profile."
+msgstr "정렬과 필터를 하나로 기억해서 모든 그룹과 프로필에 씁니다."

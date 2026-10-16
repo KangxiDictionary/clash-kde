@@ -114,3 +114,24 @@ msgstr "Эта страница запускает или останавлива
 
 msgid "The firewall is on, and it can drop TUN traffic."
 msgstr "Межсетевой экран включён и может отбрасывать трафик TUN."
+
+msgid "Profiles"
+msgstr "Профили"
+
+msgid "No profiles yet"
+msgstr "Профилей пока нет"
+
+msgid "Remove this profile?"
+msgstr "Удалить этот профиль?"
+
+msgid "Test delay automatically"
+msgstr "Проверять задержку автоматически"
+
+msgid "Use the same sort for every group"
+msgstr "Одинаковая сортировка для каждой группы"
+
+msgid "Tests the delay of the group you are looking at."
+msgstr "Проверяет задержку открытой группы."
+
+msgid "Keeps one sort and filter for every group and profile."
+msgstr "Запоминает одну сортировку и фильтр для каждой группы и каждого профиля."

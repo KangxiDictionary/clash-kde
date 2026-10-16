@@ -114,3 +114,24 @@ msgstr "Diese Seite startet oder stoppt den Kern eines angemeldeten Kontos."
 
 msgid "The firewall is on, and it can drop TUN traffic."
 msgstr "Die Firewall ist an und kann TUN-Verkehr verwerfen."
+
+msgid "Profiles"
+msgstr "Profile"
+
+msgid "No profiles yet"
+msgstr "Noch keine Profile"
+
+msgid "Remove this profile?"
+msgstr "Dieses Profil entfernen?"
+
+msgid "Test delay automatically"
+msgstr "Verzögerung automatisch testen"
+
+msgid "Use the same sort for every group"
+msgstr "Dieselbe Sortierung für jede Gruppe"
+
+msgid "Tests the delay of the group you are looking at."
+msgstr "Misst die Verzögerung der angezeigten Gruppe von selbst."
+
+msgid "Keeps one sort and filter for every group and profile."
+msgstr "Merkt sich eine Sortierung und einen Filter für jede Gruppe und jedes Profil."

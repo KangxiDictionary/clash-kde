@@ -284,9 +284,13 @@ pub fn describe_region(body: &Value) -> Option<String> {
     if body.get("success").and_then(Value::as_bool) == Some(false) {
         return None;
     }
-    let country = first_text(body, &["country_name", "country"]);
+    let code = country_code(body);
     let city = first_text(body, &["city"]);
     let ip = first_text(body, &["ip", "query"]);
+    if !code.is_empty() {
+        return Some(format!("{code}\t{city}\t{ip}"));
+    }
+    let country = first_text(body, &["country_name", "country"]);
     let place = match (country.is_empty(), city.is_empty()) {
         (true, true) => String::new(),
         (false, true) => country,
@@ -302,6 +306,19 @@ pub fn describe_region(body: &Value) -> Option<String> {
     } else {
         Some(format!("{place} ({ip})"))
     }
+}
+
+fn country_code(body: &Value) -> String {
+    for key in ["country_code", "countryCode", "country"] {
+        let Some(text) = body.get(key).and_then(Value::as_str) else {
+            continue;
+        };
+        let code = text.trim();
+        if code.len() == 2 && code.chars().all(|ch| ch.is_ascii_alphabetic()) {
+            return code.to_ascii_uppercase();
+        }
+    }
+    String::new()
 }
 
 fn first_text(body: &Value, keys: &[&str]) -> String {
@@ -397,15 +414,20 @@ mod tests {
 
     #[test]
     fn describes_region_from_common_services() {
-        let ipwho = serde_json::json!({"success": true, "country": "Japan", "city": "Tokyo", "ip": "1.1.1.1"});
+        let ipwho = serde_json::json!({"success": true, "country": "Japan", "country_code": "JP", "city": "Tokyo", "ip": "1.1.1.1"});
         assert_eq!(
             describe_region(&ipwho).as_deref(),
+            Some("JP\tTokyo\t1.1.1.1")
+        );
+        let named = serde_json::json!({"success": true, "country": "Japan", "city": "Tokyo", "ip": "1.1.1.1"});
+        assert_eq!(
+            describe_region(&named).as_deref(),
             Some("Japan · Tokyo (1.1.1.1)")
         );
         let ipinfo = serde_json::json!({"ip": "8.8.8.8", "city": "Tokyo", "country": "JP"});
         assert_eq!(
             describe_region(&ipinfo).as_deref(),
-            Some("JP · Tokyo (8.8.8.8)")
+            Some("JP\tTokyo\t8.8.8.8")
         );
         let failed = serde_json::json!({"success": false});
         assert!(describe_region(&failed).is_none());

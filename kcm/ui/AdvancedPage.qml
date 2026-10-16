@@ -27,6 +27,26 @@ Item {
         Kirigami.FormLayout {
             Layout.fillWidth: true
 
+            QQC2.Switch {
+                Kirigami.FormData.label: tx.i18n("Test delay automatically")
+                checked: kcm.client.draftAutoTestDelay
+                onToggled: kcm.client.draftAutoTestDelay = checked
+
+                QQC2.ToolTip.visible: hovered
+                QQC2.ToolTip.delay: 700
+                QQC2.ToolTip.text: tx.i18n("Tests the delay of the group you are looking at.")
+            }
+
+            QQC2.Switch {
+                Kirigami.FormData.label: tx.i18n("Use the same sort for every group")
+                checked: kcm.client.draftSortGlobal
+                onToggled: kcm.client.draftSortGlobal = checked
+
+                QQC2.ToolTip.visible: hovered
+                QQC2.ToolTip.delay: 700
+                QQC2.ToolTip.text: tx.i18n("Keeps one sort and filter for every group and profile.")
+            }
+
             QQC2.SpinBox {
                 Kirigami.FormData.label: tx.i18n("Mixed port")
                 from: 1

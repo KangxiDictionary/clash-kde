@@ -43,6 +43,15 @@ class ClashClient : public QObject
     Q_PROPERTY(bool draftSystemProxyEnabled READ draftSystemProxyEnabled WRITE setDraftSystemProxyEnabled NOTIFY draftChanged)
     Q_PROPERTY(bool draftTunEnabled READ draftTunEnabled WRITE setDraftTunEnabled NOTIFY draftChanged)
     Q_PROPERTY(QString draftMode READ draftMode WRITE setDraftMode NOTIFY draftChanged)
+    Q_PROPERTY(QString draftActiveProfile READ draftActiveProfile WRITE setDraftActiveProfile NOTIFY draftChanged)
+    Q_PROPERTY(QVariantMap draftSelections READ draftSelections WRITE setDraftSelections NOTIFY draftChanged)
+    Q_PROPERTY(bool draftSortGlobal READ draftSortGlobal WRITE setDraftSortGlobal NOTIFY draftChanged)
+    Q_PROPERTY(bool draftAutoTestDelay READ draftAutoTestDelay WRITE setDraftAutoTestDelay NOTIFY draftChanged)
+    Q_PROPERTY(bool sortGlobal READ sortGlobal NOTIFY statusChanged)
+    Q_PROPERTY(QString sortMode READ sortMode NOTIFY statusChanged)
+    Q_PROPERTY(bool showUnreachable READ showUnreachable NOTIFY statusChanged)
+    Q_PROPERTY(QVariantMap sortPrefs READ sortPrefs NOTIFY statusChanged)
+    Q_PROPERTY(bool autoTestDelay READ autoTestDelay NOTIFY statusChanged)
     Q_PROPERTY(bool settingsDirty READ settingsDirty NOTIFY draftChanged)
 
 public:
@@ -87,6 +96,19 @@ public:
     void setDraftTunEnabled(bool enabled);
     QString draftMode() const;
     void setDraftMode(const QString &mode);
+    QString draftActiveProfile() const;
+    void setDraftActiveProfile(const QString &id);
+    QVariantMap draftSelections() const;
+    void setDraftSelections(const QVariantMap &selections);
+    bool draftSortGlobal() const;
+    void setDraftSortGlobal(bool global);
+    bool draftAutoTestDelay() const;
+    void setDraftAutoTestDelay(bool enabled);
+    bool sortGlobal() const;
+    QString sortMode() const;
+    bool showUnreachable() const;
+    QVariantMap sortPrefs() const;
+    bool autoTestDelay() const;
     bool settingsDirty() const;
 
     Q_INVOKABLE void setCoreDesired(bool desired);
@@ -102,6 +124,8 @@ public:
     Q_INVOKABLE void removeProfile(const QString &id);
     Q_INVOKABLE void updateProfile(const QString &id);
     Q_INVOKABLE void selectProxy(const QString &group, const QString &name);
+    Q_INVOKABLE void setViewPref(const QString &profile, const QString &group, const QString &mode, bool showUnreachable, bool global);
+    Q_INVOKABLE QVariantList profileGroups(const QString &id);
     Q_INVOKABLE void testGroupDelay(const QString &group);
     Q_INVOKABLE QString profileBody(const QString &id);
     Q_INVOKABLE QString checkProfileText(const QString &body);
@@ -177,6 +201,16 @@ private:
     bool m_draftSystemProxyEnabled = false;
     bool m_draftTunEnabled = false;
     QString m_draftMode = QStringLiteral("rule");
+    QString m_draftActiveProfile;
+    QVariantMap m_draftSelections;
+    bool m_draftSortGlobal = false;
+    bool m_draftAutoTestDelay = false;
+    QVariantMap m_selections;
+    bool m_sortGlobal = false;
+    QString m_sortMode = QStringLiteral("profile");
+    bool m_showUnreachable = true;
+    QVariantMap m_sortPrefs;
+    bool m_autoTestDelay = false;
     QVariantList m_profiles;
     QVariantList m_groups;
     QVariantList m_accounts;

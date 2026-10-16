@@ -15,6 +15,7 @@ include(KDECompilerSettings NO_POLICY_SCOPE)
 find_package(Qt6 ${QT_MIN_VERSION} REQUIRED COMPONENTS Core Quick Gui Qml DBus)
 find_package(KF6 ${KF6_MIN_VERSION} REQUIRED COMPONENTS CoreAddons I18n KCMUtils)
 find_package(Plasma REQUIRED)
+find_package(ICU REQUIRED COMPONENTS uc)
 
 kcmutils_add_qml_kcm(kcm_clashkde SOURCES
     kcm.cpp
@@ -29,6 +30,7 @@ target_link_libraries(kcm_clashkde PRIVATE
     KF6::I18n
     KF6::KCMUtils
     KF6::KCMUtilsQuick
+    ICU::uc
 )
 
 ki18n_install(po)

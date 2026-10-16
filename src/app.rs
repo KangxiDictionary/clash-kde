@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, Instant};
@@ -85,6 +86,12 @@ struct Status {
     active_profile: String,
     message: String,
     override_path: String,
+    selections: BTreeMap<String, String>,
+    sort_global: bool,
+    sort_mode: String,
+    show_unreachable: bool,
+    sort_prefs: BTreeMap<String, crate::state::SortPref>,
+    auto_test_delay: bool,
 }
 
 impl App {
@@ -422,6 +429,121 @@ impl App {
         Ok(())
     }
 
+    pub async fn set_choices(
+        self: &Arc<Self>,
+        profile: &str,
+        selections: BTreeMap<String, String>,
+    ) -> Result<(), String> {
+        if !profile.is_empty() {
+            let profiles = profile::load_profiles(&self.paths);
+            if !profiles.iter().any(|item| item.id == profile) {
+                return Err("找不到这个配置".to_string());
+            }
+        }
+        let (profile_changed, running, port, secret) = {
+            let mut inner = self.inner.lock().await;
+            let profile_changed = inner.settings.active_profile != profile;
+            inner.settings.selections = selections.clone();
+            if profile_changed {
+                inner.settings.active_profile = profile.to_string();
+            }
+            inner
+                .settings
+                .save(&self.paths)
+                .map_err(|error| error.to_string())?;
+            inner.message.clear();
+            (
+                profile_changed,
+                inner.core_running,
+                inner.settings.controller_port,
+                inner.settings.controller_secret.clone(),
+            )
+        };
+        if profile_changed {
+            self.emit(Event::Profiles);
+        }
+        if !running {
+            self.emit(Event::Status);
+            return Ok(());
+        }
+        if profile_changed {
+            return self.spawn_core().await;
+        }
+        let controller = Controller::new(port, &secret);
+        for (group, name) in &selections {
+            if let Err(error) = controller.select_proxy(group, name).await {
+                tracing::warn!("{error}");
+            }
+        }
+        self.emit(Event::Proxies);
+        self.schedule_region_lookup();
+        Ok(())
+    }
+
+    pub async fn set_behavior(
+        &self,
+        sort_global: bool,
+        auto_test_delay: bool,
+    ) -> Result<(), String> {
+        {
+            let mut inner = self.inner.lock().await;
+            inner.settings.sort_global = sort_global;
+            inner.settings.auto_test_delay = auto_test_delay;
+            inner
+                .settings
+                .save(&self.paths)
+                .map_err(|error| error.to_string())?;
+        }
+        self.emit(Event::Status);
+        Ok(())
+    }
+
+    pub async fn set_view_pref(
+        &self,
+        profile: &str,
+        group: &str,
+        mode: &str,
+        show_unreachable: bool,
+        global: bool,
+    ) -> Result<(), String> {
+        let mode = match mode {
+            "name" | "delay" | "profile" => mode.to_string(),
+            _ => "profile".to_string(),
+        };
+        {
+            let mut inner = self.inner.lock().await;
+            if global {
+                inner.settings.sort_mode = mode;
+                inner.settings.show_unreachable = show_unreachable;
+            } else {
+                let key = format!("{profile}\n{group}");
+                inner.settings.sort_prefs.insert(
+                    key,
+                    state::SortPref {
+                        mode,
+                        show_unreachable,
+                    },
+                );
+            }
+            inner
+                .settings
+                .save(&self.paths)
+                .map_err(|error| error.to_string())?;
+        }
+        self.emit(Event::Status);
+        Ok(())
+    }
+
+    pub async fn profile_groups_json(&self, id: &str) -> Result<String, String> {
+        if id.is_empty() {
+            return Ok("[]".to_string());
+        }
+        let text =
+            profile::read_profile_body(&self.paths, id).map_err(|error| error.to_string())?;
+        let groups = profile::selector_groups(&text);
+        Ok(serde_json::to_string(&groups).unwrap_or_else(|_| "[]".to_string()))
+    }
+
     pub async fn set_active_profile(self: &Arc<Self>, id: &str) -> Result<(), String> {
         let profiles = profile::load_profiles(&self.paths);
         if !profiles.iter().any(|profile| profile.id == id) {
@@ -744,6 +866,12 @@ impl App {
             active_profile: inner.settings.active_profile.clone(),
             message: inner.message.clone(),
             override_path: self.paths.override_file().display().to_string(),
+            selections: inner.settings.selections.clone(),
+            sort_global: inner.settings.sort_global,
+            sort_mode: inner.settings.sort_mode.clone(),
+            show_unreachable: inner.settings.show_unreachable,
+            sort_prefs: inner.settings.sort_prefs.clone(),
+            auto_test_delay: inner.settings.auto_test_delay,
         };
         serde_json::to_string(&status).expect("status json")
     }

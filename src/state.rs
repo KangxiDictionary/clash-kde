@@ -28,6 +28,32 @@ pub struct Settings {
     pub selections: BTreeMap<String, String>,
     #[serde(default)]
     pub tun_enabled: bool,
+    #[serde(default)]
+    pub sort_global: bool,
+    #[serde(default = "default_sort_mode")]
+    pub sort_mode: String,
+    #[serde(default = "default_show_unreachable")]
+    pub show_unreachable: bool,
+    #[serde(default)]
+    pub sort_prefs: BTreeMap<String, SortPref>,
+    #[serde(default)]
+    pub auto_test_delay: bool,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SortPref {
+    #[serde(default = "default_sort_mode")]
+    pub mode: String,
+    #[serde(default = "default_show_unreachable")]
+    pub show_unreachable: bool,
+}
+
+fn default_sort_mode() -> String {
+    "profile".to_string()
+}
+
+fn default_show_unreachable() -> bool {
+    true
 }
 
 fn default_mode() -> String {
@@ -59,6 +85,11 @@ impl Default for Settings {
             active_profile: String::new(),
             selections: BTreeMap::new(),
             tun_enabled: false,
+            sort_global: false,
+            sort_mode: default_sort_mode(),
+            show_unreachable: default_show_unreachable(),
+            sort_prefs: BTreeMap::new(),
+            auto_test_delay: false,
         }
     }
 }
@@ -76,6 +107,9 @@ impl Settings {
         });
         if !matches!(settings.mode.as_str(), "rule" | "global" | "direct") {
             settings.mode = default_mode();
+        }
+        if !matches!(settings.sort_mode.as_str(), "profile" | "name" | "delay") {
+            settings.sort_mode = default_sort_mode();
         }
         if settings.mixed_port == 0 {
             settings.mixed_port = default_mixed_port();

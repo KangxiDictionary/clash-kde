@@ -134,7 +134,7 @@ Item {
                 QQC2.Button {
                     text: tx.i18n("Restart")
                     icon.name: "view-refresh"
-                    enabled: !kcm.client.busy
+                    enabled: kcm.client.coreRunning && !kcm.client.busy
                     onClicked: kcm.client.restartCore()
 
                     QQC2.ToolTip.visible: hovered
@@ -157,39 +157,40 @@ Item {
             }
         }
 
-        Kirigami.FormLayout {
+        RowLayout {
             Layout.fillWidth: true
+            spacing: Kirigami.Units.largeSpacing
 
-            Item {
-                Kirigami.FormData.label: tx.i18n("System proxy")
-                implicitWidth: proxySwitch.implicitWidth
-                implicitHeight: proxySwitch.implicitHeight
+            QQC2.Label {
+                text: tx.i18n("System proxy")
+            }
 
-                QQC2.Switch {
-                    id: proxySwitch
-                    anchors.fill: parent
-                    checked: kcm.client.draftSystemProxyEnabled
-                    enabled: checked || (kcm.client.draftCoreDesired && !kcm.client.draftTunEnabled)
-                    onToggled: {
-                        if (checked !== kcm.client.draftSystemProxyEnabled) {
-                            kcm.client.draftSystemProxyEnabled = checked;
-                        }
+            QQC2.Switch {
+                id: proxySwitch
+                checked: kcm.client.draftSystemProxyEnabled
+                enabled: checked || (kcm.client.draftCoreDesired && !kcm.client.draftTunEnabled)
+                onToggled: {
+                    if (checked !== kcm.client.draftSystemProxyEnabled) {
+                        kcm.client.draftSystemProxyEnabled = checked;
                     }
                 }
 
-                HoverHandler {
-                    id: proxyHover
-                }
-
-                QQC2.ToolTip.visible: proxyHover.hovered
+                QQC2.ToolTip.visible: hovered
                 QQC2.ToolTip.delay: 700
                 QQC2.ToolTip.text: tx.i18n("This takes effect only while the core is running and TUN is off.")
             }
 
+            Item {
+                Layout.fillWidth: true
+            }
+
+            QQC2.Label {
+                text: tx.i18n("TUN")
+            }
+
             QQC2.Switch {
-                Kirigami.FormData.label: tx.i18n("TUN")
                 checked: kcm.client.draftTunEnabled
-                enabled: !kcm.client.busy
+                enabled: !kcm.client.busy && (checked || kcm.client.coreRunning)
                 onToggled: {
                     if (checked !== kcm.client.draftTunEnabled) {
                         kcm.client.draftTunEnabled = checked;
@@ -201,8 +202,15 @@ Item {
                 QQC2.ToolTip.text: tx.i18n("This captures only this account's traffic, and the system proxy steps aside while it is on.")
             }
 
+            Item {
+                Layout.fillWidth: true
+            }
+
+            QQC2.Label {
+                text: tx.i18n("Mode")
+            }
+
             QQC2.ComboBox {
-                Kirigami.FormData.label: tx.i18n("Mode")
                 model: [tx.i18n("Rule"), tx.i18n("Global"), tx.i18n("Direct")]
                 readonly property var modes: ["rule", "global", "direct"]
                 currentIndex: Math.max(0, modes.indexOf(kcm.client.draftMode))

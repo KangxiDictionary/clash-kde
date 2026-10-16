@@ -5,6 +5,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use serde::{Deserialize, Serialize};
 use serde_yaml::{Mapping, Value};
 
+use crate::controller::{ProxyGroup, ProxyNode};
 use crate::paths::Paths;
 use crate::state::{Settings, write_private};
 
@@ -110,6 +111,54 @@ pub fn check_profile_text(body: &str) -> Result<(), String> {
             }
         }
     }
+}
+
+pub fn selector_groups(body: &str) -> Vec<ProxyGroup> {
+    let Ok(value) = serde_yaml::from_str::<Value>(body) else {
+        return Vec::new();
+    };
+    let Some(groups) = value.get("proxy-groups").and_then(Value::as_sequence) else {
+        return Vec::new();
+    };
+    let mut out = Vec::new();
+    for group in groups {
+        let Some(name) = group.get("name").and_then(Value::as_str) else {
+            continue;
+        };
+        let Some(nodes_value) = group.get("proxies").and_then(Value::as_sequence) else {
+            continue;
+        };
+        let nodes: Vec<ProxyNode> = nodes_value
+            .iter()
+            .filter_map(Value::as_str)
+            .map(|node_name| ProxyNode {
+                name: node_name.to_string(),
+                delay_ms: -1,
+            })
+            .collect();
+        if nodes.is_empty() {
+            continue;
+        }
+        let raw_kind = group
+            .get("type")
+            .and_then(Value::as_str)
+            .unwrap_or("select");
+        let kind = if raw_kind.eq_ignore_ascii_case("select")
+            || raw_kind.eq_ignore_ascii_case("selector")
+        {
+            "Selector".to_string()
+        } else {
+            raw_kind.to_string()
+        };
+        out.push(ProxyGroup {
+            name: name.to_string(),
+            kind,
+            now: String::new(),
+            nodes,
+        });
+    }
+    out.sort_by(|left, right| left.name.cmp(&right.name));
+    out
 }
 
 fn parse_mapping(text: &str) -> Option<Value> {
@@ -423,6 +472,28 @@ mod tests {
             config.get("allow-lan").and_then(Value::as_bool),
             Some(false)
         );
+    }
+
+    #[test]
+    fn selector_groups_come_from_the_profile_file() {
+        let body = "\
+proxy-groups:
+  - name: 备用
+    type: url-test
+    proxies:
+      - B
+  - name: 节点选择
+    type: select
+    proxies:
+      - A
+      - DIRECT
+";
+        let groups = selector_groups(body);
+        assert_eq!(groups.len(), 2);
+        assert_eq!(groups[0].name, "备用");
+        assert_eq!(groups[0].kind, "url-test");
+        assert_eq!(groups[1].kind, "Selector");
+        assert_eq!(groups[1].nodes.len(), 2);
     }
 
     #[test]

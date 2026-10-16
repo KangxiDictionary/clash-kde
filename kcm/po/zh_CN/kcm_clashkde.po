@@ -352,3 +352,21 @@ msgstr "这一页用来启动或停止已登录账户的内核。"
 
 msgid "The firewall is on, and it can drop TUN traffic."
 msgstr "防火墙开着，它可能会丢掉 TUN 的流量。"
+
+msgid "No profiles yet"
+msgstr "还没有配置"
+
+msgid "Remove this profile?"
+msgstr "移除这个配置？"
+
+msgid "Test delay automatically"
+msgstr "自动测试延迟"
+
+msgid "Use the same sort for every group"
+msgstr "所有策略组使用同一种排序"
+
+msgid "Tests the delay of the group you are looking at."
+msgstr "打开策略组时自动测试它的延迟。"
+
+msgid "Keeps one sort and filter for every group and profile."
+msgstr "记住一套排序和筛选，用在每个策略组和每个配置上。"

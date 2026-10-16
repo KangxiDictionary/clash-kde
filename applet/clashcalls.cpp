@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2026 clash-kde contributors
 
 #include "clashcalls.h"
+#include "regionlabel.h"
 
 #include <KLocalizedString>
 #include <QDBusConnection>
@@ -160,7 +161,7 @@ QString ClashCalls::message() const
 
 QString ClashCalls::region() const
 {
-    return m_region;
+    return formatExitRegion(m_region);
 }
 
 QString ClashCalls::listenAddress() const

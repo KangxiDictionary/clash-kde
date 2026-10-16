@@ -114,3 +114,24 @@ msgstr "Esta página inicia ou para o núcleo de uma conta conectada."
 
 msgid "The firewall is on, and it can drop TUN traffic."
 msgstr "O firewall está ligado e pode descartar o tráfego TUN."
+
+msgid "Profiles"
+msgstr "Perfis"
+
+msgid "No profiles yet"
+msgstr "Nenhum perfil ainda"
+
+msgid "Remove this profile?"
+msgstr "Remover este perfil?"
+
+msgid "Test delay automatically"
+msgstr "Testar o atraso automaticamente"
+
+msgid "Use the same sort for every group"
+msgstr "Usar a mesma ordem em cada grupo"
+
+msgid "Tests the delay of the group you are looking at."
+msgstr "Mede o atraso do grupo que você está vendo."
+
+msgid "Keeps one sort and filter for every group and profile."
+msgstr "Guarda uma ordem e um filtro para cada grupo e cada perfil."

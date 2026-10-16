@@ -114,3 +114,24 @@ msgstr "Cette page démarre ou arrête le noyau d'un compte connecté."
 
 msgid "The firewall is on, and it can drop TUN traffic."
 msgstr "Le pare-feu est actif et peut écarter le trafic TUN."
+
+msgid "Profiles"
+msgstr "Profils"
+
+msgid "No profiles yet"
+msgstr "Aucun profil pour l’instant"
+
+msgid "Remove this profile?"
+msgstr "Retirer ce profil ?"
+
+msgid "Test delay automatically"
+msgstr "Tester le délai automatiquement"
+
+msgid "Use the same sort for every group"
+msgstr "Utiliser le même tri pour chaque groupe"
+
+msgid "Tests the delay of the group you are looking at."
+msgstr "Mesure le délai du groupe affiché."
+
+msgid "Keeps one sort and filter for every group and profile."
+msgstr "Retient un tri et un filtre pour chaque groupe et chaque profil."

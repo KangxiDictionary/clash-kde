@@ -114,3 +114,24 @@ msgstr "このページでは、ログイン中のアカウントのコアを起
 
 msgid "The firewall is on, and it can drop TUN traffic."
 msgstr "ファイアウォールが有効で、TUN の通信が捨てられることがあります。"
+
+msgid "Profiles"
+msgstr "プロファイル"
+
+msgid "No profiles yet"
+msgstr "プロファイルはまだありません"
+
+msgid "Remove this profile?"
+msgstr "このプロファイルを削除しますか？"
+
+msgid "Test delay automatically"
+msgstr "遅延を自動で測る"
+
+msgid "Use the same sort for every group"
+msgstr "すべてのグループで同じ並べ替えを使う"
+
+msgid "Tests the delay of the group you are looking at."
+msgstr "表示中のグループの遅延を自動で測ります。"
+
+msgid "Keeps one sort and filter for every group and profile."
+msgstr "並べ替えと絞り込みを一つ覚えて、すべてのグループとプロファイルに使います。"

@@ -114,3 +114,24 @@ msgstr "這一頁用來啟動或停止已登入帳戶的內核。"
 
 msgid "The firewall is on, and it can drop TUN traffic."
 msgstr "防火牆開著，它可能會丟掉 TUN 的流量。"
+
+msgid "Profiles"
+msgstr "設定檔"
+
+msgid "No profiles yet"
+msgstr "還沒有設定檔"
+
+msgid "Remove this profile?"
+msgstr "移除這個設定檔？"
+
+msgid "Test delay automatically"
+msgstr "自動測試延遲"
+
+msgid "Use the same sort for every group"
+msgstr "所有策略組使用同一種排序"
+
+msgid "Tests the delay of the group you are looking at."
+msgstr "打開策略組時自動測試它的延遲。"
+
+msgid "Keeps one sort and filter for every group and profile."
+msgstr "記住一套排序和篩選，用在每個策略組和每個設定檔上。"

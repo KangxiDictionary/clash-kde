@@ -209,7 +209,7 @@ Item {
     QQC2.Dialog {
         id: removeDialog
         property string profileId: ""
-        title: tx.i18n("Remove this subscription?")
+        title: tx.i18n("Remove this profile?")
         modal: true
         standardButtons: QQC2.Dialog.Yes | QQC2.Dialog.No
         onAccepted: kcm.client.removeProfile(profileId)
@@ -223,6 +223,23 @@ Item {
         onAccepted: kcm.client.importProfile("", selectedFile.toString())
     }
 
+    Connections {
+        target: kcm.client
+        function onProfilesChanged() {
+            const profiles = kcm.client.profiles;
+            const draft = kcm.client.draftActiveProfile;
+            if (draft.length === 0) {
+                return;
+            }
+            for (let i = 0; i < profiles.length; ++i) {
+                if (profiles[i].id === draft) {
+                    return;
+                }
+            }
+            kcm.client.draftActiveProfile = kcm.client.activeProfile;
+        }
+    }
+
     ColumnLayout {
         anchors.fill: parent
         spacing: Kirigami.Units.largeSpacing
@@ -231,7 +248,7 @@ Item {
             Layout.fillWidth: true
 
             Kirigami.Heading {
-                text: tx.i18n("Subscriptions")
+                text: tx.i18n("Profiles")
                 level: 3
             }
 
@@ -260,7 +277,7 @@ Item {
 
         QQC2.Label {
             visible: kcm.client.profiles.length === 0
-            text: tx.i18n("No subscriptions yet")
+            text: tx.i18n("No profiles yet")
             opacity: 0.7
             Layout.fillWidth: true
         }
@@ -271,11 +288,12 @@ Item {
             clip: true
             model: kcm.client.profiles
 
-            delegate: QQC2.ItemDelegate {
+            delegate: QQC2.RadioDelegate {
                 id: profileDelegate
                 width: ListView.view.width
                 required property var modelData
-                highlighted: modelData.id === kcm.client.activeProfile
+                checked: modelData.id === kcm.client.draftActiveProfile
+                onClicked: kcm.client.draftActiveProfile = modelData.id
 
                 contentItem: RowLayout {
                     spacing: Kirigami.Units.largeSpacing
@@ -312,13 +330,6 @@ Item {
                             font: Kirigami.Theme.smallFont
                             Layout.fillWidth: true
                         }
-                    }
-
-                    QQC2.Button {
-                        text: tx.i18n("Use")
-                        visible: modelData.id !== kcm.client.activeProfile
-                        enabled: !kcm.client.busy
-                        onClicked: kcm.client.setActiveProfile(modelData.id)
                     }
 
                     QQC2.ToolButton {

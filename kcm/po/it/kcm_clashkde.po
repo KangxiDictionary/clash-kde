@@ -114,3 +114,24 @@ msgstr "Questa pagina avvia o ferma il core di un account che ha effettuato l'ac
 
 msgid "The firewall is on, and it can drop TUN traffic."
 msgstr "Il firewall è attivo e può scartare il traffico TUN."
+
+msgid "Profiles"
+msgstr "Profili"
+
+msgid "No profiles yet"
+msgstr "Ancora nessun profilo"
+
+msgid "Remove this profile?"
+msgstr "Rimuovere questo profilo?"
+
+msgid "Test delay automatically"
+msgstr "Provare il ritardo automaticamente"
+
+msgid "Use the same sort for every group"
+msgstr "Usare lo stesso ordine per ogni gruppo"
+
+msgid "Tests the delay of the group you are looking at."
+msgstr "Misura il ritardo del gruppo che stai guardando."
+
+msgid "Keeps one sort and filter for every group and profile."
+msgstr "Ricorda un ordine e un filtro per ogni gruppo e ogni profilo."

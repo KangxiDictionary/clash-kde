@@ -114,3 +114,24 @@ msgstr "Esta página arranca o detiene el núcleo de una cuenta con sesión inic
 
 msgid "The firewall is on, and it can drop TUN traffic."
 msgstr "El cortafuegos está activo y puede descartar el tráfico TUN."
+
+msgid "Profiles"
+msgstr "Perfiles"
+
+msgid "No profiles yet"
+msgstr "Todavía no hay perfiles"
+
+msgid "Remove this profile?"
+msgstr "¿Quitar este perfil?"
+
+msgid "Test delay automatically"
+msgstr "Probar el retraso automáticamente"
+
+msgid "Use the same sort for every group"
+msgstr "Usar el mismo orden en cada grupo"
+
+msgid "Tests the delay of the group you are looking at."
+msgstr "Mide el retraso del grupo que estás viendo."
+
+msgid "Keeps one sort and filter for every group and profile."
+msgstr "Recuerda un orden y un filtro para cada grupo y cada perfil."

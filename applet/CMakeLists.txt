@@ -18,6 +18,9 @@ target_link_libraries(org.kde.plasma.clashkde PRIVATE
     KF6::I18n
     Qt6::DBus
     Qt6::Gui
+    ICU::uc
 )
+
+target_include_directories(org.kde.plasma.clashkde PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../kcm)
 
 ki18n_install(po)

@@ -119,6 +119,40 @@ impl Manager {
         self.app.select_proxy(&group, &name).await.map_err(failed)
     }
 
+    #[zbus(name = "SetChoices")]
+    async fn set_choices(&self, profile: String, selections: String) -> fdo::Result<()> {
+        let parsed = serde_json::from_str(&selections).unwrap_or_default();
+        self.app.set_choices(&profile, parsed).await.map_err(failed)
+    }
+
+    #[zbus(name = "SetBehavior")]
+    async fn set_behavior(&self, sort_global: bool, auto_test_delay: bool) -> fdo::Result<()> {
+        self.app
+            .set_behavior(sort_global, auto_test_delay)
+            .await
+            .map_err(failed)
+    }
+
+    #[zbus(name = "SetViewPref")]
+    async fn set_view_pref(
+        &self,
+        profile: String,
+        group: String,
+        mode: String,
+        show_unreachable: bool,
+        global: bool,
+    ) -> fdo::Result<()> {
+        self.app
+            .set_view_pref(&profile, &group, &mode, show_unreachable, global)
+            .await
+            .map_err(failed)
+    }
+
+    #[zbus(name = "GetProfileGroups")]
+    async fn get_profile_groups(&self, id: String) -> fdo::Result<String> {
+        self.app.profile_groups_json(&id).await.map_err(failed)
+    }
+
     #[zbus(name = "TestGroupDelay")]
     async fn test_group_delay(&self, group: String) -> fdo::Result<()> {
         self.app.test_group_delay(&group).await.map_err(failed)

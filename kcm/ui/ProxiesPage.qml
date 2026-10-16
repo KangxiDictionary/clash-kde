@@ -6,9 +6,11 @@ import org.kde.kirigami as Kirigami
 Item {
     id: root
 
-    property string sortMode: "profile"
-    property bool showUnreachable: true
     property string selectedGroup: ""
+    property string autoTested: ""
+    property string loadedProfile: ""
+    property string sourceKey: ""
+    property bool sawAutoTest: false
     property string groupSignature: ""
     property string nodeSignature: ""
     property string groupNow: ""
@@ -47,8 +49,53 @@ Item {
         return Qt.hsla(0.33 * (1 - t), 0.72, Kirigami.Theme.textColor.hslLightness, 1);
     }
 
+    function sourceGroups() {
+        if (kcm.client.coreRunning && kcm.client.draftActiveProfile === kcm.client.activeProfile) {
+            return kcm.client.groups;
+        }
+        return kcm.client.profileGroups(kcm.client.draftActiveProfile);
+    }
+
+    function viewPref() {
+        if (kcm.client.draftSortGlobal) {
+            return {
+                mode: kcm.client.sortMode || "profile",
+                show: kcm.client.showUnreachable
+            };
+        }
+        const stored = kcm.client.sortPrefs[kcm.client.draftActiveProfile + "\n" + root.selectedGroup];
+        if (stored && stored.mode) {
+            return {
+                mode: stored.mode,
+                show: stored.show_unreachable !== false
+            };
+        }
+        return {
+            mode: "profile",
+            show: true
+        };
+    }
+
+    function rememberSort(mode, show) {
+        kcm.client.setViewPref(kcm.client.draftActiveProfile, root.selectedGroup, mode, show, kcm.client.draftSortGlobal);
+        root.resort();
+    }
+
+    function chosenName(group) {
+        const draft = kcm.client.draftSelections[group.name];
+        const nodes = group.nodes || [];
+        if (typeof draft === "string" && draft.length > 0) {
+            for (let i = 0; i < nodes.length; ++i) {
+                if (nodes[i].name === draft) {
+                    return draft;
+                }
+            }
+        }
+        return group.now || "";
+    }
+
     function currentGroup() {
-        const groups = kcm.client.groups;
+        const groups = root.sourceGroups();
         for (let i = 0; i < groups.length; ++i) {
             if (groups[i].name === root.selectedGroup) {
                 return groups[i];
@@ -58,10 +105,10 @@ Item {
     }
 
     function compareNodes(left, right) {
-        if (root.sortMode === "name") {
+        if (root.viewPref().mode === "name") {
             return left.name.localeCompare(right.name);
         }
-        if (root.sortMode === "delay") {
+        if (root.viewPref().mode === "delay") {
             function rank(ms) {
                 if (ms < 0) {
                     return 1e15;
@@ -105,8 +152,23 @@ Item {
         }
     }
 
+    function considerAutoTest() {
+        if (!kcm.client.autoTestDelay || !kcm.client.coreRunning) {
+            return;
+        }
+        if (kcm.client.draftActiveProfile !== kcm.client.activeProfile || root.selectedGroup.length === 0) {
+            return;
+        }
+        const key = kcm.client.activeProfile + "\n" + root.selectedGroup;
+        if (root.autoTested === key) {
+            return;
+        }
+        root.autoTested = key;
+        kcm.client.testGroupDelay(root.selectedGroup);
+    }
+
     function syncFromClient() {
-        const groups = kcm.client.groups;
+        const groups = root.sourceGroups();
         if (groups.length === 0) {
             groupModel.clear();
             nodeModel.clear();
@@ -139,7 +201,7 @@ Item {
         if (!group) {
             return;
         }
-        root.groupNow = group.now;
+        root.groupNow = root.chosenName(group);
         root.groupType = group["type"];
         const names = (group.nodes || []).map(node => node.name).join("\n");
         if (names !== root.nodeSignature || root.selectedGroup !== group.name) {
@@ -160,14 +222,17 @@ Item {
             }
         }
         root.resort();
+        root.considerAutoTest();
     }
 
     function chooseNode(name) {
         if (root.groupType !== "Selector" || name === root.groupNow) {
             return;
         }
+        const next = Object.assign({}, kcm.client.draftSelections);
+        next[root.selectedGroup] = name;
+        kcm.client.draftSelections = next;
         root.groupNow = name;
-        kcm.client.selectProxy(root.selectedGroup, name);
     }
 
     Connections {
@@ -180,30 +245,61 @@ Item {
                 return;
             }
             root.setNodeDelay(name, delayMs);
-            if (root.sortMode === "delay") {
+            if (root.viewPref().mode === "delay") {
                 root.resort();
+            }
+        }
+        function onDraftChanged() {
+            if (root.loadedProfile !== kcm.client.draftActiveProfile) {
+                root.loadedProfile = kcm.client.draftActiveProfile;
+                root.groupSignature = "";
+                root.nodeSignature = "";
+            }
+            root.syncFromClient();
+        }
+        function onStatusChanged() {
+            const key = (kcm.client.coreRunning ? "1" : "0") + "\n" + kcm.client.activeProfile;
+            const turnedOn = kcm.client.autoTestDelay && !root.sawAutoTest;
+            root.sawAutoTest = kcm.client.autoTestDelay;
+            if (root.sourceKey !== key) {
+                root.sourceKey = key;
+                root.groupSignature = "";
+                root.nodeSignature = "";
+                root.autoTested = "";
+                root.syncFromClient();
+                return;
+            }
+            if (turnedOn) {
+                root.autoTested = "";
+                root.considerAutoTest();
             }
         }
     }
 
     Component.onCompleted: syncFromClient()
 
-    onSortModeChanged: resort()
-
     ColumnLayout {
         anchors.fill: parent
         spacing: Kirigami.Units.largeSpacing
 
+        Kirigami.InlineMessage {
+            Layout.fillWidth: true
+            visible: !kcm.client.coreRunning
+            type: Kirigami.MessageType.Warning
+            text: tx.i18n("Core is not running")
+            showCloseButton: false
+        }
+
         QQC2.Label {
-            visible: kcm.client.groups.length === 0
-            text: kcm.client.coreRunning ? tx.i18n("No proxy groups") : tx.i18n("Core is not running")
+            visible: root.selectedGroup.length === 0
+            text: tx.i18n("No proxy groups")
             opacity: 0.7
             Layout.fillWidth: true
         }
 
         RowLayout {
             Layout.fillWidth: true
-            visible: kcm.client.groups.length > 0
+            visible: root.selectedGroup.length > 0
             spacing: Kirigami.Units.largeSpacing
 
             QQC2.Label {
@@ -229,7 +325,7 @@ Item {
 
             QQC2.Button {
                 text: tx.i18n("Test delays")
-                enabled: kcm.client.coreRunning && !kcm.client.delayTesting && root.selectedGroup.length > 0
+                enabled: kcm.client.coreRunning && kcm.client.draftActiveProfile === kcm.client.activeProfile && !kcm.client.delayTesting && root.selectedGroup.length > 0
                 onClicked: kcm.client.testGroupDelay(root.selectedGroup)
             }
 
@@ -248,38 +344,38 @@ Item {
                     QQC2.MenuItem {
                         text: tx.i18n("Profile order")
                         checkable: true
-                        checked: root.sortMode === "profile"
+                        checked: root.viewPref().mode === "profile"
                         onTriggered: {
-                            root.sortMode = "profile";
-                            checked = Qt.binding(() => root.sortMode === "profile");
+                            root.rememberSort("profile", root.viewPref().show);
+                            checked = Qt.binding(() => root.viewPref().mode === "profile");
                         }
                     }
                     QQC2.MenuItem {
                         text: tx.i18n("Name")
                         checkable: true
-                        checked: root.sortMode === "name"
+                        checked: root.viewPref().mode === "name"
                         onTriggered: {
-                            root.sortMode = "name";
-                            checked = Qt.binding(() => root.sortMode === "name");
+                            root.rememberSort("name", root.viewPref().show);
+                            checked = Qt.binding(() => root.viewPref().mode === "name");
                         }
                     }
                     QQC2.MenuItem {
                         text: tx.i18n("Delay")
                         checkable: true
-                        checked: root.sortMode === "delay"
+                        checked: root.viewPref().mode === "delay"
                         onTriggered: {
-                            root.sortMode = "delay";
-                            checked = Qt.binding(() => root.sortMode === "delay");
+                            root.rememberSort("delay", root.viewPref().show);
+                            checked = Qt.binding(() => root.viewPref().mode === "delay");
                         }
                     }
                     QQC2.MenuSeparator {}
                     QQC2.MenuItem {
                         text: tx.i18n("Show unreachable")
                         checkable: true
-                        checked: root.showUnreachable
+                        checked: root.viewPref().show
                         onTriggered: {
-                            root.showUnreachable = !root.showUnreachable;
-                            checked = Qt.binding(() => root.showUnreachable);
+                            root.rememberSort(root.viewPref().mode, !root.viewPref().show);
+                            checked = Qt.binding(() => root.viewPref().show);
                         }
                     }
                 }
@@ -288,14 +384,14 @@ Item {
 
         Kirigami.Separator {
             Layout.fillWidth: true
-            visible: kcm.client.groups.length > 0
+            visible: root.selectedGroup.length > 0
         }
 
         ListView {
             Layout.fillWidth: true
             Layout.fillHeight: true
             clip: true
-            visible: kcm.client.groups.length > 0
+            visible: root.selectedGroup.length > 0
             model: nodeModel
 
             delegate: QQC2.RadioDelegate {
@@ -303,7 +399,7 @@ Item {
                 required property string name
                 required property var delay_ms
                 width: ListView.view ? ListView.view.width : 0
-                visible: root.showUnreachable || delay_ms !== 0
+                visible: root.viewPref().show || delay_ms !== 0
                 height: visible ? implicitHeight : 0
                 text: name
                 checked: root.groupNow === name

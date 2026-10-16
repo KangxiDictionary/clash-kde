@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2026 clash-kde contributors
 
 #include "clashclient.h"
+#include "regionlabel.h"
 
 #include <QDBusConnection>
 #include <QDBusInterface>
@@ -120,7 +121,7 @@ QString ClashClient::mihomoPath() const { return m_mihomoPath; }
 QString ClashClient::overridePath() const { return m_overridePath; }
 qulonglong ClashClient::uploadBps() const { return m_uploadBps; }
 qulonglong ClashClient::downloadBps() const { return m_downloadBps; }
-QString ClashClient::exitRegion() const { return m_exitRegion; }
+QString ClashClient::exitRegion() const { return formatExitRegion(m_exitRegion); }
 QString ClashClient::activeProfile() const { return m_activeProfile; }
 QString ClashClient::message() const { return m_message; }
 bool ClashClient::busy() const { return m_busy; }
@@ -214,6 +215,82 @@ void ClashClient::setDraftMode(const QString &mode)
     m_draftDirty = true;
     m_preferReset = false;
     Q_EMIT draftChanged();
+}
+
+QString ClashClient::draftActiveProfile() const { return m_draftActiveProfile; }
+QVariantMap ClashClient::draftSelections() const { return m_draftSelections; }
+bool ClashClient::draftSortGlobal() const { return m_draftSortGlobal; }
+bool ClashClient::draftAutoTestDelay() const { return m_draftAutoTestDelay; }
+bool ClashClient::sortGlobal() const { return m_sortGlobal; }
+QString ClashClient::sortMode() const { return m_sortMode; }
+bool ClashClient::showUnreachable() const { return m_showUnreachable; }
+QVariantMap ClashClient::sortPrefs() const { return m_sortPrefs; }
+bool ClashClient::autoTestDelay() const { return m_autoTestDelay; }
+
+void ClashClient::setDraftActiveProfile(const QString &id)
+{
+    if (m_draftActiveProfile == id) {
+        return;
+    }
+    m_draftActiveProfile = id;
+    m_draftDirty = true;
+    m_preferReset = false;
+    Q_EMIT draftChanged();
+}
+
+void ClashClient::setDraftSelections(const QVariantMap &selections)
+{
+    if (m_draftSelections == selections) {
+        return;
+    }
+    m_draftSelections = selections;
+    m_draftDirty = true;
+    m_preferReset = false;
+    Q_EMIT draftChanged();
+}
+
+void ClashClient::setDraftSortGlobal(bool global)
+{
+    if (m_draftSortGlobal == global) {
+        return;
+    }
+    m_draftSortGlobal = global;
+    m_draftDirty = true;
+    m_preferReset = false;
+    Q_EMIT draftChanged();
+}
+
+void ClashClient::setDraftAutoTestDelay(bool enabled)
+{
+    if (m_draftAutoTestDelay == enabled) {
+        return;
+    }
+    m_draftAutoTestDelay = enabled;
+    m_draftDirty = true;
+    m_preferReset = false;
+    Q_EMIT draftChanged();
+}
+
+void ClashClient::setViewPref(const QString &profile, const QString &group, const QString &mode, bool showUnreachable, bool global)
+{
+    const QDBusReply<void> reply = m_iface->call(QStringLiteral("SetViewPref"), profile, group, mode, showUnreachable, global);
+    if (!reply.isValid()) {
+        reportError(reply.error().message());
+        return;
+    }
+    refreshStatus();
+}
+
+QVariantList ClashClient::profileGroups(const QString &id)
+{
+    if (id.isEmpty() || m_iface == nullptr) {
+        return {};
+    }
+    const QDBusReply<QString> reply = m_iface->call(QStringLiteral("GetProfileGroups"), id);
+    if (!reply.isValid()) {
+        return {};
+    }
+    return jsonArray(reply.value());
 }
 
 void ClashClient::setCoreDesired(bool desired)
@@ -428,6 +505,10 @@ void ClashClient::copyLiveToDraft()
     m_draftSystemProxyEnabled = m_systemProxyEnabled;
     m_draftTunEnabled = m_tunEnabled;
     m_draftMode = m_mode;
+    m_draftActiveProfile = m_activeProfile;
+    m_draftSelections = m_selections;
+    m_draftSortGlobal = m_sortGlobal;
+    m_draftAutoTestDelay = m_autoTestDelay;
 }
 
 bool ClashClient::draftMatchesLive() const
@@ -438,7 +519,11 @@ bool ClashClient::draftMatchesLive() const
         && m_draftCoreDesired == m_coreDesired
         && m_draftSystemProxyEnabled == m_systemProxyEnabled
         && m_draftTunEnabled == m_tunEnabled
-        && m_draftMode == m_mode;
+        && m_draftMode == m_mode
+        && m_draftActiveProfile == m_activeProfile
+        && m_draftSelections == m_selections
+        && m_draftSortGlobal == m_sortGlobal
+        && m_draftAutoTestDelay == m_autoTestDelay;
 }
 
 void ClashClient::revertDraft()
@@ -458,6 +543,8 @@ void ClashClient::applyDefaultsToDraft()
     m_draftSystemProxyEnabled = false;
     m_draftTunEnabled = false;
     m_draftMode = QStringLiteral("rule");
+    m_draftSortGlobal = false;
+    m_draftAutoTestDelay = false;
     m_draftDirty = !draftMatchesLive();
     m_preferReset = true;
     Q_EMIT draftChanged();
@@ -466,7 +553,8 @@ void ClashClient::applyDefaultsToDraft()
 bool ClashClient::draftIsDefaults() const
 {
     return m_draftMixedPort == 7890 && m_draftControllerPort == 9090 && m_draftMihomoPath == QStringLiteral("mihomo")
-        && !m_draftCoreDesired && !m_draftSystemProxyEnabled && !m_draftTunEnabled && m_draftMode == QStringLiteral("rule");
+        && !m_draftCoreDesired && !m_draftSystemProxyEnabled && !m_draftTunEnabled && m_draftMode == QStringLiteral("rule")
+        && !m_draftSortGlobal && !m_draftAutoTestDelay;
 }
 
 bool ClashClient::commitSettings()
@@ -514,6 +602,24 @@ bool ClashClient::commitSettings()
     }
     if (m_draftSystemProxyEnabled != m_systemProxyEnabled) {
         const QDBusReply<void> reply = m_iface->call(QStringLiteral("SetSystemProxy"), m_draftSystemProxyEnabled);
+        if (!reply.isValid()) {
+            return failed(reply.error());
+        }
+    }
+    if (m_draftActiveProfile != m_activeProfile || m_draftSelections != m_selections) {
+        QJsonObject object;
+        for (auto it = m_draftSelections.cbegin(); it != m_draftSelections.cend(); ++it) {
+            object.insert(it.key(), it.value().toString());
+        }
+        const QDBusReply<void> reply = m_iface->call(QStringLiteral("SetChoices"),
+                                                     m_draftActiveProfile,
+                                                     QString::fromUtf8(QJsonDocument(object).toJson(QJsonDocument::Compact)));
+        if (!reply.isValid()) {
+            return failed(reply.error());
+        }
+    }
+    if (m_draftSortGlobal != m_sortGlobal || m_draftAutoTestDelay != m_autoTestDelay) {
+        const QDBusReply<void> reply = m_iface->call(QStringLiteral("SetBehavior"), m_draftSortGlobal, m_draftAutoTestDelay);
         if (!reply.isValid()) {
             return failed(reply.error());
         }
@@ -617,6 +723,12 @@ void ClashClient::applyStatus(const QVariantMap &status)
     m_downloadBps = status.value(QStringLiteral("download_bps")).toULongLong();
     m_exitRegion = status.value(QStringLiteral("exit_region")).toString();
     m_activeProfile = status.value(QStringLiteral("active_profile")).toString();
+    m_selections = status.value(QStringLiteral("selections")).toMap();
+    m_sortGlobal = status.value(QStringLiteral("sort_global")).toBool();
+    m_sortMode = status.value(QStringLiteral("sort_mode"), QStringLiteral("profile")).toString();
+    m_showUnreachable = status.value(QStringLiteral("show_unreachable"), true).toBool();
+    m_sortPrefs = status.value(QStringLiteral("sort_prefs")).toMap();
+    m_autoTestDelay = status.value(QStringLiteral("auto_test_delay")).toBool();
     m_message = status.value(QStringLiteral("message")).toString();
     const QString dbusPrefix = QStringLiteral("org.freedesktop.DBus.Error.Failed: ");
     if (m_message.startsWith(dbusPrefix)) {
