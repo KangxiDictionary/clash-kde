@@ -113,6 +113,30 @@ PlasmoidItem {
         return nodes.filter(node => node["delay_ms"] !== 0);
     }
 
+    // Size from the row count. A height bound to implicitHeight collapses this menu.
+    function fitRouteMenu(menu, count) {
+        const row = Math.ceil(Kirigami.Units.gridUnit * 1.8);
+        const available = root.availableScreenRect && root.availableScreenRect.height > row * 4
+                ? root.availableScreenRect.height : Kirigami.Units.gridUnit * 28;
+        const limit = Math.max(row * 6, available - Kirigami.Units.gridUnit * 2);
+        const natural = Math.max(row, count * row + Kirigami.Units.smallSpacing * 2);
+        menu.height = Math.min(natural, limit);
+        Qt.callLater(() => {
+            const item = menu.contentItem;
+            if (!item) {
+                return;
+            }
+            item.clip = true;
+            const measured = item.contentHeight + menu.topPadding + menu.bottomPadding;
+            if (measured > menu.height && menu.height < limit) {
+                menu.height = Math.min(measured, limit);
+            }
+            if (item.contentHeight > item.height + 1) {
+                item.interactive = true;
+            }
+        });
+    }
+
     readonly property var singleGroupNodes: selectorGroups.length === 1 ? nodesFor(selectorGroups[0]) : []
 
     function perform(action) {
@@ -642,6 +666,8 @@ PlasmoidItem {
             // Popup.Item is clipped to the applet window. Popup.Window is the stock menu window.
             popupType: QQC2.Popup.Window
             cascade: true
+            readonly property int entryCount: root.selectorGroups.length > 1 ? root.selectorGroups.length : root.singleGroupNodes.length
+            onAboutToShow: root.fitRouteMenu(routeMenu, entryCount)
 
             Instantiator {
                 model: root.singleGroupNodes
@@ -661,6 +687,7 @@ PlasmoidItem {
                     title: modelData.name
                     popupType: QQC2.Popup.Window
                     cascade: true
+                    onAboutToShow: root.fitRouteMenu(groupMenu, root.nodesFor(groupMenu.modelData).length)
                     Instantiator {
                         model: root.nodesFor(groupMenu.modelData)
                         delegate: RouteMenuItem {
