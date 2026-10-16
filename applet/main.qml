@@ -23,7 +23,7 @@ PlasmoidItem {
 
     onExpandedChanged: {
         if (!expanded) {
-            routeMenu.close();
+            popupRoot.closeRouteMenu();
         }
     }
 
@@ -124,116 +124,6 @@ PlasmoidItem {
                 item.interactive = true;
             }
         });
-    }
-
-    function clearMenu(menu) {
-        let guard = menu.count;
-        while (menu.count > 0 && guard >= 0) {
-            guard -= 1;
-            const sub = menu.menuAt(0);
-            if (sub) {
-                root.clearMenu(sub);
-                menu.takeMenu(0);
-                sub.destroy();
-                continue;
-            }
-            const item = menu.takeItem(0);
-            if (!item) {
-                break;
-            }
-            item.destroy();
-        }
-    }
-
-    function appendNodes(menu, groupName, now, nodes) {
-        for (let i = 0; i < nodes.length; ++i) {
-            const node = nodes[i];
-            const rawDelay = node["delay_ms"];
-            const item = routeNodeComponent.createObject(menu, {
-                groupName: groupName,
-                nodeName: String(node.name),
-                currentName: now,
-                delayMs: typeof rawDelay === "number" ? rawDelay : -1
-            });
-            if (item) {
-                menu.insertItem(menu.count, item);
-            }
-        }
-    }
-
-    // Copy names into the items. A later refresh must not rebuild this menu.
-    function rebuildRouteMenu() {
-        clearMenu(routeMenu);
-        const groups = root.selectorGroups;
-        if (groups.length === 1) {
-            const group = groups[0];
-            appendNodes(routeMenu, String(group.name), String(group.now || ""), root.nodesFor(group));
-            root.fitRouteMenu(routeMenu, routeMenu.count);
-            return;
-        }
-        for (let i = 0; i < groups.length; ++i) {
-            const group = groups[i];
-            const groupName = String(group.name);
-            const sub = routeGroupComponent.createObject(routeMenu, {
-                title: groupName,
-                groupName: groupName
-            });
-            if (!sub) {
-                continue;
-            }
-            appendNodes(sub, groupName, String(group.now || ""), root.nodesFor(group));
-            routeMenu.insertMenu(routeMenu.count, sub);
-        }
-        root.fitRouteMenu(routeMenu, routeMenu.count);
-    }
-
-    function patchMenu(menu, byName) {
-        for (let i = 0; i < menu.count; ++i) {
-            const sub = menu.menuAt(i);
-            if (sub) {
-                patchMenu(sub, byName);
-                continue;
-            }
-            const item = menu.itemAt(i);
-            if (!item || !item.groupName) {
-                continue;
-            }
-            const state = byName[item.groupName];
-            if (!state) {
-                continue;
-            }
-            if (item.currentName !== state.now) {
-                item.currentName = state.now;
-            }
-            const delay = state.delays[item.nodeName];
-            if (typeof delay === "number" && item.delayMs !== delay) {
-                item.delayMs = delay;
-            }
-        }
-    }
-
-    function syncOpenRouteMenu() {
-        if (!routeMenu.opened) {
-            return;
-        }
-        const groups = root.selectorGroups;
-        const byName = {};
-        for (let i = 0; i < groups.length; ++i) {
-            const group = groups[i];
-            const delays = {};
-            const nodes = group.nodes || [];
-            for (let n = 0; n < nodes.length; ++n) {
-                const rawDelay = nodes[n]["delay_ms"];
-                if (typeof rawDelay === "number") {
-                    delays[String(nodes[n].name)] = rawDelay;
-                }
-            }
-            byName[String(group.name)] = {
-                now: String(group.now || ""),
-                delays: delays
-            };
-        }
-        patchMenu(routeMenu, byName);
     }
 
     function perform(action) {
@@ -424,6 +314,120 @@ PlasmoidItem {
         }
         readonly property real popupHeight: Math.min(Math.max(contentHeight, Kirigami.Units.gridUnit * 8), popupLimit)
 
+        function closeRouteMenu() {
+            routeMenu.close();
+        }
+
+        function clearMenu(menu) {
+            let guard = menu.count;
+            while (menu.count > 0 && guard >= 0) {
+                guard -= 1;
+                const sub = menu.menuAt(0);
+                if (sub) {
+                    popupRoot.clearMenu(sub);
+                    menu.takeMenu(0);
+                    sub.destroy();
+                    continue;
+                }
+                const item = menu.takeItem(0);
+                if (!item) {
+                    break;
+                }
+                item.destroy();
+            }
+        }
+
+        function appendNodes(menu, groupName, now, nodes) {
+            for (let i = 0; i < nodes.length; ++i) {
+                const node = nodes[i];
+                const rawDelay = node["delay_ms"];
+                const item = routeNodeComponent.createObject(menu, {
+                    groupName: groupName,
+                    nodeName: String(node.name),
+                    currentName: now,
+                    delayMs: typeof rawDelay === "number" ? rawDelay : -1
+                });
+                if (item) {
+                    menu.insertItem(menu.count, item);
+                }
+            }
+        }
+
+        // Copy names into the items. A later refresh must not rebuild this menu.
+        function rebuildRouteMenu() {
+            clearMenu(routeMenu);
+            const groups = root.selectorGroups;
+            if (groups.length === 1) {
+                const group = groups[0];
+                appendNodes(routeMenu, String(group.name), String(group.now || ""), root.nodesFor(group));
+                root.fitRouteMenu(routeMenu, routeMenu.count);
+                return;
+            }
+            for (let i = 0; i < groups.length; ++i) {
+                const group = groups[i];
+                const groupName = String(group.name);
+                const sub = routeGroupComponent.createObject(routeMenu, {
+                    title: groupName,
+                    groupName: groupName
+                });
+                if (!sub) {
+                    continue;
+                }
+                appendNodes(sub, groupName, String(group.now || ""), root.nodesFor(group));
+                routeMenu.insertMenu(routeMenu.count, sub);
+            }
+            root.fitRouteMenu(routeMenu, routeMenu.count);
+        }
+
+        function patchMenu(menu, byName) {
+            for (let i = 0; i < menu.count; ++i) {
+                const sub = menu.menuAt(i);
+            if (sub) {
+                popupRoot.patchMenu(sub, byName);
+                    continue;
+                }
+                const item = menu.itemAt(i);
+                if (!item || !item.groupName) {
+                    continue;
+                }
+                const state = byName[item.groupName];
+                if (!state) {
+                    continue;
+                }
+                if (item.currentName !== state.now) {
+                    item.currentName = state.now;
+                }
+                const delay = state.delays[item.nodeName];
+                if (typeof delay === "number" && item.delayMs !== delay) {
+                    item.delayMs = delay;
+                }
+            }
+        }
+
+        function syncOpenRouteMenu() {
+            if (!routeMenu.opened) {
+                return;
+            }
+            const groups = root.selectorGroups;
+            const byName = {};
+            for (let i = 0; i < groups.length; ++i) {
+                const group = groups[i];
+                const delays = {};
+                const nodes = group.nodes || [];
+                for (let n = 0; n < nodes.length; ++n) {
+                    const rawDelay = nodes[n]["delay_ms"];
+                    if (typeof rawDelay === "number") {
+                        delays[String(nodes[n].name)] = rawDelay;
+                    }
+                }
+                byName[String(group.name)] = {
+                    now: String(group.now || ""),
+                    delays: delays
+                };
+            }
+            patchMenu(routeMenu, byName);
+        }
+
         implicitWidth: Kirigami.Units.gridUnit * 20
         implicitHeight: popupHeight
         Layout.preferredWidth: implicitWidth
@@ -610,6 +614,8 @@ PlasmoidItem {
                 Layout.fillWidth: true
                 model: session.profiles
                 textRole: "name"
+                // The panel clips its contents, so the list has to be its own window.
+                Component.onCompleted: popup.popupType = QQC2.Popup.Window
                 currentIndex: {
                     for (let i = 0; i < session.profiles.length; ++i) {
                         if (session.profiles[i].id === session.activeProfile) {
@@ -642,7 +648,7 @@ PlasmoidItem {
                     if (routeMenu.opened) {
                         routeMenu.close();
                     } else {
-                        root.rebuildRouteMenu();
+                        popupRoot.rebuildRouteMenu();
                         // Opens to the right of the button, as its own window, so it is not clipped by this popup.
                         routeMenu.popup(routeButton, routeButton.width, 0);
                     }
@@ -793,7 +799,7 @@ PlasmoidItem {
         Connections {
             target: session
             function onChanged() {
-                root.syncOpenRouteMenu();
+                popupRoot.syncOpenRouteMenu();
             }
         }
     }

@@ -204,7 +204,7 @@ impl App {
         self.spawn_core().await
     }
 
-    pub async fn set_system_proxy(&self, enabled: bool) -> Result<(), String> {
+    pub async fn set_system_proxy(self: &Arc<Self>, enabled: bool) -> Result<(), String> {
         {
             let mut inner = self.inner.lock().await;
             inner.settings.system_proxy_enabled = enabled;
@@ -215,6 +215,9 @@ impl App {
             inner.message.clear();
         }
         self.sync_system_proxy().await?;
+        if !enabled {
+            self.schedule_region_lookup();
+        }
         self.emit(Event::Status);
         Ok(())
     }
@@ -243,6 +246,9 @@ impl App {
         } else {
             self.sync_system_proxy().await?;
             self.emit(Event::Status);
+        }
+        if !enabled {
+            self.schedule_region_lookup();
         }
         Ok(())
     }
