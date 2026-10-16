@@ -529,19 +529,28 @@ PlasmoidItem {
                     }
                 }
 
-                PC3.Label {
-                    text: nodeItem.modelData.name
-                    elide: Text.ElideRight
-                    font.bold: nodeItem.current
-                    verticalAlignment: Text.AlignVCenter
+                Item {
+                    readonly property int nameWidth: Math.max(Kirigami.Units.gridUnit * 8, Math.min(nameMetrics.advanceWidth, Kirigami.Units.gridUnit * 12))
+                    implicitWidth: nameWidth
+                    implicitHeight: nameLabel.implicitHeight
                     Layout.fillWidth: true
+                    Layout.preferredWidth: nameWidth
+                    Layout.minimumWidth: Kirigami.Units.gridUnit * 8
                     Layout.alignment: Qt.AlignVCenter
-                    implicitWidth: Math.max(Kirigami.Units.gridUnit * 8, Math.min(nameMetrics.advanceWidth, Kirigami.Units.gridUnit * 12))
 
                     TextMetrics {
                         id: nameMetrics
-                        font: parent.font
-                        text: parent.text
+                        font: nameLabel.font
+                        text: nameLabel.text
+                    }
+
+                    PC3.Label {
+                        id: nameLabel
+                        anchors.fill: parent
+                        text: nodeItem.modelData.name
+                        elide: Text.ElideRight
+                        font.bold: nodeItem.current
+                        verticalAlignment: Text.AlignVCenter
                     }
                 }
 
