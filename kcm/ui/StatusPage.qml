@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls as QQC2
 import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
+import org.kde.quickcharts.controls as ChartsControls
 
 Item {
     id: root
@@ -156,15 +157,11 @@ Item {
             }
         }
 
-        RowLayout {
+        Kirigami.FormLayout {
             Layout.fillWidth: true
-            spacing: Kirigami.Units.largeSpacing
-
-            QQC2.Label {
-                text: tx.i18n("System proxy")
-            }
 
             Item {
+                Kirigami.FormData.label: tx.i18n("System proxy")
                 implicitWidth: proxySwitch.implicitWidth
                 implicitHeight: proxySwitch.implicitHeight
 
@@ -188,17 +185,9 @@ Item {
                 QQC2.ToolTip.delay: 700
                 QQC2.ToolTip.text: tx.i18n("This takes effect only while the core is running and TUN is off.")
             }
-        }
-
-        RowLayout {
-            Layout.fillWidth: true
-            spacing: Kirigami.Units.largeSpacing
-
-            QQC2.Label {
-                text: tx.i18n("TUN")
-            }
 
             QQC2.Switch {
+                Kirigami.FormData.label: tx.i18n("TUN")
                 checked: kcm.client.draftTunEnabled
                 enabled: !kcm.client.busy
                 onToggled: {
@@ -212,16 +201,8 @@ Item {
                 QQC2.ToolTip.text: tx.i18n("This captures only this account's traffic, and the system proxy steps aside while it is on.")
             }
 
-            Item {
-                Layout.fillWidth: true
-            }
-
-            QQC2.Label {
-                text: tx.i18n("Mode")
-            }
-
             QQC2.ComboBox {
-                id: modeBox
+                Kirigami.FormData.label: tx.i18n("Mode")
                 model: [tx.i18n("Rule"), tx.i18n("Global"), tx.i18n("Direct")]
                 readonly property var modes: ["rule", "global", "direct"]
                 currentIndex: Math.max(0, modes.indexOf(kcm.client.draftMode))
@@ -249,42 +230,29 @@ Item {
             spacing: Kirigami.Units.largeSpacing * 2
 
             ColumnLayout {
+                Layout.fillWidth: true
+                Layout.alignment: Qt.AlignTop
                 spacing: Kirigami.Units.smallSpacing
 
-                RowLayout {
-                    spacing: Kirigami.Units.smallSpacing
-                    Kirigami.Icon {
-                        source: "arrow-up"
-                        Layout.preferredWidth: Kirigami.Units.iconSizes.small
-                        Layout.preferredHeight: Kirigami.Units.iconSizes.small
-                    }
-                    QQC2.Label {
-                        text: tx.i18n("Upload")
-                    }
+                ChartsControls.LegendDelegate {
+                    name: tx.i18n("Download")
+                    value: root.formatRate(kcm.client.downloadBps)
+                    color: Kirigami.Theme.positiveTextColor
+                    maximumValueWidth: rateWidth.advanceWidth
+                    Layout.fillWidth: true
                 }
-                Kirigami.Heading {
-                    level: 2
-                    text: root.formatRate(kcm.client.uploadBps)
-                }
-            }
 
-            ColumnLayout {
-                spacing: Kirigami.Units.smallSpacing
-
-                RowLayout {
-                    spacing: Kirigami.Units.smallSpacing
-                    Kirigami.Icon {
-                        source: "arrow-down"
-                        Layout.preferredWidth: Kirigami.Units.iconSizes.small
-                        Layout.preferredHeight: Kirigami.Units.iconSizes.small
-                    }
-                    QQC2.Label {
-                        text: tx.i18n("Download")
-                    }
+                ChartsControls.LegendDelegate {
+                    name: tx.i18n("Upload")
+                    value: root.formatRate(kcm.client.uploadBps)
+                    color: Kirigami.Theme.visitedLinkColor
+                    maximumValueWidth: rateWidth.advanceWidth
+                    Layout.fillWidth: true
                 }
-                Kirigami.Heading {
-                    level: 2
-                    text: root.formatRate(kcm.client.downloadBps)
+
+                TextMetrics {
+                    id: rateWidth
+                    text: tx.i18n("%1 MB/s", "999.9")
                 }
             }
 
