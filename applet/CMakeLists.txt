@@ -17,6 +17,7 @@ target_sources(org.kde.plasma.clashkde PRIVATE clashcalls.h)
 target_link_libraries(org.kde.plasma.clashkde PRIVATE
     KF6::I18n
     Qt6::DBus
+    Qt6::Gui
 )
 
 ki18n_install(po)

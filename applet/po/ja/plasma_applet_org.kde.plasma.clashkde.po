@@ -55,3 +55,20 @@ msgstr "ルート: %1"
 msgctxt "@option:check"
 msgid "Show unreachable routes"
 msgstr "到達できないルートを表示する"
+msgid "Core is running"
+msgstr "コアは動作中"
+
+msgid "Core is starting"
+msgstr "コアは起動中"
+
+msgid "Core is stopped"
+msgstr "コアは停止中"
+
+msgid "Copy command"
+msgstr "コマンドをコピー"
+
+msgid "Copied"
+msgstr "コピーしました"
+
+msgid "Copy a command that sets this proxy in the terminal."
+msgstr "端末でこのプロキシを使うコマンドをコピーします。"

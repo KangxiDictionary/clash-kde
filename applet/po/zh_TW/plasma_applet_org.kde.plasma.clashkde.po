@@ -55,3 +55,20 @@ msgstr "路線：%1"
 msgctxt "@option:check"
 msgid "Show unreachable routes"
 msgstr "顯示不可達的路線"
+msgid "Core is running"
+msgstr "核心正在執行"
+
+msgid "Core is starting"
+msgstr "核心正在啟動"
+
+msgid "Core is stopped"
+msgstr "核心已停止"
+
+msgid "Copy command"
+msgstr "複製命令"
+
+msgid "Copied"
+msgstr "已複製"
+
+msgid "Copy a command that sets this proxy in the terminal."
+msgstr "把給終端機設定這個代理的命令複製到剪貼簿。"

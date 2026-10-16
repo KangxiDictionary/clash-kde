@@ -55,3 +55,20 @@ msgstr "Itinéraire : %1"
 msgctxt "@option:check"
 msgid "Show unreachable routes"
 msgstr "Afficher les itinéraires injoignables"
+msgid "Core is running"
+msgstr "Le cœur est en marche"
+
+msgid "Core is starting"
+msgstr "Le cœur démarre"
+
+msgid "Core is stopped"
+msgstr "Le cœur est arrêté"
+
+msgid "Copy command"
+msgstr "Copier la commande"
+
+msgid "Copied"
+msgstr "Copié"
+
+msgid "Copy a command that sets this proxy in the terminal."
+msgstr "Copie une commande qui définit ce proxy dans le terminal."

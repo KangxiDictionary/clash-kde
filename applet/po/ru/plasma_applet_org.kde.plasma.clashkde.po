@@ -55,3 +55,20 @@ msgstr "Маршрут: %1"
 msgctxt "@option:check"
 msgid "Show unreachable routes"
 msgstr "Показывать недоступные маршруты"
+msgid "Core is running"
+msgstr "Ядро запущено"
+
+msgid "Core is starting"
+msgstr "Ядро запускается"
+
+msgid "Core is stopped"
+msgstr "Ядро остановлено"
+
+msgid "Copy command"
+msgstr "Копировать команду"
+
+msgid "Copied"
+msgstr "Скопировано"
+
+msgid "Copy a command that sets this proxy in the terminal."
+msgstr "Копирует команду, которая задаёт этот прокси в терминале."

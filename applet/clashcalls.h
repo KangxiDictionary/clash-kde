@@ -56,6 +56,7 @@ public:
     Q_INVOKABLE void setMode(const QString &mode);
     Q_INVOKABLE void setActiveProfile(const QString &id);
     Q_INVOKABLE void selectProxy(const QString &group, const QString &name);
+    Q_INVOKABLE bool copyTerminalProxyCommand();
 
 public Q_SLOTS:
     void refresh();

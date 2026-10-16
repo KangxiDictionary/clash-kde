@@ -152,3 +152,20 @@ msgstr "路线：%1"
 msgctxt "@option:check"
 msgid "Show unreachable routes"
 msgstr "显示不可达的路线"
+msgid "Core is running"
+msgstr "内核正在运行"
+
+msgid "Core is starting"
+msgstr "内核正在启动"
+
+msgid "Core is stopped"
+msgstr "内核已停止"
+
+msgid "Copy command"
+msgstr "复制命令"
+
+msgid "Copied"
+msgstr "已复制"
+
+msgid "Copy a command that sets this proxy in the terminal."
+msgstr "把给终端设置这个代理的命令复制到剪贴板。"

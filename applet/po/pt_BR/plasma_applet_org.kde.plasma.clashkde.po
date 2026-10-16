@@ -55,3 +55,20 @@ msgstr "Rota: %1"
 msgctxt "@option:check"
 msgid "Show unreachable routes"
 msgstr "Mostrar rotas inacessíveis"
+msgid "Core is running"
+msgstr "O núcleo está em execução"
+
+msgid "Core is starting"
+msgstr "O núcleo está iniciando"
+
+msgid "Core is stopped"
+msgstr "O núcleo está parado"
+
+msgid "Copy command"
+msgstr "Copiar comando"
+
+msgid "Copied"
+msgstr "Copiado"
+
+msgid "Copy a command that sets this proxy in the terminal."
+msgstr "Copia um comando que define este proxy no terminal."

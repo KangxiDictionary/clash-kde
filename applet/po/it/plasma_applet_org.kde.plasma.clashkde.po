@@ -55,3 +55,20 @@ msgstr "Percorso: %1"
 msgctxt "@option:check"
 msgid "Show unreachable routes"
 msgstr "Mostra i percorsi irraggiungibili"
+msgid "Core is running"
+msgstr "Il core è in esecuzione"
+
+msgid "Core is starting"
+msgstr "Il core si sta avviando"
+
+msgid "Core is stopped"
+msgstr "Il core è fermo"
+
+msgid "Copy command"
+msgstr "Copia il comando"
+
+msgid "Copied"
+msgstr "Copiato"
+
+msgid "Copy a command that sets this proxy in the terminal."
+msgstr "Copia un comando che imposta questo proxy nel terminale."

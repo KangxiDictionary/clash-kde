@@ -6,7 +6,9 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import QtQuick.Controls as QQC2
 import QtQuick.Layouts
+import QtQuick.Window
 import org.kde.kirigami as Kirigami
 import org.kde.plasma.components as PC3
 import org.kde.plasma.core as PlasmaCore
@@ -19,6 +21,44 @@ PlasmoidItem {
     activationTogglesExpanded: false
     preferredRepresentation: compactRepresentation
     Plasmoid.icon: "network-vpn"
+    // A route menu is its own window. Keep the popup up while that window is open,
+    // and close the menu itself when the popup goes away.
+    property bool routeMenuOpen: false
+    hideOnWindowDeactivate: !routeMenuOpen
+
+    onExpandedChanged: {
+        if (!expanded) {
+            routeMenu.close();
+        }
+    }
+
+    readonly property real menuLimit: {
+        const available = availableScreenRect ? availableScreenRect.height : 0;
+        return available > Kirigami.Units.gridUnit * 8 ? available * 0.7 : Kirigami.Units.gridUnit * 24;
+    }
+
+    function openRouteMenu() {
+        routeMenuOpen = true;
+        const host = popupRoot;
+        const anchor = routeButton.mapToItem(host, 0, 0);
+        const menuWidth = Math.max(routeMenu.implicitWidth, Kirigami.Units.gridUnit * 16);
+        const menuHeight = Math.min(Math.max(routeMenu.implicitHeight, Kirigami.Units.gridUnit * 8), menuLimit);
+        const global = host.mapToGlobal(0, 0);
+        const screen = host.Window.window ? host.Window.window.screen : null;
+        let x = host.width;
+        let y = Math.max(0, anchor.y);
+        if (screen) {
+            const rightEdge = screen.virtualX + screen.width;
+            const bottomEdge = screen.virtualY + screen.height;
+            if (global.x + host.width + menuWidth > rightEdge - Kirigami.Units.largeSpacing && global.x - menuWidth >= screen.virtualX) {
+                x = -menuWidth;
+            }
+            if (global.y + y + menuHeight > bottomEdge - Kirigami.Units.largeSpacing) {
+                y -= global.y + y + menuHeight - bottomEdge + Kirigami.Units.largeSpacing;
+            }
+        }
+        routeMenu.popup(host, x, y);
+    }
 
     readonly property var modes: ["rule", "global", "direct"]
 
@@ -142,14 +182,23 @@ PlasmoidItem {
         }
     }
 
-    readonly property string stateText: {
+    readonly property color stateColor: {
         if (session.coreRunning) {
-            return i18n("Running");
+            return Kirigami.Theme.positiveTextColor;
         }
         if (session.coreDesired) {
-            return i18n("Waiting to start");
+            return Kirigami.Theme.neutralTextColor;
         }
-        return i18n("Stopped");
+        return Kirigami.Theme.negativeTextColor;
+    }
+    readonly property string stateText: {
+        if (session.coreRunning) {
+            return i18n("Core is running");
+        }
+        if (session.coreDesired) {
+            return i18n("Core is starting");
+        }
+        return i18n("Core is stopped");
     }
     readonly property string summary: {
         if (session.error.length > 0 && !session.ready) {
@@ -290,8 +339,8 @@ PlasmoidItem {
         implicitWidth: Kirigami.Units.gridUnit * 20
         implicitHeight: popupHeight
         Layout.preferredWidth: implicitWidth
-        Layout.minimumWidth: Kirigami.Units.gridUnit * 16
-        Layout.maximumWidth: Kirigami.Units.gridUnit * 24
+        Layout.minimumWidth: implicitWidth
+        Layout.maximumWidth: implicitWidth
         Layout.preferredHeight: popupHeight
         Layout.minimumHeight: popupHeight
         Layout.maximumHeight: popupHeight
@@ -318,10 +367,25 @@ PlasmoidItem {
                 width: flick.width
                 spacing: Kirigami.Units.smallSpacing
 
-            PC3.Label {
-                text: root.stateText
-                font.bold: true
+            RowLayout {
                 Layout.fillWidth: true
+                spacing: Kirigami.Units.smallSpacing
+
+                Rectangle {
+                    Layout.alignment: Qt.AlignVCenter
+                    implicitWidth: Kirigami.Units.largeSpacing
+                    implicitHeight: implicitWidth
+                    radius: width / 2
+                    color: root.stateColor
+                }
+
+                PC3.Label {
+                    text: root.stateText
+                    color: root.stateColor
+                    font.bold: true
+                    font.pointSize: Kirigami.Theme.defaultFont.pointSize + 1
+                    Layout.fillWidth: true
+                }
             }
 
             PC3.Label {
@@ -475,6 +539,7 @@ PlasmoidItem {
             }
 
             PC3.Button {
+                id: routeButton
                 visible: root.selectorGroups.length > 0
                 Layout.fillWidth: true
                 Layout.topMargin: Kirigami.Units.smallSpacing
@@ -482,14 +547,53 @@ PlasmoidItem {
                     const group = root.currentRouteGroup();
                     return group && group.now.length > 0 ? i18n("Route: %1", group.now) : i18n("Route");
                 }
-                onClicked: routeMenu.popup(this)
+                onClicked: {
+                    if (routeMenu.opened) {
+                        routeMenu.close();
+                    } else {
+                        root.openRouteMenu();
+                    }
+                }
             }
 
-            PC3.Button {
-                text: i18n("Settings")
-                icon.name: "preferences-system-network"
+            RowLayout {
                 Layout.fillWidth: true
-                onClicked: root.perform("openSettings")
+                spacing: Kirigami.Units.smallSpacing
+
+                PC3.Button {
+                    text: i18n("Settings")
+                    icon.name: "preferences-system-network"
+                    Layout.fillWidth: true
+                    onClicked: root.perform("openSettings")
+                }
+
+                PC3.Button {
+                    id: copyProxyButton
+                    property bool copied: false
+                    text: copied ? i18n("Copied") : i18n("Copy command")
+                    icon.name: copied ? "dialog-ok" : "edit-copy"
+                    Layout.fillWidth: true
+                    onClicked: {
+                        if (session.copyTerminalProxyCommand()) {
+                            copied = true;
+                            copyReset.restart();
+                        }
+                    }
+
+                    Timer {
+                        id: copyReset
+                        interval: 2000
+                        onTriggered: copyProxyButton.copied = false
+                    }
+
+                    HoverHandler {
+                        id: copyHover
+                    }
+
+                    PC3.ToolTip.visible: copyHover.hovered && !copyProxyButton.copied
+                    PC3.ToolTip.delay: Kirigami.Units.longDuration
+                    PC3.ToolTip.text: i18n("Copy a command that sets this proxy in the terminal.")
+                }
             }
         }
         }
@@ -567,6 +671,12 @@ PlasmoidItem {
 
         PC3.Menu {
             id: routeMenu
+            // Item popups are clipped to the applet window and stay open after it closes.
+            popupType: QQC2.Popup.Window
+            modal: false
+            closePolicy: QQC2.Popup.CloseOnEscape | QQC2.Popup.CloseOnPressOutside | QQC2.Popup.CloseOnPressOutsideParent
+            height: Math.min(implicitHeight, root.menuLimit)
+            onClosed: root.routeMenuOpen = false
 
             Instantiator {
                 model: root.singleGroupNodes
@@ -584,6 +694,10 @@ PlasmoidItem {
                     id: groupMenu
                     required property var modelData
                     title: modelData.name
+                    popupType: QQC2.Popup.Window
+                    modal: false
+                    closePolicy: QQC2.Popup.CloseOnEscape | QQC2.Popup.CloseOnPressOutside | QQC2.Popup.CloseOnPressOutsideParent
+                    height: Math.min(implicitHeight, root.menuLimit)
                     Instantiator {
                         model: root.nodesFor(groupMenu.modelData)
                         delegate: RouteMenuItem {

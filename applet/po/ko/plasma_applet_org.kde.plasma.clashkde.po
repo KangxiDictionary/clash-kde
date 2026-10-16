@@ -55,3 +55,20 @@ msgstr "노선: %1"
 msgctxt "@option:check"
 msgid "Show unreachable routes"
 msgstr "도달할 수 없는 노선 표시"
+msgid "Core is running"
+msgstr "코어가 실행 중"
+
+msgid "Core is starting"
+msgstr "코어가 시작되는 중"
+
+msgid "Core is stopped"
+msgstr "코어가 중지됨"
+
+msgid "Copy command"
+msgstr "명령 복사"
+
+msgid "Copied"
+msgstr "복사됨"
+
+msgid "Copy a command that sets this proxy in the terminal."
+msgstr "터미널에서 이 프록시를 쓰는 명령을 복사합니다."

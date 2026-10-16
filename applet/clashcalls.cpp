@@ -8,9 +8,69 @@
 #include <QDBusInterface>
 #include <QDBusPendingCallWatcher>
 #include <QDBusPendingReply>
+#include <QClipboard>
+#include <QFileInfo>
+#include <QGuiApplication>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QProcess>
+#include <QStandardPaths>
+
+namespace {
+QString configValue(const QString &file, const QString &group, const QString &key)
+{
+    QProcess process;
+    process.start(QStringLiteral("kreadconfig6"), {QStringLiteral("--file"), file, QStringLiteral("--group"), group, QStringLiteral("--key"), key});
+    if (!process.waitForFinished(1500) || process.exitCode() != 0) {
+        return {};
+    }
+    return QString::fromUtf8(process.readAllStandardOutput()).trimmed();
+}
+
+QString shellName()
+{
+    const QString terminal = configValue(QStringLiteral("kdeglobals"), QStringLiteral("General"), QStringLiteral("TerminalApplication"));
+    const QString terminalBase = QFileInfo(terminal).fileName();
+    const bool konsole = terminal.isEmpty() || terminalBase == QStringLiteral("konsole") || terminalBase.startsWith(QStringLiteral("konsole"));
+    if (konsole) {
+        const QString profile = configValue(QStringLiteral("konsolerc"), QStringLiteral("Desktop Entry"), QStringLiteral("DefaultProfile"));
+        if (!profile.isEmpty()) {
+            const QString path = QStandardPaths::locate(QStandardPaths::GenericDataLocation, QStringLiteral("konsole/") + profile);
+            const QString command = path.isEmpty() ? QString() : configValue(path, QStringLiteral("General"), QStringLiteral("Command"));
+            const QString base = QFileInfo(command.section(QLatin1Char(' '), 0, 0)).fileName();
+            if (base == QStringLiteral("fish") || base == QStringLiteral("nu") || base == QStringLiteral("nushell") || base == QStringLiteral("csh") || base == QStringLiteral("tcsh")
+                || base == QStringLiteral("bash") || base == QStringLiteral("zsh")) {
+                return base;
+            }
+        }
+    }
+    return QFileInfo(qEnvironmentVariable("SHELL")).fileName();
+}
+
+QString proxyCommand(const QString &shell, bool wayland, int port)
+{
+    const QString http = QStringLiteral("http://127.0.0.1:%1").arg(port);
+    // Wayland terminals usually resolve names locally, so the proxy must receive the hostname.
+    // X11 libraries have long accepted socks5 without the hostname flag.
+    const QString socks = QStringLiteral("%1://127.0.0.1:%2").arg(wayland ? QStringLiteral("socks5h") : QStringLiteral("socks5"), QString::number(port));
+    const QString bypass = QStringLiteral("localhost,127.0.0.1,::1");
+    if (shell == QStringLiteral("fish")) {
+        return QStringLiteral("set -gx http_proxy %1; set -gx https_proxy %2; set -gx all_proxy %3; set -gx no_proxy %4").arg(http, http, socks, bypass);
+    }
+    if (shell == QStringLiteral("nu") || shell == QStringLiteral("nushell")) {
+        return QStringLiteral("$env.http_proxy = \"%1\"; $env.https_proxy = \"%2\"; $env.all_proxy = \"%3\"; $env.no_proxy = \"%4\"").arg(http, http, socks, bypass);
+    }
+    if (shell == QStringLiteral("csh") || shell == QStringLiteral("tcsh")) {
+        return QStringLiteral("setenv http_proxy %1; setenv https_proxy %2; setenv all_proxy %3; setenv no_proxy %4").arg(http, http, socks, bypass);
+    }
+    if (wayland) {
+        return QStringLiteral("export http_proxy=%1 https_proxy=%2 all_proxy=%3 no_proxy=%4").arg(http, http, socks, bypass);
+    }
+    return QStringLiteral("export http_proxy=%1 https_proxy=%2 HTTP_PROXY=%3 HTTPS_PROXY=%4 all_proxy=%5 ALL_PROXY=%6 no_proxy=%7 NO_PROXY=%8")
+        .arg(http, http, http, http, socks, socks, bypass, bypass);
+}
+}
 
 ClashCalls::ClashCalls(QObject *parent)
     : QObject(parent)
@@ -170,6 +230,18 @@ void ClashCalls::setActiveProfile(const QString &id)
 void ClashCalls::selectProxy(const QString &group, const QString &name)
 {
     call(QStringLiteral("SelectProxy"), {group, name});
+}
+
+bool ClashCalls::copyTerminalProxyCommand()
+{
+    const int port = m_listenAddress.section(QLatin1Char(':'), -1).toInt();
+    if (port <= 0 || QGuiApplication::clipboard() == nullptr) {
+        return false;
+    }
+    const QByteArray sessionType = qgetenv("XDG_SESSION_TYPE");
+    const bool wayland = sessionType == "wayland" || (sessionType.isEmpty() && !qEnvironmentVariableIsEmpty("WAYLAND_DISPLAY"));
+    QGuiApplication::clipboard()->setText(proxyCommand(shellName(), wayland, port));
+    return true;
 }
 
 void ClashCalls::refreshLists()
