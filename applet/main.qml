@@ -8,7 +8,6 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls as QQC2
 import QtQuick.Layouts
-import QtQuick.Window
 import org.kde.kirigami as Kirigami
 import org.kde.plasma.components as PC3
 import org.kde.plasma.core as PlasmaCore
@@ -21,43 +20,11 @@ PlasmoidItem {
     activationTogglesExpanded: false
     preferredRepresentation: compactRepresentation
     Plasmoid.icon: "network-vpn"
-    // A route menu is its own window. Keep the popup up while that window is open,
-    // and close the menu itself when the popup goes away.
-    property bool routeMenuOpen: false
-    hideOnWindowDeactivate: !routeMenuOpen
 
     onExpandedChanged: {
         if (!expanded) {
             routeMenu.close();
         }
-    }
-
-    readonly property real menuLimit: {
-        const available = availableScreenRect ? availableScreenRect.height : 0;
-        return available > Kirigami.Units.gridUnit * 8 ? available * 0.7 : Kirigami.Units.gridUnit * 24;
-    }
-
-    function openRouteMenu() {
-        routeMenuOpen = true;
-        const host = popupRoot;
-        const anchor = routeButton.mapToItem(host, 0, 0);
-        const menuWidth = Math.max(routeMenu.implicitWidth, Kirigami.Units.gridUnit * 16);
-        const menuHeight = Math.min(Math.max(routeMenu.implicitHeight, Kirigami.Units.gridUnit * 8), menuLimit);
-        const global = host.mapToGlobal(0, 0);
-        const screen = host.Window.window ? host.Window.window.screen : null;
-        let x = host.width;
-        let y = Math.max(0, anchor.y);
-        if (screen) {
-            const rightEdge = screen.virtualX + screen.width;
-            const bottomEdge = screen.virtualY + screen.height;
-            if (global.x + host.width + menuWidth > rightEdge - Kirigami.Units.largeSpacing && global.x - menuWidth >= screen.virtualX) {
-                x = -menuWidth;
-            }
-            if (global.y + y + menuHeight > bottomEdge - Kirigami.Units.largeSpacing) {
-                y -= global.y + y + menuHeight - bottomEdge + Kirigami.Units.largeSpacing;
-            }
-        }
-        routeMenu.popup(host, x, y);
     }
 
     readonly property var modes: ["rule", "global", "direct"]
@@ -551,7 +518,8 @@ PlasmoidItem {
                     if (routeMenu.opened) {
                         routeMenu.close();
                     } else {
-                        root.openRouteMenu();
+                        // Opens to the right of the button, as its own window, so it is not clipped by this popup.
+                        routeMenu.popup(routeButton, routeButton.width, 0);
                     }
                 }
             }
@@ -671,12 +639,9 @@ PlasmoidItem {
 
         PC3.Menu {
             id: routeMenu
-            // Item popups are clipped to the applet window and stay open after it closes.
+            // Popup.Item is clipped to the applet window. Popup.Window is the stock menu window.
             popupType: QQC2.Popup.Window
-            modal: false
-            closePolicy: QQC2.Popup.CloseOnEscape | QQC2.Popup.CloseOnPressOutside | QQC2.Popup.CloseOnPressOutsideParent
-            height: Math.min(implicitHeight, root.menuLimit)
-            onClosed: root.routeMenuOpen = false
+            cascade: true
 
             Instantiator {
                 model: root.singleGroupNodes
@@ -695,9 +660,7 @@ PlasmoidItem {
                     required property var modelData
                     title: modelData.name
                     popupType: QQC2.Popup.Window
-                    modal: false
-                    closePolicy: QQC2.Popup.CloseOnEscape | QQC2.Popup.CloseOnPressOutside | QQC2.Popup.CloseOnPressOutsideParent
-                    height: Math.min(implicitHeight, root.menuLimit)
+                    cascade: true
                     Instantiator {
                         model: root.nodesFor(groupMenu.modelData)
                         delegate: RouteMenuItem {
