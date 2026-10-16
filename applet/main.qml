@@ -610,24 +610,55 @@ PlasmoidItem {
             }
 
             PC3.ComboBox {
+                id: profileBox
                 visible: session.profiles.length > 0
                 Layout.fillWidth: true
                 model: session.profiles
                 textRole: "name"
-                // The panel clips its contents, so the list has to be its own window.
-                Component.onCompleted: popup.popupType = QQC2.Popup.Window
-                currentIndex: {
-                    for (let i = 0; i < session.profiles.length; ++i) {
-                        if (session.profiles[i].id === session.activeProfile) {
-                            return i;
-                        }
-                    }
-                    return 0;
+                // A separate window can extend past the panel. While it is up, the panel must stay open.
+                Component.onCompleted: {
+                    popup.popupType = QQC2.Popup.Window;
+                    followActiveProfile();
                 }
+                onPressed: root.hideOnWindowDeactivate = false
                 onActivated: index => {
                     const id = session.profiles[index].id;
                     if (id !== session.activeProfile) {
                         session.setActiveProfile(id);
+                    }
+                }
+
+                function followActiveProfile() {
+                    if (popup.opened) {
+                        return;
+                    }
+                    let next = 0;
+                    for (let i = 0; i < session.profiles.length; ++i) {
+                        if (session.profiles[i].id === session.activeProfile) {
+                            next = i;
+                            break;
+                        }
+                    }
+                    if (currentIndex !== next) {
+                        currentIndex = next;
+                    }
+                }
+
+                Connections {
+                    target: session
+                    function onChanged() {
+                        profileBox.followActiveProfile();
+                    }
+                }
+
+                Connections {
+                    target: profileBox.popup
+                    function onAboutToShow() {
+                        root.hideOnWindowDeactivate = false;
+                    }
+                    function onClosed() {
+                        root.hideOnWindowDeactivate = true;
+                        profileBox.followActiveProfile();
                     }
                 }
             }
