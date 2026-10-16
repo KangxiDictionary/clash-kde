@@ -494,39 +494,76 @@ PlasmoidItem {
         }
         }
 
+        component RouteMenuItem: PC3.MenuItem {
+            id: nodeItem
+            required property var modelData
+            required property string groupName
+            required property string currentName
+
+            readonly property int delayMs: modelData["delay_ms"]
+            readonly property bool current: currentName === modelData.name
+
+            // The stock check mark is drawn under the label. Draw our own, in its own column.
+            checkable: false
+            onTriggered: session.selectProxy(groupName, modelData.name)
+
+            leftPadding: Kirigami.Units.largeSpacing
+            rightPadding: Kirigami.Units.gridUnit + Kirigami.Units.smallSpacing
+            topPadding: Kirigami.Units.mediumSpacing
+            bottomPadding: Kirigami.Units.mediumSpacing
+
+            contentItem: RowLayout {
+                spacing: Kirigami.Units.largeSpacing
+
+                Item {
+                    implicitWidth: Kirigami.Units.iconSizes.small
+                    implicitHeight: implicitWidth
+                    Layout.preferredWidth: implicitWidth
+                    Layout.preferredHeight: implicitHeight
+                    Layout.alignment: Qt.AlignVCenter
+
+                    Kirigami.Icon {
+                        anchors.fill: parent
+                        source: "checkmark"
+                        visible: nodeItem.current
+                    }
+                }
+
+                PC3.Label {
+                    text: nodeItem.modelData.name
+                    elide: Text.ElideRight
+                    font.bold: nodeItem.current
+                    verticalAlignment: Text.AlignVCenter
+                    Layout.fillWidth: true
+                    Layout.alignment: Qt.AlignVCenter
+                    implicitWidth: Math.max(Kirigami.Units.gridUnit * 8, Math.min(nameMetrics.advanceWidth, Kirigami.Units.gridUnit * 12))
+
+                    TextMetrics {
+                        id: nameMetrics
+                        font: parent.font
+                        text: parent.text
+                    }
+                }
+
+                PC3.Label {
+                    visible: nodeItem.delayMs >= 0
+                    text: nodeItem.delayMs === 0 ? i18n("Timeout") : i18n("%1 ms", nodeItem.delayMs)
+                    color: root.delayColor(nodeItem.delayMs)
+                    horizontalAlignment: Text.AlignRight
+                    verticalAlignment: Text.AlignVCenter
+                    Layout.alignment: Qt.AlignVCenter
+                }
+            }
+        }
+
         PC3.Menu {
             id: routeMenu
 
             Instantiator {
                 model: root.singleGroupNodes
-                delegate: PC3.MenuItem {
-                    required property var modelData
-                    checkable: true
-                    checked: {
-                        const group = root.selectorGroups.length === 1 ? root.selectorGroups[0] : null;
-                        return !!group && group.now === modelData.name;
-                    }
-                    onTriggered: {
-                        const group = root.selectorGroups.length === 1 ? root.selectorGroups[0] : null;
-                        if (group) {
-                            session.selectProxy(group.name, modelData.name);
-                        }
-                    }
-                    contentItem: RowLayout {
-                        spacing: Kirigami.Units.largeSpacing
-                        PC3.Label {
-                            text: modelData.name
-                            elide: Text.ElideRight
-                            Layout.fillWidth: true
-                            Layout.maximumWidth: Kirigami.Units.gridUnit * 14
-                        }
-                        PC3.Label {
-                            readonly property int delayMs: modelData["delay_ms"]
-                            visible: delayMs >= 0
-                            text: delayMs === 0 ? i18n("Timeout") : i18n("%1 ms", delayMs)
-                            color: root.delayColor(delayMs)
-                        }
-                    }
+                delegate: RouteMenuItem {
+                    groupName: root.selectorGroups.length === 1 ? root.selectorGroups[0].name : ""
+                    currentName: root.selectorGroups.length === 1 ? root.selectorGroups[0].now : ""
                 }
                 onObjectAdded: (index, object) => routeMenu.insertItem(index, object)
                 onObjectRemoved: (index, object) => routeMenu.removeItem(object)
@@ -540,26 +577,9 @@ PlasmoidItem {
                     title: modelData.name
                     Instantiator {
                         model: root.nodesFor(groupMenu.modelData)
-                        delegate: PC3.MenuItem {
-                            required property var modelData
-                            checkable: true
-                            checked: groupMenu.modelData.now === modelData.name
-                            onTriggered: session.selectProxy(groupMenu.modelData.name, modelData.name)
-                            contentItem: RowLayout {
-                                spacing: Kirigami.Units.largeSpacing
-                                PC3.Label {
-                                    text: modelData.name
-                                    elide: Text.ElideRight
-                                    Layout.fillWidth: true
-                                    Layout.maximumWidth: Kirigami.Units.gridUnit * 14
-                                }
-                                PC3.Label {
-                                    readonly property int delayMs: modelData["delay_ms"]
-                                    visible: delayMs >= 0
-                                    text: delayMs === 0 ? i18n("Timeout") : i18n("%1 ms", delayMs)
-                                    color: root.delayColor(delayMs)
-                                }
-                            }
+                        delegate: RouteMenuItem {
+                            groupName: groupMenu.modelData.name
+                            currentName: groupMenu.modelData.now
                         }
                         onObjectAdded: (index, object) => groupMenu.insertItem(index, object)
                         onObjectRemoved: (index, object) => groupMenu.removeItem(object)
