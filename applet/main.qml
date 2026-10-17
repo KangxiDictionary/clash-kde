@@ -359,8 +359,10 @@ PlasmoidItem {
             const groups = root.selectorGroups;
             if (groups.length === 1) {
                 const group = groups[0];
-                appendNodes(routeMenu, String(group.name), String(group.now || ""), root.nodesFor(group));
+                const groupName = String(group.name);
+                appendNodes(routeMenu, groupName, String(group.now || ""), root.nodesFor(group));
                 root.fitRouteMenu(routeMenu, routeMenu.count);
+                maybeAutoTest(groupName);
                 return;
             }
             for (let i = 0; i < groups.length; ++i) {
@@ -379,11 +381,18 @@ PlasmoidItem {
             root.fitRouteMenu(routeMenu, routeMenu.count);
         }
 
+        function maybeAutoTest(groupName) {
+            if (!session.autoTestDelay || !session.coreRunning || groupName.length === 0) {
+                return;
+            }
+            session.testGroupDelay(groupName);
+        }
+
         function patchMenu(menu, byName) {
             for (let i = 0; i < menu.count; ++i) {
                 const sub = menu.menuAt(i);
-            if (sub) {
-                popupRoot.patchMenu(sub, byName);
+                if (sub) {
+                    popupRoot.patchMenu(sub, byName);
                     continue;
                 }
                 const item = menu.itemAt(i);
@@ -815,7 +824,10 @@ PlasmoidItem {
                 property string groupName: ""
                 popupType: QQC2.Popup.Window
                 cascade: true
-                onAboutToShow: root.fitRouteMenu(groupMenu, count)
+                onAboutToShow: {
+                    root.fitRouteMenu(groupMenu, count);
+                    popupRoot.maybeAutoTest(groupName);
+                }
             }
         }
 

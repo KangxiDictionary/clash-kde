@@ -28,6 +28,7 @@ class ClashCalls : public QObject
     Q_PROPERTY(double uploadBps READ uploadBps NOTIFY changed)
     Q_PROPERTY(double downloadBps READ downloadBps NOTIFY changed)
     Q_PROPERTY(QString activeProfile READ activeProfile NOTIFY changed)
+    Q_PROPERTY(bool autoTestDelay READ autoTestDelay NOTIFY changed)
     Q_PROPERTY(QVariantList profiles READ profiles NOTIFY changed)
     Q_PROPERTY(QVariantList groups READ groups NOTIFY changed)
 
@@ -48,6 +49,7 @@ public:
     double uploadBps() const;
     double downloadBps() const;
     QString activeProfile() const;
+    bool autoTestDelay() const;
     QVariantList profiles() const;
     QVariantList groups() const;
 
@@ -56,6 +58,7 @@ public:
     Q_INVOKABLE void setMode(const QString &mode);
     Q_INVOKABLE void setActiveProfile(const QString &id);
     Q_INVOKABLE void selectProxy(const QString &group, const QString &name);
+    Q_INVOKABLE void testGroupDelay(const QString &group);
     Q_INVOKABLE bool copyTerminalProxyCommand();
 
 public Q_SLOTS:
@@ -86,6 +89,7 @@ private:
     double m_uploadBps = 0;
     double m_downloadBps = 0;
     QString m_activeProfile;
+    bool m_autoTestDelay = false;
     QVariantList m_profiles;
     QVariantList m_groups;
 };

@@ -184,6 +184,11 @@ QString ClashCalls::activeProfile() const
     return m_activeProfile;
 }
 
+bool ClashCalls::autoTestDelay() const
+{
+    return m_autoTestDelay;
+}
+
 QVariantList ClashCalls::profiles() const
 {
     return m_profiles;
@@ -231,6 +236,11 @@ void ClashCalls::setActiveProfile(const QString &id)
 void ClashCalls::selectProxy(const QString &group, const QString &name)
 {
     call(QStringLiteral("SelectProxy"), {group, name});
+}
+
+void ClashCalls::testGroupDelay(const QString &group)
+{
+    call(QStringLiteral("TestGroupDelay"), {group});
 }
 
 bool ClashCalls::copyTerminalProxyCommand()
@@ -335,6 +345,7 @@ void ClashCalls::applyStatus(const QString &json)
     m_uploadBps = object.value(QStringLiteral("upload_bps")).toDouble();
     m_downloadBps = object.value(QStringLiteral("download_bps")).toDouble();
     m_activeProfile = object.value(QStringLiteral("active_profile")).toString();
+    m_autoTestDelay = object.value(QStringLiteral("auto_test_delay")).toBool();
     Q_EMIT changed();
 }
 
