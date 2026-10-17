@@ -613,27 +613,29 @@ PlasmoidItem {
                 id: profileBox
                 visible: session.profiles.length > 0
                 Layout.fillWidth: true
-                model: session.profiles
-                textRole: "name"
-                // A separate window can extend past the panel. While it is up, the panel must stay open.
-                Component.onCompleted: {
-                    popup.popupType = QQC2.Popup.Window;
-                    followActiveProfile();
-                }
-                onActivated: index => {
-                    const id = session.profiles[index].id;
-                    if (id !== session.activeProfile) {
-                        session.setActiveProfile(id);
-                    }
-                }
+                property var profileIds: []
+                property var profileNames: []
+                model: profileNames
 
-                function followActiveProfile() {
+                function syncFromSession() {
                     if (popup.opened) {
                         return;
                     }
-                    let next = 0;
+                    const nextNames = [];
+                    const nextIds = [];
                     for (let i = 0; i < session.profiles.length; ++i) {
-                        if (session.profiles[i].id === session.activeProfile) {
+                        nextNames.push(session.profiles[i].name);
+                        nextIds.push(session.profiles[i].id);
+                    }
+                    if (nextNames.join("\n") !== profileNames.join("\n")) {
+                        profileNames = nextNames;
+                    }
+                    if (nextIds.join("\n") !== profileIds.join("\n")) {
+                        profileIds = nextIds;
+                    }
+                    let next = 0;
+                    for (let i = 0; i < nextIds.length; ++i) {
+                        if (nextIds[i] === session.activeProfile) {
                             next = i;
                             break;
                         }
@@ -643,21 +645,19 @@ PlasmoidItem {
                     }
                 }
 
+                Component.onCompleted: syncFromSession()
+
                 Connections {
                     target: session
                     function onChanged() {
-                        profileBox.followActiveProfile();
+                        profileBox.syncFromSession();
                     }
                 }
 
-                Connections {
-                    target: profileBox.popup
-                    function onAboutToShow() {
-                        root.hideOnWindowDeactivate = false;
-                    }
-                    function onClosed() {
-                        root.hideOnWindowDeactivate = true;
-                        profileBox.followActiveProfile();
+                onActivated: index => {
+                    const id = profileIds[index];
+                    if (id && id !== session.activeProfile) {
+                        session.setActiveProfile(id);
                     }
                 }
             }
