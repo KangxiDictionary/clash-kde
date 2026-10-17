@@ -620,7 +620,6 @@ PlasmoidItem {
                     popup.popupType = QQC2.Popup.Window;
                     followActiveProfile();
                 }
-                onPressed: root.hideOnWindowDeactivate = false
                 onActivated: index => {
                     const id = session.profiles[index].id;
                     if (id !== session.activeProfile) {
