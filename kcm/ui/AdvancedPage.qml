@@ -38,6 +38,16 @@ Item {
             }
 
             QQC2.Switch {
+                Kirigami.FormData.label: tx.i18n("Blur the IP")
+                checked: kcm.client.draftBlurIp
+                onToggled: kcm.client.draftBlurIp = checked
+
+                QQC2.ToolTip.visible: hovered
+                QQC2.ToolTip.delay: 700
+                QQC2.ToolTip.text: tx.i18n("Hides the latter half of the exit address.")
+            }
+
+            QQC2.Switch {
                 Kirigami.FormData.label: tx.i18n("Use the same sort for every group")
                 checked: kcm.client.draftSortGlobal
                 onToggled: kcm.client.draftSortGlobal = checked

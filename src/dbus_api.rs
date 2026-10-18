@@ -126,9 +126,14 @@ impl Manager {
     }
 
     #[zbus(name = "SetBehavior")]
-    async fn set_behavior(&self, sort_global: bool, auto_test_delay: bool) -> fdo::Result<()> {
+    async fn set_behavior(
+        &self,
+        sort_global: bool,
+        auto_test_delay: bool,
+        blur_ip: bool,
+    ) -> fdo::Result<()> {
         self.app
-            .set_behavior(sort_global, auto_test_delay)
+            .set_behavior(sort_global, auto_test_delay, blur_ip)
             .await
             .map_err(failed)
     }

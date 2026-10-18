@@ -329,17 +329,41 @@ fn first_text(body: &Value, keys: &[&str]) -> String {
         .to_string()
 }
 
-pub async fn lookup_exit_region(port: u16) -> Result<String, String> {
-    let proxy = reqwest::Proxy::all(format!("http://127.0.0.1:{port}"))
-        .map_err(|error| format!("无法设置出口检测代理: {error}"))?;
-    let client = Client::builder()
-        .proxy(proxy)
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum RegionProbe {
+    Direct,
+    Proxy(u16),
+}
+
+/// 系统代理正在接管时，检测请求自己不会读桌面的代理设置，所以要显式走混合端口。
+/// TUN 生效时直接访问，连接会被网卡接走。两边都没接管时也直接访问。
+pub fn region_probe(system_proxy_applied: bool, tun_active: bool, port: u16) -> RegionProbe {
+    if system_proxy_applied && !tun_active {
+        RegionProbe::Proxy(port)
+    } else {
+        RegionProbe::Direct
+    }
+}
+
+fn region_client(probe: RegionProbe) -> Result<Client, String> {
+    let builder = Client::builder()
         .timeout(Duration::from_secs(8))
         .user_agent(
             "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
-        )
-        .build()
-        .map_err(|error| error.to_string())?;
+        );
+    let builder = match probe {
+        RegionProbe::Direct => builder.no_proxy(),
+        RegionProbe::Proxy(port) => {
+            let proxy = reqwest::Proxy::all(format!("http://127.0.0.1:{port}"))
+                .map_err(|error| format!("无法设置出口检测代理: {error}"))?;
+            builder.proxy(proxy)
+        }
+    };
+    builder.build().map_err(|error| error.to_string())
+}
+
+pub async fn lookup_exit_region(probe: RegionProbe) -> Result<String, String> {
+    let client = region_client(probe)?;
     let mut tasks = tokio::task::JoinSet::new();
     for url in REGION_URLS {
         let client = client.clone();
@@ -431,5 +455,13 @@ mod tests {
         );
         let failed = serde_json::json!({"success": false});
         assert!(describe_region(&failed).is_none());
+    }
+
+    #[test]
+    fn region_probe_follows_the_live_exit() {
+        assert_eq!(region_probe(true, false, 7890), RegionProbe::Proxy(7890));
+        assert_eq!(region_probe(true, true, 7890), RegionProbe::Direct);
+        assert_eq!(region_probe(false, true, 7890), RegionProbe::Direct);
+        assert_eq!(region_probe(false, false, 7890), RegionProbe::Direct);
     }
 }

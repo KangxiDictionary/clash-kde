@@ -58,6 +58,14 @@ struct Inner {
     restart_attempts: u32,
 }
 
+fn region_probe_of(inner: &Inner) -> controller::RegionProbe {
+    controller::region_probe(
+        inner.system_proxy_applied,
+        inner.core_running && inner.settings.tun_enabled,
+        inner.settings.mixed_port,
+    )
+}
+
 pub struct App {
     paths: Paths,
     inner: Mutex<Inner>,
@@ -92,6 +100,7 @@ struct Status {
     show_unreachable: bool,
     sort_prefs: BTreeMap<String, crate::state::SortPref>,
     auto_test_delay: bool,
+    blur_ip: bool,
 }
 
 impl App {
@@ -175,7 +184,7 @@ impl App {
         self.spawn_core().await
     }
 
-    pub async fn stop(&self) -> Result<(), String> {
+    pub async fn stop(self: &Arc<Self>) -> Result<(), String> {
         {
             let mut inner = self.inner.lock().await;
             inner.settings.core_desired = false;
@@ -188,6 +197,7 @@ impl App {
         }
         self.stop_process().await;
         self.withdraw_proxy().await;
+        self.schedule_region_lookup();
         self.emit(Event::Status);
         Ok(())
     }
@@ -217,9 +227,7 @@ impl App {
             inner.message.clear();
         }
         self.sync_system_proxy().await?;
-        if !enabled {
-            self.schedule_region_lookup();
-        }
+        self.schedule_region_lookup();
         self.emit(Event::Status);
         Ok(())
     }
@@ -243,16 +251,15 @@ impl App {
             inner.message.clear();
             inner.core_running
         };
-        if running {
-            self.spawn_core().await?;
+        let started = if running {
+            self.spawn_core().await
         } else {
             self.sync_system_proxy().await?;
             self.emit(Event::Status);
-        }
-        if !enabled {
-            self.schedule_region_lookup();
-        }
-        Ok(())
+            Ok(())
+        };
+        self.schedule_region_lookup();
+        started
     }
 
     pub async fn set_mode(&self, mode: &str) -> Result<(), String> {
@@ -492,11 +499,13 @@ impl App {
         &self,
         sort_global: bool,
         auto_test_delay: bool,
+        blur_ip: bool,
     ) -> Result<(), String> {
         {
             let mut inner = self.inner.lock().await;
             inner.settings.sort_global = sort_global;
             inner.settings.auto_test_delay = auto_test_delay;
+            inner.settings.blur_ip = blur_ip;
             inner
                 .settings
                 .save(&self.paths)
@@ -747,15 +756,12 @@ impl App {
     }
 
     pub async fn refresh_exit_region(self: &Arc<Self>) -> Result<String, String> {
-        let (running, port) = {
+        let probe = {
             let inner = self.inner.lock().await;
-            (inner.core_running, inner.settings.mixed_port)
+            region_probe_of(&inner)
         };
-        if !running {
-            return Err("内核没有在运行".to_string());
-        }
         let epoch = self.region_epoch.fetch_add(1, Ordering::Relaxed) + 1;
-        match controller::lookup_exit_region(port).await {
+        match controller::lookup_exit_region(probe).await {
             Ok(region) => {
                 if self.region_epoch.load(Ordering::Relaxed) == epoch {
                     let mut inner = self.inner.lock().await;
@@ -780,21 +786,15 @@ impl App {
         let epoch = self.region_epoch.fetch_add(1, Ordering::Relaxed) + 1;
         let app = Arc::clone(self);
         tokio::spawn(async move {
-            let (running, port) = {
+            let probe = {
                 let mut inner = app.inner.lock().await;
-                if !inner.core_running {
-                    return;
-                }
                 inner.exit_region = "正在检测".to_string();
-                let port = inner.settings.mixed_port;
+                let probe = region_probe_of(&inner);
                 drop(inner);
                 app.emit(Event::Status);
-                (true, port)
+                probe
             };
-            if !running {
-                return;
-            }
-            let result = controller::lookup_exit_region(port).await;
+            let result = controller::lookup_exit_region(probe).await;
             if app.region_epoch.load(Ordering::Relaxed) != epoch {
                 return;
             }
@@ -880,6 +880,7 @@ impl App {
             show_unreachable: inner.settings.show_unreachable,
             sort_prefs: inner.settings.sort_prefs.clone(),
             auto_test_delay: inner.settings.auto_test_delay,
+            blur_ip: inner.settings.blur_ip,
         };
         serde_json::to_string(&status).expect("status json")
     }
@@ -903,6 +904,7 @@ impl App {
             return Err(error);
         }
         self.sync_system_proxy().await?;
+        self.schedule_region_lookup();
         self.emit(Event::Status);
         self.emit(Event::Proxies);
         Ok(())
@@ -1105,15 +1107,15 @@ impl App {
         let app = Arc::clone(self);
         tokio::spawn(async move {
             loop {
-                let (running, port) = {
+                let (running, probe) = {
                     let inner = app.inner.lock().await;
-                    (inner.core_running, inner.settings.mixed_port)
+                    (inner.core_running, region_probe_of(&inner))
                 };
                 if !running {
                     break;
                 }
                 let epoch = app.region_epoch.load(Ordering::Relaxed);
-                if let Ok(region) = controller::lookup_exit_region(port).await
+                if let Ok(region) = controller::lookup_exit_region(probe).await
                     && app.region_epoch.load(Ordering::Relaxed) == epoch
                 {
                     app.inner.lock().await.exit_region = region;

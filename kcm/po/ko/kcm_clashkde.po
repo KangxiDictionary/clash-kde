@@ -133,6 +133,12 @@ msgstr "모든 그룹에 같은 정렬 사용"
 msgid "Tests the delay of the group you are looking at."
 msgstr "보고 있는 그룹의 지연을 자동으로 측정합니다."
 
+msgid "Blur the IP"
+msgstr "IP 흐리게"
+
+msgid "Hides the latter half of the exit address."
+msgstr "출구 주소의 뒷부분을 숨깁니다."
+
 msgid "Keeps one sort and filter for every group and profile."
 msgstr "정렬과 필터를 하나로 기억해서 모든 그룹과 프로필에 씁니다."
 

@@ -29,6 +29,7 @@ class ClashCalls : public QObject
     Q_PROPERTY(double downloadBps READ downloadBps NOTIFY changed)
     Q_PROPERTY(QString activeProfile READ activeProfile NOTIFY changed)
     Q_PROPERTY(bool autoTestDelay READ autoTestDelay NOTIFY changed)
+    Q_PROPERTY(bool blurIp READ blurIp NOTIFY changed)
     Q_PROPERTY(QVariantList profiles READ profiles NOTIFY changed)
     Q_PROPERTY(QVariantList groups READ groups NOTIFY changed)
 
@@ -50,6 +51,7 @@ public:
     double downloadBps() const;
     QString activeProfile() const;
     bool autoTestDelay() const;
+    bool blurIp() const;
     QVariantList profiles() const;
     QVariantList groups() const;
 
@@ -90,6 +92,7 @@ private:
     double m_downloadBps = 0;
     QString m_activeProfile;
     bool m_autoTestDelay = false;
+    bool m_blurIp = false;
     QVariantList m_profiles;
     QVariantList m_groups;
 };

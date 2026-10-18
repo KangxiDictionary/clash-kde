@@ -133,6 +133,12 @@ msgstr "Одинаковая сортировка для каждой групп
 msgid "Tests the delay of the group you are looking at."
 msgstr "Проверяет задержку открытой группы."
 
+msgid "Blur the IP"
+msgstr "Скрывать часть IP"
+
+msgid "Hides the latter half of the exit address."
+msgstr "Скрывает вторую половину адреса выхода."
+
 msgid "Keeps one sort and filter for every group and profile."
 msgstr "Запоминает одну сортировку и фильтр для каждой группы и каждого профиля."
 

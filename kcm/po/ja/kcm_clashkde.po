@@ -133,6 +133,12 @@ msgstr "すべてのグループで同じ並べ替えを使う"
 msgid "Tests the delay of the group you are looking at."
 msgstr "表示中のグループの遅延を自動で測ります。"
 
+msgid "Blur the IP"
+msgstr "IP をぼかす"
+
+msgid "Hides the latter half of the exit address."
+msgstr "出口アドレスの後半を隠します。"
+
 msgid "Keeps one sort and filter for every group and profile."
 msgstr "並べ替えと絞り込みを一つ覚えて、すべてのグループとプロファイルに使います。"
 

@@ -38,6 +38,8 @@ pub struct Settings {
     pub sort_prefs: BTreeMap<String, SortPref>,
     #[serde(default)]
     pub auto_test_delay: bool,
+    #[serde(default)]
+    pub blur_ip: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -90,6 +92,7 @@ impl Default for Settings {
             show_unreachable: default_show_unreachable(),
             sort_prefs: BTreeMap::new(),
             auto_test_delay: false,
+            blur_ip: false,
         }
     }
 }

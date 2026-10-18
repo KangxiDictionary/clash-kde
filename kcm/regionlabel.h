@@ -46,7 +46,37 @@ inline QString territoryName(const QString &code)
     return QString::fromUtf16(reinterpret_cast<const char16_t *>(buffer), length);
 }
 
-inline QString formatExitRegion(const QString &raw)
+inline QString blurAddress(const QString &address)
+{
+    const QString text = address.trimmed();
+    if (text.isEmpty()) {
+        return text;
+    }
+    if (!text.contains(QLatin1Char(':')) && text.count(QLatin1Char('.')) == 3) {
+        const QStringList parts = text.split(QLatin1Char('.'));
+        bool ipv4 = parts.size() == 4;
+        for (const QString &part : parts) {
+            bool ok = false;
+            const int value = part.toInt(&ok);
+            if (!ok || value < 0 || value > 255) {
+                ipv4 = false;
+                break;
+            }
+        }
+        if (ipv4) {
+            return parts.at(0) + QLatin1Char('.') + parts.at(1) + QStringLiteral(".*.*");
+        }
+    }
+    if (text.contains(QLatin1Char(':')) && !text.contains(QLatin1Char('.'))) {
+        const QStringList groups = text.split(QLatin1Char(':'));
+        if (groups.size() >= 2) {
+            return groups.at(0) + QLatin1Char(':') + groups.at(1) + QStringLiteral(":*");
+        }
+    }
+    return QStringLiteral("*");
+}
+
+inline QString formatExitRegion(const QString &raw, bool blurIp = false)
 {
     if (raw.isEmpty() || raw == QStringLiteral("正在检测")) {
         return raw;
@@ -63,8 +93,12 @@ inline QString formatExitRegion(const QString &raw)
     if (!parts.at(1).isEmpty()) {
         place += QStringLiteral(" · ") + parts.at(1);
     }
-    if (!parts.at(2).isEmpty()) {
-        place = QStringLiteral("%1 (%2)").arg(place, parts.at(2));
+    QString address = parts.at(2);
+    if (blurIp) {
+        address = blurAddress(address);
+    }
+    if (!address.isEmpty()) {
+        place = QStringLiteral("%1 (%2)").arg(place, address);
     }
     return flagEmoji(parts.at(0)) + QLatin1Char(' ') + place;
 }

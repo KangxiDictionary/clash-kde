@@ -161,7 +161,7 @@ QString ClashCalls::message() const
 
 QString ClashCalls::region() const
 {
-    return formatExitRegion(m_region);
+    return formatExitRegion(m_region, m_blurIp);
 }
 
 QString ClashCalls::listenAddress() const
@@ -187,6 +187,11 @@ QString ClashCalls::activeProfile() const
 bool ClashCalls::autoTestDelay() const
 {
     return m_autoTestDelay;
+}
+
+bool ClashCalls::blurIp() const
+{
+    return m_blurIp;
 }
 
 QVariantList ClashCalls::profiles() const
@@ -346,6 +351,7 @@ void ClashCalls::applyStatus(const QString &json)
     m_downloadBps = object.value(QStringLiteral("download_bps")).toDouble();
     m_activeProfile = object.value(QStringLiteral("active_profile")).toString();
     m_autoTestDelay = object.value(QStringLiteral("auto_test_delay")).toBool();
+    m_blurIp = object.value(QStringLiteral("blur_ip")).toBool();
     Q_EMIT changed();
 }
 

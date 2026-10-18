@@ -121,7 +121,7 @@ QString ClashClient::mihomoPath() const { return m_mihomoPath; }
 QString ClashClient::overridePath() const { return m_overridePath; }
 qulonglong ClashClient::uploadBps() const { return m_uploadBps; }
 qulonglong ClashClient::downloadBps() const { return m_downloadBps; }
-QString ClashClient::exitRegion() const { return formatExitRegion(m_exitRegion); }
+QString ClashClient::exitRegion() const { return formatExitRegion(m_exitRegion, m_blurIp); }
 QString ClashClient::activeProfile() const { return m_activeProfile; }
 QString ClashClient::message() const { return m_message; }
 bool ClashClient::busy() const { return m_busy; }
@@ -221,6 +221,7 @@ QString ClashClient::draftActiveProfile() const { return m_draftActiveProfile; }
 QVariantMap ClashClient::draftSelections() const { return m_draftSelections; }
 bool ClashClient::draftSortGlobal() const { return m_draftSortGlobal; }
 bool ClashClient::draftAutoTestDelay() const { return m_draftAutoTestDelay; }
+bool ClashClient::draftBlurIp() const { return m_draftBlurIp; }
 bool ClashClient::sortGlobal() const { return m_sortGlobal; }
 QString ClashClient::sortMode() const { return m_sortMode; }
 bool ClashClient::showUnreachable() const { return m_showUnreachable; }
@@ -266,6 +267,17 @@ void ClashClient::setDraftAutoTestDelay(bool enabled)
         return;
     }
     m_draftAutoTestDelay = enabled;
+    m_draftDirty = true;
+    m_preferReset = false;
+    Q_EMIT draftChanged();
+}
+
+void ClashClient::setDraftBlurIp(bool enabled)
+{
+    if (m_draftBlurIp == enabled) {
+        return;
+    }
+    m_draftBlurIp = enabled;
     m_draftDirty = true;
     m_preferReset = false;
     Q_EMIT draftChanged();
@@ -509,6 +521,7 @@ void ClashClient::copyLiveToDraft()
     m_draftSelections = m_selections;
     m_draftSortGlobal = m_sortGlobal;
     m_draftAutoTestDelay = m_autoTestDelay;
+    m_draftBlurIp = m_blurIp;
 }
 
 bool ClashClient::draftMatchesLive() const
@@ -523,7 +536,8 @@ bool ClashClient::draftMatchesLive() const
         && m_draftActiveProfile == m_activeProfile
         && m_draftSelections == m_selections
         && m_draftSortGlobal == m_sortGlobal
-        && m_draftAutoTestDelay == m_autoTestDelay;
+        && m_draftAutoTestDelay == m_autoTestDelay
+        && m_draftBlurIp == m_blurIp;
 }
 
 void ClashClient::revertDraft()
@@ -545,6 +559,7 @@ void ClashClient::applyDefaultsToDraft()
     m_draftMode = QStringLiteral("rule");
     m_draftSortGlobal = false;
     m_draftAutoTestDelay = false;
+    m_draftBlurIp = false;
     m_draftDirty = !draftMatchesLive();
     m_preferReset = true;
     Q_EMIT draftChanged();
@@ -554,7 +569,7 @@ bool ClashClient::draftIsDefaults() const
 {
     return m_draftMixedPort == 7890 && m_draftControllerPort == 9090 && m_draftMihomoPath == QStringLiteral("mihomo")
         && !m_draftCoreDesired && !m_draftSystemProxyEnabled && !m_draftTunEnabled && m_draftMode == QStringLiteral("rule")
-        && !m_draftSortGlobal && !m_draftAutoTestDelay;
+        && !m_draftSortGlobal && !m_draftAutoTestDelay && !m_draftBlurIp;
 }
 
 bool ClashClient::commitSettings()
@@ -618,8 +633,8 @@ bool ClashClient::commitSettings()
             return failed(reply.error());
         }
     }
-    if (m_draftSortGlobal != m_sortGlobal || m_draftAutoTestDelay != m_autoTestDelay) {
-        const QDBusReply<void> reply = m_iface->call(QStringLiteral("SetBehavior"), m_draftSortGlobal, m_draftAutoTestDelay);
+    if (m_draftSortGlobal != m_sortGlobal || m_draftAutoTestDelay != m_autoTestDelay || m_draftBlurIp != m_blurIp) {
+        const QDBusReply<void> reply = m_iface->call(QStringLiteral("SetBehavior"), m_draftSortGlobal, m_draftAutoTestDelay, m_draftBlurIp);
         if (!reply.isValid()) {
             return failed(reply.error());
         }
@@ -748,6 +763,7 @@ void ClashClient::applyStatus(const QVariantMap &status)
     m_showUnreachable = status.value(QStringLiteral("show_unreachable"), true).toBool();
     m_sortPrefs = status.value(QStringLiteral("sort_prefs")).toMap();
     m_autoTestDelay = status.value(QStringLiteral("auto_test_delay")).toBool();
+    m_blurIp = status.value(QStringLiteral("blur_ip")).toBool();
     m_message = status.value(QStringLiteral("message")).toString();
     const QString dbusPrefix = QStringLiteral("org.freedesktop.DBus.Error.Failed: ");
     if (m_message.startsWith(dbusPrefix)) {

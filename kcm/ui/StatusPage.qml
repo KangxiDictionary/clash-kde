@@ -283,7 +283,7 @@ Item {
                 }
                 QQC2.Button {
                     text: tx.i18n("Check region")
-                    enabled: kcm.client.coreRunning && !kcm.client.busy
+                    enabled: !kcm.client.busy
                     onClicked: kcm.client.refreshExitRegion()
 
                     QQC2.ToolTip.visible: hovered

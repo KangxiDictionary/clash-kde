@@ -133,6 +133,12 @@ msgstr "Usare lo stesso ordine per ogni gruppo"
 msgid "Tests the delay of the group you are looking at."
 msgstr "Misura il ritardo del gruppo che stai guardando."
 
+msgid "Blur the IP"
+msgstr "Oscura l'IP"
+
+msgid "Hides the latter half of the exit address."
+msgstr "Nasconde la seconda metà dell'indirizzo di uscita."
+
 msgid "Keeps one sort and filter for every group and profile."
 msgstr "Ricorda un ordine e un filtro per ogni gruppo e ogni profilo."
 

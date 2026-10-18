@@ -133,6 +133,12 @@ msgstr "Utiliser le même tri pour chaque groupe"
 msgid "Tests the delay of the group you are looking at."
 msgstr "Mesure le délai du groupe affiché."
 
+msgid "Blur the IP"
+msgstr "Masquer l'adresse IP"
+
+msgid "Hides the latter half of the exit address."
+msgstr "Masque la seconde moitié de l'adresse de sortie."
+
 msgid "Keeps one sort and filter for every group and profile."
 msgstr "Retient un tri et un filtre pour chaque groupe et chaque profil."
 

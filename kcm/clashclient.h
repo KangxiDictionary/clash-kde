@@ -47,6 +47,7 @@ class ClashClient : public QObject
     Q_PROPERTY(QVariantMap draftSelections READ draftSelections WRITE setDraftSelections NOTIFY draftChanged)
     Q_PROPERTY(bool draftSortGlobal READ draftSortGlobal WRITE setDraftSortGlobal NOTIFY draftChanged)
     Q_PROPERTY(bool draftAutoTestDelay READ draftAutoTestDelay WRITE setDraftAutoTestDelay NOTIFY draftChanged)
+    Q_PROPERTY(bool draftBlurIp READ draftBlurIp WRITE setDraftBlurIp NOTIFY draftChanged)
     Q_PROPERTY(bool sortGlobal READ sortGlobal NOTIFY statusChanged)
     Q_PROPERTY(QString sortMode READ sortMode NOTIFY statusChanged)
     Q_PROPERTY(bool showUnreachable READ showUnreachable NOTIFY statusChanged)
@@ -104,6 +105,8 @@ public:
     void setDraftSortGlobal(bool global);
     bool draftAutoTestDelay() const;
     void setDraftAutoTestDelay(bool enabled);
+    bool draftBlurIp() const;
+    void setDraftBlurIp(bool enabled);
     bool sortGlobal() const;
     QString sortMode() const;
     bool showUnreachable() const;
@@ -205,12 +208,14 @@ private:
     QVariantMap m_draftSelections;
     bool m_draftSortGlobal = false;
     bool m_draftAutoTestDelay = false;
+    bool m_draftBlurIp = false;
     QVariantMap m_selections;
     bool m_sortGlobal = false;
     QString m_sortMode = QStringLiteral("profile");
     bool m_showUnreachable = true;
     QVariantMap m_sortPrefs;
     bool m_autoTestDelay = false;
+    bool m_blurIp = false;
     QVariantList m_profiles;
     QVariantList m_groups;
     QVariantList m_accounts;

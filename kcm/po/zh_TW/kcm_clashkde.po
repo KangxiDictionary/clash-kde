@@ -133,6 +133,12 @@ msgstr "所有策略組使用同一種排序"
 msgid "Tests the delay of the group you are looking at."
 msgstr "打開策略組時自動測試它的延遲。"
 
+msgid "Blur the IP"
+msgstr "模糊 IP"
+
+msgid "Hides the latter half of the exit address."
+msgstr "隱藏出口位址的後半段。"
+
 msgid "Keeps one sort and filter for every group and profile."
 msgstr "記住一套排序和篩選，用在每個策略組和每個設定檔上。"
 
