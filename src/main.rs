@@ -60,7 +60,11 @@ async fn async_main(args: Vec<String>) -> ExitCode {
         .init();
 
     if args.iter().any(|arg| arg == "--restore-proxy") {
-        return match proxy_settings::restore_if_applied(&paths::Paths::from_env()) {
+        let paths = paths::Paths::from_env();
+        let port = state::Settings::load(&paths)
+            .map(|settings| settings.mixed_port)
+            .unwrap_or(7890);
+        return match proxy_settings::restore_if_applied(&paths, port) {
             Ok(()) => ExitCode::SUCCESS,
             Err(error) => {
                 tracing::error!("{error}");

@@ -50,36 +50,41 @@ pub fn still_points_at_us(paths: &Paths, port: u16) -> bool {
 pub fn release_ownership(paths: &Paths, port: u16) -> std::io::Result<()> {
     let _ = fs::remove_file(paths.proxy_flag());
     let _ = fs::remove_file(paths.proxy_backup());
-    if gnome_still_ours(port) {
-        restore_gnome(paths);
-    } else {
-        let _ = fs::remove_file(paths.gnome_proxy_backup());
-    }
+    // 用户改过 KDE 代理之后不再代为恢复。仍指向本程序的 GNOME 代理要关掉，
+    // 否则 Firefox 一类程序还会继续走刚才的端口。
+    finish_gnome(paths, port, false);
     let _ = fs::remove_file(paths.proxy_left());
     Ok(())
 }
 
-pub fn restore_if_applied(paths: &Paths) -> std::io::Result<()> {
-    if !paths.proxy_flag().exists() {
-        return Ok(());
+pub fn restore_if_applied(paths: &Paths, port: u16) -> std::io::Result<()> {
+    let had_flag = paths.proxy_flag().exists();
+    if had_flag {
+        let backup =
+            fs::read_to_string(paths.proxy_backup()).unwrap_or_else(|_| "absent\n".to_string());
+        let original = fs::read_to_string(&paths.kioslaverc).unwrap_or_default();
+        let restored = if let Some(body) = backup.strip_prefix("present\n") {
+            replace_group(&original, "Proxy Settings", Some(body))
+        } else {
+            replace_group(&original, "Proxy Settings", None)
+        };
+        if let Some(parent) = paths.kioslaverc.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        fs::write(&paths.kioslaverc, restored)?;
+        let _ = fs::remove_file(paths.proxy_flag());
+        let _ = fs::remove_file(paths.proxy_backup());
     }
-    let backup =
-        fs::read_to_string(paths.proxy_backup()).unwrap_or_else(|_| "absent\n".to_string());
-    let original = fs::read_to_string(&paths.kioslaverc).unwrap_or_default();
-    let restored = if let Some(body) = backup.strip_prefix("present\n") {
-        replace_group(&original, "Proxy Settings", Some(body))
-    } else {
-        replace_group(&original, "Proxy Settings", None)
-    };
-    if let Some(parent) = paths.kioslaverc.parent() {
-        fs::create_dir_all(parent)?;
+    // 标记文件丢了之后，KDE 或 GNOME 仍可能指着本程序。关闭必须把这两处都关掉。
+    let kde_ours = still_points_at_us(paths, port);
+    if kde_ours {
+        force_kde_proxy_off(paths, port)?;
     }
-    fs::write(&paths.kioslaverc, restored)?;
-    let _ = fs::remove_file(paths.proxy_flag());
-    let _ = fs::remove_file(paths.proxy_backup());
-    restore_gnome(paths);
-    notify_kio();
-    remember_left_proxy(paths)?;
+    let gnome_ours = finish_gnome(paths, port, true);
+    if had_flag || kde_ours || gnome_ours {
+        notify_kio();
+        remember_left_proxy(paths)?;
+    }
     Ok(())
 }
 
@@ -282,22 +287,111 @@ fn apply_gnome(port: u16) {
     }
 }
 
-fn restore_gnome(paths: &Paths) {
-    if cfg!(test) {
-        return;
-    }
-    let Ok(text) = fs::read_to_string(paths.gnome_proxy_backup()) else {
-        gsettings_set("org.gnome.system.proxy", "mode", "'none'");
-        return;
-    };
+fn gnome_backup_is_ours(text: &str, port: u16) -> bool {
+    let mut mode = "";
+    let mut host = "";
+    let mut saved_port = "";
     for line in text.lines() {
         let mut parts = line.splitn(3, '\t');
-        let Some(schema) = parts.next() else { continue };
-        let Some(key) = parts.next() else { continue };
-        let Some(value) = parts.next() else { continue };
-        gsettings_set(schema, key, value);
+        let (Some(schema), Some(key), Some(value)) = (parts.next(), parts.next(), parts.next())
+        else {
+            continue;
+        };
+        if schema == "org.gnome.system.proxy" && key == "mode" {
+            mode = value;
+        } else if schema == "org.gnome.system.proxy.http" && key == "host" {
+            host = value;
+        } else if schema == "org.gnome.system.proxy.http" && key == "port" {
+            saved_port = value;
+        }
     }
+    mode.contains("manual") && endpoint_is_local(host) && saved_port.trim() == port.to_string()
+}
+
+/// 关掉仍由本程序接管的 GNOME 代理。返回值表示这次有没有改动。
+///
+/// Clash Party 在 KDE 上关闭系统代理时，除了把 ProxyType 写成 0，还会把
+/// `org.gnome.system.proxy` 的 mode 和 dconf 的 `/system/proxy/mode` 写成 none。
+/// 只恢复备份不够：备份可能就是上一次没关掉的手动代理，Firefox 会继续使用它。
+fn finish_gnome(paths: &Paths, port: u16, restore_foreign: bool) -> bool {
+    if cfg!(test) {
+        let _ = fs::remove_file(paths.gnome_proxy_backup());
+        return false;
+    }
+    let backup = fs::read_to_string(paths.gnome_proxy_backup()).ok();
+    let live_ours = gnome_still_ours(port);
+    let backup_ours = backup
+        .as_deref()
+        .is_some_and(|text| gnome_backup_is_ours(text, port));
+    let changed = if live_ours && (backup.is_none() || backup_ours || !restore_foreign) {
+        disable_gnome_mode();
+        true
+    } else if restore_foreign && let Some(text) = backup.as_ref().filter(|_| !backup_ours) {
+        for line in text.lines() {
+            let mut parts = line.splitn(3, '\t');
+            let Some(schema) = parts.next() else { continue };
+            let Some(key) = parts.next() else { continue };
+            let Some(value) = parts.next() else { continue };
+            gsettings_set(schema, key, value);
+        }
+        true
+    } else {
+        false
+    };
     let _ = fs::remove_file(paths.gnome_proxy_backup());
+    changed
+}
+
+fn disable_gnome_mode() {
+    gsettings_set("org.gnome.system.proxy", "mode", "'none'");
+    gsettings_set("org.gnome.system.proxy.http", "enabled", "false");
+    dconf_write("/system/proxy/mode", "'none'");
+}
+
+fn force_kde_proxy_off(paths: &Paths, port: u16) -> std::io::Result<()> {
+    if !cfg!(test) {
+        let path = paths.kioslaverc.display().to_string();
+        let wrote = Command::new("kwriteconfig6")
+            .args([
+                "--file",
+                &path,
+                "--group",
+                "Proxy Settings",
+                "--key",
+                "ProxyType",
+                "0",
+            ])
+            .status()
+            .is_ok_and(|status| status.success());
+        if wrote && !still_points_at_us(paths, port) {
+            return Ok(());
+        }
+    }
+    let original = fs::read_to_string(&paths.kioslaverc).unwrap_or_default();
+    let Some(body) = extract_group_body(&original, "Proxy Settings") else {
+        return Ok(());
+    };
+    let mut next = String::new();
+    let mut replaced = false;
+    for line in body.lines() {
+        if line.trim().starts_with("ProxyType=") {
+            next.push_str("ProxyType=0\n");
+            replaced = true;
+        } else {
+            next.push_str(line);
+            next.push('\n');
+        }
+    }
+    if !replaced {
+        next.push_str("ProxyType=0\n");
+    }
+    if let Some(parent) = paths.kioslaverc.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    fs::write(
+        &paths.kioslaverc,
+        replace_group(&original, "Proxy Settings", Some(&next)),
+    )
 }
 
 fn endpoint_is_local(value: &str) -> bool {
@@ -347,6 +441,10 @@ fn gsettings_set(schema: &str, key: &str, value: &str) -> bool {
         .args(["set", schema, key, value])
         .status()
         .is_ok_and(|status| status.success())
+}
+
+fn dconf_write(path: &str, value: &str) {
+    let _ = Command::new("dconf").args(["write", path, value]).status();
 }
 
 fn notify_kio() {
@@ -429,7 +527,7 @@ Bar=2
         assert!(applied.contains("[Later]\nBar=2\n"));
         assert!(!applied.contains("http://old:1"));
 
-        restore_if_applied(&paths).unwrap();
+        restore_if_applied(&paths, 7890).unwrap();
         assert_eq!(fs::read_to_string(&paths.kioslaverc).unwrap(), original);
         assert!(!paths.proxy_flag().exists());
     }
@@ -450,7 +548,7 @@ Bar=2
                 .unwrap()
                 .contains("[Proxy Settings]")
         );
-        restore_if_applied(&paths).unwrap();
+        restore_if_applied(&paths, 7890).unwrap();
         assert_eq!(fs::read_to_string(&paths.kioslaverc).unwrap(), original);
     }
 
@@ -467,10 +565,44 @@ Bar=2
         apply_if_needed(&paths, 7891).unwrap();
         let applied = fs::read_to_string(&paths.kioslaverc).unwrap();
         assert!(applied.contains("127.0.0.1 7891"));
-        restore_if_applied(&paths).unwrap();
+        restore_if_applied(&paths, 7891).unwrap();
         assert_eq!(
             fs::read_to_string(&paths.kioslaverc).unwrap(),
             "[Proxy Settings]\nProxyType=4\n"
         );
+    }
+
+    #[test]
+    fn disable_clears_our_kde_proxy_when_the_flag_is_gone() {
+        let dir = tempfile::tempdir().unwrap();
+        let paths = Paths {
+            config_dir: dir.path().join("config"),
+            data_dir: dir.path().join("data"),
+            kioslaverc: dir.path().join("kioslaverc"),
+        };
+        fs::write(
+            &paths.kioslaverc,
+            "[Proxy Settings]\nProxyType=1\nhttpProxy=http://127.0.0.1 7890\n",
+        )
+        .unwrap();
+        restore_if_applied(&paths, 7890).unwrap();
+        let text = fs::read_to_string(&paths.kioslaverc).unwrap();
+        assert!(text.contains("ProxyType=0"));
+        assert!(!still_points_at_us(&paths, 7890));
+    }
+
+    #[test]
+    fn a_backup_of_our_manual_proxy_counts_as_ours() {
+        let text = "\
+org.gnome.system.proxy\tmode\t'manual'
+org.gnome.system.proxy.http\thost\t'127.0.0.1'
+org.gnome.system.proxy.http\tport\t7890
+";
+        assert!(gnome_backup_is_ours(text, 7890));
+        assert!(!gnome_backup_is_ours(text, 8080));
+        assert!(!gnome_backup_is_ours(
+            "org.gnome.system.proxy\tmode\t'none'\n",
+            7890
+        ));
     }
 }

@@ -144,7 +144,9 @@ impl App {
             if let Err(error) = self.spawn_core().await {
                 tracing::error!("{error}");
             }
-        } else if self.inner.lock().await.system_proxy_applied {
+        } else {
+            // 内核不该运行时，现场的系统代理要撤掉。标记文件丢失时也要关掉
+            // 仍指向本程序的 GNOME 代理。
             self.withdraw_proxy().await;
             self.emit(Event::Status);
         }
@@ -1279,7 +1281,8 @@ impl App {
     }
 
     async fn withdraw_proxy(&self) {
-        if let Err(error) = proxy_settings::restore_if_applied(&self.paths) {
+        let port = self.inner.lock().await.settings.mixed_port;
+        if let Err(error) = proxy_settings::restore_if_applied(&self.paths, port) {
             tracing::error!("恢复 KDE 代理失败: {error}");
             return;
         }
