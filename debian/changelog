@@ -1,3 +1,10 @@
+clash-kde (1.0.1) unstable; urgency=medium
+
+  * Closing the system proxy also turns off the GNOME proxy.
+  * The exit check follows the live path, and the address can be blurred.
+
+ -- KangxiDictionary <108598928+KangxiDictionary@users.noreply.github.com>  Sun, 18 Oct 2026 23:36:00 +0800
+
 clash-kde (1.0.0) unstable; urgency=medium
 
   * First stable release. Replaces 0.1.0.

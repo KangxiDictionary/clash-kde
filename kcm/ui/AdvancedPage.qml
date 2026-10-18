@@ -130,7 +130,7 @@ Item {
 
             QQC2.Label {
                 Kirigami.FormData.label: tx.i18n("Version")
-                text: "0.1.0"
+                text: "1.0.1"
             }
 
             QQC2.Label {
