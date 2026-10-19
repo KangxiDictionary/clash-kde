@@ -16,9 +16,34 @@ Item {
     property string nodeSignature: ""
     property string groupNow: ""
     property string groupType: ""
+    property string nodeQuery: ""
 
     Tx {
         id: tx
+    }
+
+    Fuzzy {
+        id: fuzzy
+    }
+
+    function nodeMatches(name) {
+        return fuzzy.score(root.nodeQuery, name) >= 0;
+    }
+
+    readonly property bool anyNodeShown: {
+        const query = root.nodeQuery;
+        const signature = root.nodeSignature;
+        const showUnreachable = root.viewPref().show;
+        if (query.trim().length === 0) {
+            return signature.length >= 0;
+        }
+        for (let i = 0; i < nodeModel.count; ++i) {
+            const row = nodeModel.get(i);
+            if ((showUnreachable || row.delay_ms !== 0) && fuzzy.score(query, row.name) >= 0) {
+                return true;
+            }
+        }
+        return false;
     }
 
     ListModel {
@@ -358,6 +383,12 @@ Item {
                 onClicked: kcm.client.testGroupDelay(root.selectedGroup)
             }
 
+            Kirigami.SearchField {
+                Layout.fillWidth: true
+                Layout.maximumWidth: Kirigami.Units.gridUnit * 16
+                onTextChanged: root.nodeQuery = text
+            }
+
             QQC2.ToolButton {
                 id: sortButton
                 icon.name: "view-sort"
@@ -416,6 +447,13 @@ Item {
             visible: root.selectedGroup.length > 0
         }
 
+        QQC2.Label {
+            visible: root.selectedGroup.length > 0 && root.nodeQuery.trim().length > 0 && !root.anyNodeShown
+            text: tx.i18n("No matches")
+            opacity: 0.7
+            Layout.fillWidth: true
+        }
+
         ListView {
             Layout.fillWidth: true
             Layout.fillHeight: true
@@ -428,7 +466,7 @@ Item {
                 required property string name
                 required property var delay_ms
                 width: ListView.view ? ListView.view.width : 0
-                visible: root.viewPref().show || delay_ms !== 0
+                visible: (root.viewPref().show || delay_ms !== 0) && root.nodeMatches(name)
                 height: visible ? implicitHeight : 0
                 text: name
                 checked: root.groupNow === name

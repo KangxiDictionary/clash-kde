@@ -136,8 +136,8 @@ msgstr "表示中のグループの遅延を自動で測ります。"
 msgid "Blur the IP"
 msgstr "IP をぼかす"
 
-msgid "Hides the latter half of the exit address."
-msgstr "出口アドレスの後半を隠します。"
+msgid "Hides the latter half of the exit address; right-click copies the full address, and three quick clicks show it."
+msgstr "出口アドレスの後半を隠し、右クリックで完全なアドレスをコピーでき、3回続けてクリックすると表示します。"
 
 msgid "TUN device"
 msgstr "TUN デバイス"
@@ -450,3 +450,12 @@ msgstr "戻る"
 
 msgid "Exit"
 msgstr "出口"
+
+msgid "Other"
+msgstr "その他"
+
+msgid "No matches"
+msgstr "一致なし"
+
+msgid "Copy"
+msgstr "コピー"

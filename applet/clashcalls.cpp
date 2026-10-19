@@ -164,6 +164,40 @@ QString ClashCalls::region() const
     return formatExitRegion(m_region, m_blurIp);
 }
 
+QString ClashCalls::rawRegion() const
+{
+    return m_region;
+}
+
+QString ClashCalls::presentExit(const QString &raw, bool blur) const
+{
+    return formatExitRegion(raw, blur);
+}
+
+QString ClashCalls::presentPlace(const QString &raw) const
+{
+    return formatExitPlace(raw);
+}
+
+QString ClashCalls::presentAddress(const QString &raw, bool blur) const
+{
+    return formatExitAddress(raw, blur);
+}
+
+QString ClashCalls::addressOf(const QString &raw) const
+{
+    return exitAddress(raw);
+}
+
+void ClashCalls::copyText(const QString &text) const
+{
+    const QString value = text.trimmed();
+    if (value.isEmpty() || QGuiApplication::clipboard() == nullptr) {
+        return;
+    }
+    QGuiApplication::clipboard()->setText(value);
+}
+
 QString ClashCalls::listenAddress() const
 {
     return m_listenAddress;

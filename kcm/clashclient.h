@@ -31,6 +31,7 @@ class ClashClient : public QObject
     Q_PROPERTY(qulonglong uploadBps READ uploadBps NOTIFY statusChanged)
     Q_PROPERTY(qulonglong downloadBps READ downloadBps NOTIFY statusChanged)
     Q_PROPERTY(QString exitRegion READ exitRegion NOTIFY statusChanged)
+    Q_PROPERTY(QString exitRaw READ exitRaw NOTIFY statusChanged)
     Q_PROPERTY(QString activeProfile READ activeProfile NOTIFY statusChanged)
     Q_PROPERTY(QString message READ message NOTIFY statusChanged)
     Q_PROPERTY(bool busy READ busy NOTIFY busyChanged)
@@ -59,6 +60,7 @@ class ClashClient : public QObject
     Q_PROPERTY(bool showUnreachable READ showUnreachable NOTIFY statusChanged)
     Q_PROPERTY(QVariantMap sortPrefs READ sortPrefs NOTIFY statusChanged)
     Q_PROPERTY(bool autoTestDelay READ autoTestDelay NOTIFY statusChanged)
+    Q_PROPERTY(bool blurIp READ blurIp NOTIFY statusChanged)
     Q_PROPERTY(bool settingsDirty READ settingsDirty NOTIFY draftChanged)
 
 public:
@@ -83,6 +85,7 @@ public:
     qulonglong uploadBps() const;
     qulonglong downloadBps() const;
     QString exitRegion() const;
+    QString exitRaw() const;
     QString activeProfile() const;
     QString message() const;
     bool busy() const;
@@ -126,6 +129,7 @@ public:
     bool showUnreachable() const;
     QVariantMap sortPrefs() const;
     bool autoTestDelay() const;
+    bool blurIp() const;
     bool settingsDirty() const;
 
     Q_INVOKABLE void setCoreDesired(bool desired);
@@ -135,6 +139,12 @@ public:
     Q_INVOKABLE void setMachineTun(bool enabled);
     Q_INVOKABLE void lockAccounts();
     Q_INVOKABLE QString formatExit(const QString &raw) const;
+    Q_INVOKABLE QString presentExit(const QString &raw, bool blur) const;
+    Q_INVOKABLE QString presentPlace(const QString &raw) const;
+    Q_INVOKABLE QString presentAddress(const QString &raw, bool blur) const;
+    Q_INVOKABLE QString addressOf(const QString &raw) const;
+    Q_INVOKABLE void ensureProxies();
+    Q_INVOKABLE void copyText(const QString &text) const;
     Q_INVOKABLE void reloadAccounts();
     Q_INVOKABLE void startAccount(qulonglong uid);
     Q_INVOKABLE void stopAccount(qulonglong uid);
@@ -179,6 +189,7 @@ private Q_SLOTS:
     void refreshStatus();
     void refreshProfiles();
     void refreshProxies();
+    void noteProxiesChanged();
     void onDelayUpdated(const QString &group, const QString &name, qlonglong delayMs);
 
 private:
@@ -206,6 +217,13 @@ private:
     bool m_accountsUnlocked = false;
     bool m_firewallActive = false;
     qint64 m_firewallCheckedAt = 0;
+    bool m_firewallBusy = false;
+    bool m_statusPending = false;
+    bool m_profilesPending = false;
+    bool m_proxiesPending = false;
+    bool m_proxiesWanted = false;
+    bool m_proxiesLoaded = false;
+    bool m_proxiesStale = true;
     QString m_mode = QStringLiteral("rule");
     QString m_listenHost = QStringLiteral("127.0.0.1");
     int m_mixedPort = 7890;

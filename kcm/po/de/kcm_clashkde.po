@@ -136,8 +136,8 @@ msgstr "Misst die Verzögerung der angezeigten Gruppe von selbst."
 msgid "Blur the IP"
 msgstr "IP unkenntlich machen"
 
-msgid "Hides the latter half of the exit address."
-msgstr "Verbirgt die hintere Hälfte der Ausgangsadresse."
+msgid "Hides the latter half of the exit address; right-click copies the full address, and three quick clicks show it."
+msgstr "Blendet die zweite Hälfte der Ausgangsadresse aus; ein Rechtsklick kopiert die ganze Adresse, und drei schnelle Klicks zeigen sie."
 
 msgid "TUN device"
 msgstr "TUN-Gerät"
@@ -450,3 +450,12 @@ msgstr "Zurück"
 
 msgid "Exit"
 msgstr "Ausgang"
+
+msgid "Other"
+msgstr "Sonstiges"
+
+msgid "No matches"
+msgstr "Keine Treffer"
+
+msgid "Copy"
+msgstr "Kopieren"

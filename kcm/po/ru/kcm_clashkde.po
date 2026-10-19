@@ -136,8 +136,8 @@ msgstr "Проверяет задержку открытой группы."
 msgid "Blur the IP"
 msgstr "Скрывать часть IP"
 
-msgid "Hides the latter half of the exit address."
-msgstr "Скрывает вторую половину адреса выхода."
+msgid "Hides the latter half of the exit address; right-click copies the full address, and three quick clicks show it."
+msgstr "Скрывает вторую половину адреса выхода; правый щелчок копирует полный адрес, а три быстрых щелчка показывают его."
 
 msgid "TUN device"
 msgstr "Устройство TUN"
@@ -450,3 +450,12 @@ msgstr "Назад"
 
 msgid "Exit"
 msgstr "Выход"
+
+msgid "Other"
+msgstr "Прочее"
+
+msgid "No matches"
+msgstr "Нет совпадений"
+
+msgid "Copy"
+msgstr "Копировать"

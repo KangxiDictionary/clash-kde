@@ -27,11 +27,16 @@ Kirigami.Page {
             QQC2.TabBar {
                 id: tabs
                 Layout.fillWidth: true
+                onCurrentIndexChanged: {
+                    if (currentIndex === 2) {
+                        kcm.client.ensureProxies();
+                    }
+                }
                 QQC2.TabButton { text: tx.i18n("Status") }
                 QQC2.TabButton { text: tx.i18n("Profiles") }
                 QQC2.TabButton { text: tx.i18n("Proxies") }
                 QQC2.TabButton { text: tx.i18n("Users") }
-                QQC2.TabButton { text: tx.i18n("Advanced") }
+                QQC2.TabButton { text: tx.i18n("Other") }
             }
             QQC2.BusyIndicator {
                 running: kcm.client.busy

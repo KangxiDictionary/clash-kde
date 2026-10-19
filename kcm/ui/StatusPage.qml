@@ -265,17 +265,68 @@ Item {
             }
 
             ColumnLayout {
+                id: exitColumn
                 spacing: Kirigami.Units.smallSpacing
-                Layout.maximumWidth: Kirigami.Units.gridUnit * 16
+                Layout.fillWidth: true
+                Layout.maximumWidth: Kirigami.Units.gridUnit * 22
+                Layout.alignment: Qt.AlignTop
 
                 QQC2.Label {
                     text: tx.i18n("Exit region")
+                    Layout.fillWidth: true
                 }
                 Kirigami.Heading {
+                    id: exitHeading
+                    property bool revealAddress: false
+                    readonly property string rawExit: kcm.client.exitRaw
+                    readonly property bool hideAddress: kcm.client.blurIp && !revealAddress
+                    readonly property string fullAddress: kcm.client.addressOf(rawExit)
+                    onRawExitChanged: revealAddress = false
                     level: 2
-                    text: kcm.client.exitRegion.length > 0 ? kcm.client.exitRegion : tx.i18n("Not checked yet")
+                    text: rawExit.length === 0 ? tx.i18n("Not checked yet") : kcm.client.presentPlace(rawExit)
                     wrapMode: Text.WordWrap
                     Layout.fillWidth: true
+                }
+                QQC2.Label {
+                    visible: exitHeading.fullAddress.length > 0
+                    text: kcm.client.presentAddress(exitHeading.rawExit, exitHeading.hideAddress)
+                    wrapMode: Text.WrapAnywhere
+                    Layout.fillWidth: true
+
+                    MouseArea {
+                        anchors.fill: parent
+                        acceptedButtons: Qt.LeftButton | Qt.RightButton
+                        property int clicks: 0
+                        onPressed: mouse => {
+                            if (mouse.button === Qt.RightButton && exitHeading.fullAddress.length > 0) {
+                                copyMenu.popup();
+                            }
+                        }
+                        onClicked: mouse => {
+                            if (mouse.button !== Qt.LeftButton) {
+                                return;
+                            }
+                            clicks += 1;
+                            exitClicks.restart();
+                            if (clicks >= 3) {
+                                exitHeading.revealAddress = true;
+                                clicks = 0;
+                            }
+                        }
+                        Timer {
+                            id: exitClicks
+                            interval: 450
+                            onTriggered: parent.clicks = 0
+                        }
+                    }
+
+                    QQC2.Menu {
+                        id: copyMenu
+                        QQC2.MenuItem {
+                            text: tx.i18n("Copy")
+                            onTriggered: kcm.client.copyText(exitHeading.fullAddress)
+                        }
+                    }
                 }
                 QQC2.Button {
                     text: tx.i18n("Check region")

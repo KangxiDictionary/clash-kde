@@ -371,8 +371,8 @@ msgstr "打开策略组时自动测试它的延迟。"
 msgid "Blur the IP"
 msgstr "模糊 IP"
 
-msgid "Hides the latter half of the exit address."
-msgstr "隐藏出口地址的后半段。"
+msgid "Hides the latter half of the exit address; right-click copies the full address, and three quick clicks show it."
+msgstr "隐藏出口地址的后半段；右键复制完整地址，连点三次则显示出来。"
 
 msgid "TUN device"
 msgstr "虚拟网卡"
@@ -451,3 +451,12 @@ msgstr "返回"
 
 msgid "Exit"
 msgstr "出口"
+
+msgid "Other"
+msgstr "其他"
+
+msgid "No matches"
+msgstr "没有匹配项"
+
+msgid "Copy"
+msgstr "复制"

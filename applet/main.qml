@@ -29,6 +29,32 @@ PlasmoidItem {
 
     readonly property var modes: ["rule", "global", "direct"]
 
+    function fuzzyScore(query, text) {
+        const needle = String(query).trim().toLowerCase();
+        if (needle.length === 0) {
+            return 0;
+        }
+        const hay = String(text).toLowerCase();
+        let score = 0;
+        let at = 0;
+        let streak = 0;
+        for (let i = 0; i < needle.length; ++i) {
+            const found = hay.indexOf(needle[i], at);
+            if (found < 0) {
+                return -1;
+            }
+            streak = found === at ? streak + 1 : 1;
+            score += 8 + streak * 6 - (found - at);
+            at = found + 1;
+        }
+        if (hay.startsWith(needle)) {
+            score += 20;
+        }
+        return score;
+    }
+
+    property string profileQuery: ""
+
     function configured(key, fallback) {
         const value = Plasmoid.configuration[key];
         return (typeof value === "string" && value.length > 0) ? value : fallback;
@@ -314,6 +340,46 @@ PlasmoidItem {
         }
         readonly property real popupHeight: Math.min(Math.max(contentHeight, Kirigami.Units.gridUnit * 8), popupLimit)
 
+        property string routeQuery: ""
+
+        function nodeShown(item) {
+            const allowed = root.showUnreachable || item.delayMs !== 0;
+            if (!allowed) {
+                return false;
+            }
+            return root.fuzzyScore(routeQuery, item.nodeName) >= 0;
+        }
+
+        function applyRouteFilter(menu) {
+            let visible = 0;
+            for (let i = 0; i < menu.count; ++i) {
+                const sub = menu.menuAt(i);
+                if (sub) {
+                    const inner = popupRoot.applyRouteFilter(sub);
+                    const show = inner > 0 || popupRoot.routeQuery.trim().length === 0;
+                    sub.visible = show;
+                    if (show) {
+                        visible += 1;
+                    }
+                    continue;
+                }
+                const item = menu.itemAt(i);
+                if (!item || !item.nodeName) {
+                    continue;
+                }
+                const show = popupRoot.nodeShown(item);
+                item.visible = show;
+                item.height = show ? Math.max(item.implicitHeight, Kirigami.Units.gridUnit) : 0;
+                if (show) {
+                    visible += 1;
+                }
+            }
+            if (menu.opened) {
+                root.fitRouteMenu(menu, Math.max(visible, 1));
+            }
+            return visible;
+        }
+
         function closeRouteMenu() {
             routeMenu.close();
         }
@@ -361,7 +427,7 @@ PlasmoidItem {
                 const group = groups[0];
                 const groupName = String(group.name);
                 appendNodes(routeMenu, groupName, String(group.now || ""), root.nodesFor(group));
-                root.fitRouteMenu(routeMenu, routeMenu.count);
+                root.fitRouteMenu(routeMenu, Math.max(popupRoot.applyRouteFilter(routeMenu), 1));
                 maybeAutoTest(groupName);
                 return;
             }
@@ -378,7 +444,7 @@ PlasmoidItem {
                 appendNodes(sub, groupName, String(group.now || ""), root.nodesFor(group));
                 routeMenu.insertMenu(routeMenu.count, sub);
             }
-            root.fitRouteMenu(routeMenu, routeMenu.count);
+            root.fitRouteMenu(routeMenu, Math.max(popupRoot.applyRouteFilter(routeMenu), 1));
         }
 
         function maybeAutoTest(groupName) {
@@ -438,6 +504,15 @@ PlasmoidItem {
                 const sub = menu.menuAt(index);
                 if (sub) {
                     popupRoot.reorderDelayMenu(sub);
+                    let any = false;
+                    for (let n = 0; n < sub.count; ++n) {
+                        const child = sub.itemAt(n);
+                        if (child && child.nodeName && child.visible !== false) {
+                            any = true;
+                            break;
+                        }
+                    }
+                    sub.visible = any || popupRoot.routeQuery.trim().length === 0;
                     index += 1;
                     continue;
                 }
@@ -447,7 +522,7 @@ PlasmoidItem {
                     continue;
                 }
                 if (root.routeSort !== "delay") {
-                    const show = root.showUnreachable || item.delayMs !== 0;
+                    const show = popupRoot.nodeShown(item);
                     item.visible = show;
                     item.height = show ? Math.max(item.implicitHeight, Kirigami.Units.gridUnit) : 0;
                     index += 1;
@@ -470,7 +545,7 @@ PlasmoidItem {
                 });
                 for (let n = 0; n < nodes.length; ++n) {
                     const item = nodes[n];
-                    const show = root.showUnreachable || item.delayMs !== 0;
+                    const show = popupRoot.nodeShown(item);
                     item.visible = show;
                     item.height = show ? Math.max(item.implicitHeight, Kirigami.Units.gridUnit) : 0;
                     menu.insertItem(n, item);
@@ -481,8 +556,11 @@ PlasmoidItem {
             }
             let visible = 0;
             for (let i = 0; i < menu.count; ++i) {
-                if (menu.menuAt(i)) {
-                    visible += 1;
+                const sub = menu.menuAt(i);
+                if (sub) {
+                    if (sub.visible !== false) {
+                        visible += 1;
+                    }
                     continue;
                 }
                 const item = menu.itemAt(i);
@@ -611,11 +689,61 @@ PlasmoidItem {
             }
 
             PC3.Label {
-                visible: session.region.length > 0
-                text: session.region
+                id: regionLabel
+                property bool revealAddress: false
+                readonly property string rawExit: session.rawRegion
+                readonly property string fullAddress: session.addressOf(rawExit)
+                onRawExitChanged: revealAddress = false
+                visible: rawExit.length > 0
+                text: session.presentPlace(rawExit)
+                wrapMode: Text.Wrap
                 font: Kirigami.Theme.smallFont
                 opacity: 0.75
                 Layout.fillWidth: true
+            }
+
+            PC3.Label {
+                visible: regionLabel.fullAddress.length > 0
+                text: session.presentAddress(regionLabel.rawExit, session.blurIp && !regionLabel.revealAddress)
+                wrapMode: Text.WrapAnywhere
+                font: Kirigami.Theme.smallFont
+                opacity: 0.75
+                Layout.fillWidth: true
+
+                MouseArea {
+                    anchors.fill: parent
+                    acceptedButtons: Qt.LeftButton | Qt.RightButton
+                    property int clicks: 0
+                    onPressed: mouse => {
+                        if (mouse.button === Qt.RightButton) {
+                            copyMenu.popup();
+                        }
+                    }
+                    onClicked: mouse => {
+                        if (mouse.button !== Qt.LeftButton) {
+                            return;
+                        }
+                        clicks += 1;
+                        regionClicks.restart();
+                        if (clicks >= 3) {
+                            regionLabel.revealAddress = true;
+                            clicks = 0;
+                        }
+                    }
+                    Timer {
+                        id: regionClicks
+                        interval: 450
+                        onTriggered: parent.clicks = 0
+                    }
+                }
+
+                PC3.Menu {
+                    id: copyMenu
+                    PC3.MenuItem {
+                        text: i18n("Copy")
+                        onTriggered: session.copyText(regionLabel.fullAddress)
+                    }
+                }
             }
 
             PC3.Label {
@@ -700,6 +828,17 @@ PlasmoidItem {
                 Layout.topMargin: Kirigami.Units.smallSpacing
             }
 
+            Kirigami.SearchField {
+                visible: session.profiles.length > 1
+                Layout.fillWidth: true
+                onTextChanged: {
+                    root.profileQuery = text;
+                    if (profileBox) {
+                        profileBox.syncFromSession();
+                    }
+                }
+            }
+
             PC3.ComboBox {
                 id: profileBox
                 visible: session.profiles.length > 0
@@ -715,8 +854,13 @@ PlasmoidItem {
                     const nextNames = [];
                     const nextIds = [];
                     for (let i = 0; i < session.profiles.length; ++i) {
-                        nextNames.push(session.profiles[i].name);
-                        nextIds.push(session.profiles[i].id);
+                        const profile = session.profiles[i];
+                        const current = profile.id === session.activeProfile;
+                        if (!current && root.fuzzyScore(root.profileQuery, profile.name) < 0) {
+                            continue;
+                        }
+                        nextNames.push(profile.name);
+                        nextIds.push(profile.id);
                     }
                     if (nextNames.join("\n") !== profileNames.join("\n")) {
                         profileNames = nextNames;
@@ -749,6 +893,18 @@ PlasmoidItem {
                     const id = profileIds[index];
                     if (id && id !== session.activeProfile) {
                         session.setActiveProfile(id);
+                    }
+                }
+            }
+
+            Kirigami.SearchField {
+                visible: root.selectorGroups.length > 0
+                Layout.fillWidth: true
+                Layout.topMargin: Kirigami.Units.smallSpacing
+                onTextChanged: {
+                    popupRoot.routeQuery = text;
+                    if (routeMenu.count > 0) {
+                        popupRoot.applyRouteFilter(routeMenu);
                     }
                 }
             }

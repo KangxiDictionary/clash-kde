@@ -19,8 +19,10 @@
 #include <QStandardPaths>
 #include <QTemporaryFile>
 #include <QTimer>
+#include <QClipboard>
 #include <QDesktopServices>
 #include <QFileInfo>
+#include <QGuiApplication>
 #include <QUrl>
 #include <unistd.h>
 
@@ -56,28 +58,19 @@ QString canonicalOverride(const QString &text, const QString &fallback)
     return trimmed.isEmpty() ? fallback : trimmed;
 }
 
-bool firewallIsEnabled()
+bool ufwEnabled()
 {
     QFile file(QStringLiteral("/etc/ufw/ufw.conf"));
-    if (file.open(QIODevice::ReadOnly | QIODevice::Text)) {
-        while (!file.atEnd()) {
-            const QString line = QString::fromUtf8(file.readLine()).trimmed();
-            if (line.startsWith(QLatin1Char('#')) || line.isEmpty()) {
-                continue;
-            }
-            if (line == QStringLiteral("ENABLED=yes")) {
-                return true;
-            }
-        }
-    }
-    QProcess process;
-    process.start(QStringLiteral("systemctl"),
-                  {QStringLiteral("is-active"), QStringLiteral("--quiet"), QStringLiteral("firewalld")});
-    if (!process.waitForFinished(400)) {
-        process.kill();
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
         return false;
     }
-    return process.exitStatus() == QProcess::NormalExit && process.exitCode() == 0;
+    while (!file.atEnd()) {
+        const QString line = QString::fromUtf8(file.readLine()).trimmed();
+        if (line == QStringLiteral("ENABLED=yes")) {
+            return true;
+        }
+    }
+    return false;
 }
 }
 
@@ -110,9 +103,9 @@ ClashClient::ClashClient(QObject *parent)
     bus.connect(QStringLiteral("org.kde.clashkde"),
                  QStringLiteral("/org/kde/clashkde"),
                  QStringLiteral("org.kde.clashkde.Manager"),
-                 QStringLiteral("ProxiesChanged"),
-                 this,
-                 SLOT(refreshProxies()));
+                QStringLiteral("ProxiesChanged"),
+                this,
+                SLOT(noteProxiesChanged()));
     bus.connect(QStringLiteral("org.kde.clashkde"),
                 QStringLiteral("/org/kde/clashkde"),
                 QStringLiteral("org.kde.clashkde.Manager"),
@@ -124,7 +117,7 @@ ClashClient::ClashClient(QObject *parent)
     timer->setInterval(1000);
     connect(timer, &QTimer::timeout, this, &ClashClient::refreshStatus);
     timer->start();
-    reload();
+    QTimer::singleShot(0, this, &ClashClient::reload);
 }
 
 bool ClashClient::coreDesired() const { return m_coreDesired; }
@@ -149,6 +142,7 @@ QString ClashClient::overridePath() const { return m_overridePath; }
 qulonglong ClashClient::uploadBps() const { return m_uploadBps; }
 qulonglong ClashClient::downloadBps() const { return m_downloadBps; }
 QString ClashClient::exitRegion() const { return formatExitRegion(m_exitRegion, m_blurIp); }
+QString ClashClient::exitRaw() const { return m_exitRegion; }
 QString ClashClient::activeProfile() const { return m_activeProfile; }
 QString ClashClient::message() const { return m_message; }
 bool ClashClient::busy() const { return m_busy; }
@@ -254,6 +248,7 @@ QString ClashClient::sortMode() const { return m_sortMode; }
 bool ClashClient::showUnreachable() const { return m_showUnreachable; }
 QVariantMap ClashClient::sortPrefs() const { return m_sortPrefs; }
 bool ClashClient::autoTestDelay() const { return m_autoTestDelay; }
+bool ClashClient::blurIp() const { return m_blurIp; }
 
 void ClashClient::setDraftActiveProfile(const QString &id)
 {
@@ -392,6 +387,35 @@ void ClashClient::lockAccounts()
 QString ClashClient::formatExit(const QString &raw) const
 {
     return formatExitRegion(raw, m_blurIp);
+}
+
+QString ClashClient::presentExit(const QString &raw, bool blur) const
+{
+    return formatExitRegion(raw, blur);
+}
+
+QString ClashClient::presentPlace(const QString &raw) const
+{
+    return formatExitPlace(raw);
+}
+
+QString ClashClient::presentAddress(const QString &raw, bool blur) const
+{
+    return formatExitAddress(raw, blur);
+}
+
+QString ClashClient::addressOf(const QString &raw) const
+{
+    return exitAddress(raw);
+}
+
+void ClashClient::copyText(const QString &text) const
+{
+    const QString value = text.trimmed();
+    if (value.isEmpty() || QGuiApplication::clipboard() == nullptr) {
+        return;
+    }
+    QGuiApplication::clipboard()->setText(value);
 }
 
 void ClashClient::reloadAccounts()
@@ -603,7 +627,23 @@ void ClashClient::reload()
 {
     refreshStatus();
     refreshProfiles();
-    refreshProxies();
+}
+
+void ClashClient::ensureProxies()
+{
+    m_proxiesWanted = true;
+    if (!m_proxiesLoaded || m_proxiesStale) {
+        refreshProxies();
+    }
+}
+
+void ClashClient::noteProxiesChanged()
+{
+    if (m_proxiesWanted) {
+        refreshProxies();
+    } else {
+        m_proxiesStale = true;
+    }
 }
 
 void ClashClient::copyLiveToDraft()
@@ -798,48 +838,102 @@ bool ClashClient::commitSettings()
 void ClashClient::refreshFirewall()
 {
     const qint64 now = QDateTime::currentMSecsSinceEpoch();
-    if (m_firewallCheckedAt != 0 && now - m_firewallCheckedAt < 10000) {
+    if (m_firewallBusy || (m_firewallCheckedAt != 0 && now - m_firewallCheckedAt < 30000)) {
         return;
     }
     m_firewallCheckedAt = now;
-    m_firewallActive = firewallIsEnabled();
-}
-
-void ClashClient::refreshStatus()
-{
-    refreshFirewall();
-    QDBusReply<QString> reply = m_iface->call(QStringLiteral("GetStatus"));
-    if (!reply.isValid()) {
-        if (m_message != reply.error().message()) {
-            m_message = reply.error().message();
+    if (ufwEnabled()) {
+        if (!m_firewallActive) {
+            m_firewallActive = true;
             Q_EMIT statusChanged();
         }
         return;
     }
-    const auto document = QJsonDocument::fromJson(reply.value().toUtf8());
-    applyStatus(document.object().toVariantMap());
+    m_firewallBusy = true;
+    auto *process = new QProcess(this);
+    connect(process, &QProcess::finished, this, [this, process](int code, QProcess::ExitStatus status) {
+        m_firewallBusy = false;
+        process->deleteLater();
+        const bool active = status == QProcess::NormalExit && code == 0;
+        if (m_firewallActive != active) {
+            m_firewallActive = active;
+            Q_EMIT statusChanged();
+        }
+    });
+    process->start(QStringLiteral("systemctl"),
+                   {QStringLiteral("is-active"), QStringLiteral("--quiet"), QStringLiteral("firewalld")});
+}
+
+void ClashClient::refreshStatus()
+{
+    if (m_statusPending) {
+        return;
+    }
+    m_statusPending = true;
+    refreshFirewall();
+    auto *watcher = new QDBusPendingCallWatcher(m_iface->asyncCall(QStringLiteral("GetStatus")), this);
+    connect(watcher, &QDBusPendingCallWatcher::finished, this, [this](QDBusPendingCallWatcher *call) {
+        call->deleteLater();
+        m_statusPending = false;
+        const QDBusPendingReply<QString> reply = *call;
+        if (!reply.isValid()) {
+            if (m_message != reply.error().message()) {
+                m_message = reply.error().message();
+                Q_EMIT statusChanged();
+            }
+            return;
+        }
+        const auto document = QJsonDocument::fromJson(reply.value().toUtf8());
+        applyStatus(document.object().toVariantMap());
+    });
 }
 
 void ClashClient::refreshProfiles()
 {
-    QDBusReply<QString> reply = m_iface->call(QStringLiteral("GetProfiles"));
-    if (!reply.isValid()) {
-        reportError(reply.error().message());
+    if (m_profilesPending) {
         return;
     }
-    m_profiles = jsonArray(reply.value());
-    Q_EMIT profilesChanged();
+    m_profilesPending = true;
+    auto *watcher = new QDBusPendingCallWatcher(m_iface->asyncCall(QStringLiteral("GetProfiles")), this);
+    connect(watcher, &QDBusPendingCallWatcher::finished, this, [this](QDBusPendingCallWatcher *call) {
+        call->deleteLater();
+        m_profilesPending = false;
+        const QDBusPendingReply<QString> reply = *call;
+        if (!reply.isValid()) {
+            reportError(reply.error().message());
+            return;
+        }
+        const QVariantList next = jsonArray(reply.value());
+        if (next != m_profiles) {
+            m_profiles = next;
+            Q_EMIT profilesChanged();
+        }
+    });
 }
 
 void ClashClient::refreshProxies()
 {
-    QDBusReply<QString> reply = m_iface->call(QStringLiteral("GetProxies"));
-    if (!reply.isValid()) {
-        reportError(reply.error().message());
+    if (m_proxiesPending) {
         return;
     }
-    m_groups = jsonArray(reply.value());
-    Q_EMIT proxiesChanged();
+    m_proxiesPending = true;
+    auto *watcher = new QDBusPendingCallWatcher(m_iface->asyncCall(QStringLiteral("GetProxies")), this);
+    connect(watcher, &QDBusPendingCallWatcher::finished, this, [this](QDBusPendingCallWatcher *call) {
+        call->deleteLater();
+        m_proxiesPending = false;
+        const QDBusPendingReply<QString> reply = *call;
+        if (!reply.isValid()) {
+            reportError(reply.error().message());
+            return;
+        }
+        m_proxiesLoaded = true;
+        m_proxiesStale = false;
+        const QVariantList next = jsonArray(reply.value());
+        if (next != m_groups) {
+            m_groups = next;
+            Q_EMIT proxiesChanged();
+        }
+    });
 }
 
 void ClashClient::setBusy(bool busy)
@@ -887,47 +981,86 @@ void ClashClient::onDelayUpdated(const QString &group, const QString &name, qlon
 void ClashClient::applyStatus(const QVariantMap &status)
 {
     const bool proxyWasEnabled = m_systemProxyEnabled;
-    m_coreDesired = status.value(QStringLiteral("core_desired")).toBool();
-    m_coreRunning = status.value(QStringLiteral("core_running")).toBool();
-    m_systemProxyEnabled = status.value(QStringLiteral("system_proxy_enabled")).toBool();
-    m_systemProxyApplied = status.value(QStringLiteral("system_proxy_applied")).toBool();
-    m_tunEnabled = status.value(QStringLiteral("tun_enabled")).toBool();
-    m_tunMachine = status.value(QStringLiteral("tun_machine")).toBool();
-    m_kdeProxy = status.value(QStringLiteral("kde_proxy")).toString();
-    if (m_kdeProxy.isEmpty()) {
-        m_kdeProxy = QStringLiteral("off");
+    const bool coreDesired = status.value(QStringLiteral("core_desired")).toBool();
+    const bool coreRunning = status.value(QStringLiteral("core_running")).toBool();
+    const bool systemProxyEnabled = status.value(QStringLiteral("system_proxy_enabled")).toBool();
+    const bool systemProxyApplied = status.value(QStringLiteral("system_proxy_applied")).toBool();
+    const bool tunEnabled = status.value(QStringLiteral("tun_enabled")).toBool();
+    const bool tunMachine = status.value(QStringLiteral("tun_machine")).toBool();
+    QString kdeProxy = status.value(QStringLiteral("kde_proxy")).toString();
+    if (kdeProxy.isEmpty()) {
+        kdeProxy = QStringLiteral("off");
     }
-    m_gnomeProxy = status.value(QStringLiteral("gnome_proxy")).toString();
-    if (m_gnomeProxy.isEmpty()) {
-        m_gnomeProxy = QStringLiteral("off");
+    QString gnomeProxy = status.value(QStringLiteral("gnome_proxy")).toString();
+    if (gnomeProxy.isEmpty()) {
+        gnomeProxy = QStringLiteral("off");
     }
-    m_mode = status.value(QStringLiteral("mode")).toString();
-    m_listenHost = status.value(QStringLiteral("listen_host"), QStringLiteral("127.0.0.1")).toString();
-    m_mixedPort = status.value(QStringLiteral("mixed_port")).toInt();
-    m_controllerPort = status.value(QStringLiteral("controller_port")).toInt();
-    m_mihomoPath = status.value(QStringLiteral("mihomo_path")).toString();
-    m_overridePath = status.value(QStringLiteral("override_path")).toString();
-    m_overrideDefault = status.value(QStringLiteral("override_default")).toString();
-    if (m_overrideDefault.isEmpty()) {
-        m_overrideDefault = m_overridePath;
+    const QString mode = status.value(QStringLiteral("mode")).toString();
+    const QString listenHost = status.value(QStringLiteral("listen_host"), QStringLiteral("127.0.0.1")).toString();
+    const int mixedPort = status.value(QStringLiteral("mixed_port")).toInt();
+    const int controllerPort = status.value(QStringLiteral("controller_port")).toInt();
+    const QString mihomoPath = status.value(QStringLiteral("mihomo_path")).toString();
+    const QString overridePath = status.value(QStringLiteral("override_path")).toString();
+    QString overrideDefault = status.value(QStringLiteral("override_default")).toString();
+    if (overrideDefault.isEmpty()) {
+        overrideDefault = overridePath;
     }
-    m_tunDevice = status.value(QStringLiteral("tun_device")).toString();
-    m_uploadBps = status.value(QStringLiteral("upload_bps")).toULongLong();
-    m_downloadBps = status.value(QStringLiteral("download_bps")).toULongLong();
-    m_exitRegion = status.value(QStringLiteral("exit_region")).toString();
-    m_activeProfile = status.value(QStringLiteral("active_profile")).toString();
-    m_selections = status.value(QStringLiteral("selections")).toMap();
-    m_sortGlobal = status.value(QStringLiteral("sort_global")).toBool();
-    m_sortMode = status.value(QStringLiteral("sort_mode"), QStringLiteral("profile")).toString();
-    m_showUnreachable = status.value(QStringLiteral("show_unreachable"), true).toBool();
-    m_sortPrefs = status.value(QStringLiteral("sort_prefs")).toMap();
-    m_autoTestDelay = status.value(QStringLiteral("auto_test_delay")).toBool();
-    m_blurIp = status.value(QStringLiteral("blur_ip")).toBool();
-    m_message = status.value(QStringLiteral("message")).toString();
+    const QString tunDevice = status.value(QStringLiteral("tun_device")).toString();
+    const qulonglong uploadBps = status.value(QStringLiteral("upload_bps")).toULongLong();
+    const qulonglong downloadBps = status.value(QStringLiteral("download_bps")).toULongLong();
+    const QString exitRegion = status.value(QStringLiteral("exit_region")).toString();
+    const QString activeProfile = status.value(QStringLiteral("active_profile")).toString();
+    const QVariantMap selections = status.value(QStringLiteral("selections")).toMap();
+    const bool sortGlobal = status.value(QStringLiteral("sort_global")).toBool();
+    const QString sortMode = status.value(QStringLiteral("sort_mode"), QStringLiteral("profile")).toString();
+    const bool showUnreachable = status.value(QStringLiteral("show_unreachable"), true).toBool();
+    const QVariantMap sortPrefs = status.value(QStringLiteral("sort_prefs")).toMap();
+    const bool autoTestDelay = status.value(QStringLiteral("auto_test_delay")).toBool();
+    const bool blurIp = status.value(QStringLiteral("blur_ip")).toBool();
+    QString message = status.value(QStringLiteral("message")).toString();
     const QString dbusPrefix = QStringLiteral("org.freedesktop.DBus.Error.Failed: ");
-    if (m_message.startsWith(dbusPrefix)) {
-        m_message = m_message.mid(dbusPrefix.size());
+    if (message.startsWith(dbusPrefix)) {
+        message = message.mid(dbusPrefix.size());
     }
+    if (m_coreDesired == coreDesired && m_coreRunning == coreRunning && m_systemProxyEnabled == systemProxyEnabled
+        && m_systemProxyApplied == systemProxyApplied && m_tunEnabled == tunEnabled && m_tunMachine == tunMachine
+        && m_kdeProxy == kdeProxy && m_gnomeProxy == gnomeProxy && m_mode == mode && m_listenHost == listenHost
+        && m_mixedPort == mixedPort && m_controllerPort == controllerPort && m_mihomoPath == mihomoPath
+        && m_overridePath == overridePath && m_overrideDefault == overrideDefault && m_tunDevice == tunDevice
+        && m_uploadBps == uploadBps && m_downloadBps == downloadBps && m_exitRegion == exitRegion
+        && m_activeProfile == activeProfile && m_selections == selections && m_sortGlobal == sortGlobal
+        && m_sortMode == sortMode && m_showUnreachable == showUnreachable && m_sortPrefs == sortPrefs
+        && m_autoTestDelay == autoTestDelay && m_blurIp == blurIp && m_message == message) {
+        return;
+    }
+    m_coreDesired = coreDesired;
+    m_coreRunning = coreRunning;
+    m_systemProxyEnabled = systemProxyEnabled;
+    m_systemProxyApplied = systemProxyApplied;
+    m_tunEnabled = tunEnabled;
+    m_tunMachine = tunMachine;
+    m_kdeProxy = kdeProxy;
+    m_gnomeProxy = gnomeProxy;
+    m_mode = mode;
+    m_listenHost = listenHost;
+    m_mixedPort = mixedPort;
+    m_controllerPort = controllerPort;
+    m_mihomoPath = mihomoPath;
+    m_overridePath = overridePath;
+    m_overrideDefault = overrideDefault;
+    m_tunDevice = tunDevice;
+    m_uploadBps = uploadBps;
+    m_downloadBps = downloadBps;
+    m_exitRegion = exitRegion;
+    m_activeProfile = activeProfile;
+    m_selections = selections;
+    m_sortGlobal = sortGlobal;
+    m_sortMode = sortMode;
+    m_showUnreachable = showUnreachable;
+    m_sortPrefs = sortPrefs;
+    m_autoTestDelay = autoTestDelay;
+    m_blurIp = blurIp;
+    m_message = message;
     const bool releasedOutside = proxyWasEnabled && !m_systemProxyEnabled;
     if (!m_draftDirty && !draftMatchesLive()) {
         copyLiveToDraft();

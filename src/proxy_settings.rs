@@ -31,20 +31,8 @@ pub fn kde_proxy_label(paths: &Paths, port: u16) -> &'static str {
     let Ok(text) = fs::read_to_string(&paths.kioslaverc) else {
         return "off";
     };
-    let Some(body) = extract_group_body(&text, "Proxy Settings") else {
-        return "off";
-    };
-    let mut proxy_type = "";
-    let mut http_proxy = "";
-    for line in body.lines() {
-        let line = line.trim();
-        if let Some(value) = line.strip_prefix("ProxyType=") {
-            proxy_type = value.trim();
-        } else if let Some(value) = line.strip_prefix("httpProxy=") {
-            http_proxy = value.trim();
-        }
-    }
-    classify_manual_proxy(proxy_type, http_proxy, "", port)
+    let (proxy_type, http_proxy) = proxy_fields(&text);
+    classify_manual_proxy(&proxy_type, &http_proxy, "", port)
 }
 
 pub fn gnome_proxy_label(port: u16) -> &'static str {
@@ -88,20 +76,8 @@ pub fn still_points_at_us(paths: &Paths, port: u16) -> bool {
     let Ok(text) = fs::read_to_string(&paths.kioslaverc) else {
         return false;
     };
-    let Some(body) = extract_group_body(&text, "Proxy Settings") else {
-        return false;
-    };
-    let mut proxy_type = "";
-    let mut http_proxy = "";
-    for line in body.lines() {
-        let line = line.trim();
-        if let Some(value) = line.strip_prefix("ProxyType=") {
-            proxy_type = value.trim();
-        } else if let Some(value) = line.strip_prefix("httpProxy=") {
-            http_proxy = value.trim();
-        }
-    }
-    proxy_type == "1" && endpoint_is_local(http_proxy) && endpoint_port(http_proxy) == Some(port)
+    let (proxy_type, http_proxy) = proxy_fields(&text);
+    proxy_type == "1" && endpoint_is_local(&http_proxy) && endpoint_port(&http_proxy) == Some(port)
 }
 
 pub fn release_ownership(paths: &Paths, port: u16) -> std::io::Result<()> {
@@ -431,7 +407,10 @@ fn force_kde_proxy_off(paths: &Paths, port: u16) -> std::io::Result<()> {
     let mut next = String::new();
     let mut replaced = false;
     for line in body.lines() {
-        if line.trim().starts_with("ProxyType=") {
+        if line
+            .split_once('=')
+            .is_some_and(|(key, _)| key.trim() == "ProxyType")
+        {
             next.push_str("ProxyType=0\n");
             replaced = true;
         } else {
@@ -449,6 +428,25 @@ fn force_kde_proxy_off(paths: &Paths, port: u16) -> std::io::Result<()> {
         &paths.kioslaverc,
         replace_group(&original, "Proxy Settings", Some(&next)),
     )
+}
+
+fn proxy_fields(text: &str) -> (String, String) {
+    let Some(body) = extract_group_body(text, "Proxy Settings") else {
+        return (String::new(), String::new());
+    };
+    let mut proxy_type = String::new();
+    let mut http_proxy = String::new();
+    for line in body.lines() {
+        let Some((key, value)) = line.split_once('=') else {
+            continue;
+        };
+        match key.trim() {
+            "ProxyType" => proxy_type = value.trim().to_string(),
+            "httpProxy" => http_proxy = value.trim().to_string(),
+            _ => {}
+        }
+    }
+    (proxy_type, http_proxy)
 }
 
 fn endpoint_is_local(value: &str) -> bool {
@@ -537,6 +535,30 @@ mod tests {
             "other"
         );
         assert_eq!(classify_manual_proxy("4", "", "", 7890), "other");
+    }
+
+    #[test]
+    fn spaced_kde_keys_are_read() {
+        let dir = tempfile::tempdir().unwrap();
+        let paths = Paths {
+            config_dir: dir.path().join("config"),
+            data_dir: dir.path().join("data"),
+            kioslaverc: dir.path().join("kioslaverc"),
+        };
+        fs::write(
+            &paths.kioslaverc,
+            "[Proxy Settings]\nProxyType = 1\nhttpProxy = http://127.0.0.1:7890\n",
+        )
+        .unwrap();
+        assert_eq!(kde_proxy_label(&paths, 7890), "ours");
+        assert!(still_points_at_us(&paths, 7890));
+        fs::write(
+            &paths.kioslaverc,
+            "[Proxy Settings]\nProxyType = 0\nhttpProxy = http://127.0.0.1:7890\n",
+        )
+        .unwrap();
+        assert_eq!(kde_proxy_label(&paths, 7890), "off");
+        assert!(!still_points_at_us(&paths, 7890));
     }
 
     #[test]

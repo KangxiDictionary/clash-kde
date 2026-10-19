@@ -169,3 +169,6 @@ msgstr "Глобальный"
 
 msgid "Direct"
 msgstr "Напрямую"
+
+msgid "Copy"
+msgstr "Копировать"

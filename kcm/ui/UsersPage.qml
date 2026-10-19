@@ -37,7 +37,7 @@ Flickable {
         if (state === "other") {
             return tx.i18n("Pointing somewhere else.");
         }
-        return tx.i18n("Not set.");
+        return tx.i18n("Off");
     }
 
     function captureText(enabled, machine) {
@@ -180,7 +180,7 @@ Flickable {
 
                     QQC2.ToolTip.visible: hovered
                     QQC2.ToolTip.delay: 700
-                    QQC2.ToolTip.text: tx.i18n("Hides the latter half of the exit address.")
+                    QQC2.ToolTip.text: tx.i18n("Hides the latter half of the exit address; right-click copies the full address, and three quick clicks show it.")
                 }
 
                 FormCard.FormDelegateSeparator {}
@@ -443,13 +443,52 @@ Flickable {
                 FormCard.FormDelegateSeparator {}
 
                 FormCard.FormTextDelegate {
+                    id: exitLine
+                    readonly property string rawExit: root.detailAccount ? (root.detailAccount.exit_region || "") : ""
+                    property bool revealAddress: false
+                    onRawExitChanged: revealAddress = false
                     text: tx.i18n("Exit")
                     description: {
-                        if (!root.detailAccount) {
-                            return "";
+                        if (rawExit.length === 0) {
+                            return "—";
                         }
-                        const formatted = kcm.client.formatExit(root.detailAccount.exit_region || "");
+                        const formatted = kcm.client.presentExit(rawExit, kcm.client.blurIp && !revealAddress);
                         return formatted.length > 0 ? formatted : "—";
+                    }
+
+                    MouseArea {
+                        anchors.fill: parent
+                        acceptedButtons: Qt.LeftButton | Qt.RightButton
+                        property int clicks: 0
+                        onPressed: mouse => {
+                            if (mouse.button === Qt.RightButton && kcm.client.addressOf(exitLine.rawExit).length > 0) {
+                                copyMenu.popup();
+                            }
+                        }
+                        onClicked: mouse => {
+                            if (mouse.button !== Qt.LeftButton) {
+                                return;
+                            }
+                            clicks += 1;
+                            exitClicks.restart();
+                            if (clicks >= 3) {
+                                exitLine.revealAddress = true;
+                                clicks = 0;
+                            }
+                        }
+                        Timer {
+                            id: exitClicks
+                            interval: 450
+                            onTriggered: parent.clicks = 0
+                        }
+                    }
+
+                    QQC2.Menu {
+                        id: copyMenu
+                        QQC2.MenuItem {
+                            text: tx.i18n("Copy")
+                            onTriggered: kcm.client.copyText(kcm.client.addressOf(exitLine.rawExit))
+                        }
                     }
                 }
 

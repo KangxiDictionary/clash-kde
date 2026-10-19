@@ -169,3 +169,6 @@ msgstr "Globale"
 
 msgid "Direct"
 msgstr "Diretto"
+
+msgid "Copy"
+msgstr "Copia"

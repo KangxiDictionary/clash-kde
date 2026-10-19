@@ -25,6 +25,7 @@ class ClashCalls : public QObject
     Q_PROPERTY(QString mode READ mode NOTIFY changed)
     Q_PROPERTY(QString message READ message NOTIFY changed)
     Q_PROPERTY(QString region READ region NOTIFY changed)
+    Q_PROPERTY(QString rawRegion READ rawRegion NOTIFY changed)
     Q_PROPERTY(QString listenAddress READ listenAddress NOTIFY changed)
     Q_PROPERTY(double uploadBps READ uploadBps NOTIFY changed)
     Q_PROPERTY(double downloadBps READ downloadBps NOTIFY changed)
@@ -47,6 +48,7 @@ public:
     QString mode() const;
     QString message() const;
     QString region() const;
+    QString rawRegion() const;
     QString listenAddress() const;
     double uploadBps() const;
     double downloadBps() const;
@@ -64,6 +66,11 @@ public:
     Q_INVOKABLE void testGroupDelay(const QString &group);
     Q_INVOKABLE bool groupDelayTesting(const QString &group) const;
     Q_INVOKABLE bool copyTerminalProxyCommand();
+    Q_INVOKABLE QString presentExit(const QString &raw, bool blur) const;
+    Q_INVOKABLE QString presentPlace(const QString &raw) const;
+    Q_INVOKABLE QString presentAddress(const QString &raw, bool blur) const;
+    Q_INVOKABLE QString addressOf(const QString &raw) const;
+    Q_INVOKABLE void copyText(const QString &text) const;
 
 public Q_SLOTS:
     void refresh();

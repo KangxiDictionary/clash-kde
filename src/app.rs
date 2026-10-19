@@ -34,6 +34,7 @@ enum ExitKind {
 }
 
 struct Running {
+    pid: u32,
     kill: oneshot::Sender<()>,
     done: oneshot::Receiver<()>,
     generation: u64,
@@ -66,10 +67,19 @@ fn region_probe_of(inner: &Inner) -> controller::RegionProbe {
     )
 }
 
+struct LabelCache {
+    at: Instant,
+    port: u16,
+    kde: String,
+    gnome: String,
+}
+
 pub struct App {
     paths: Paths,
     inner: Mutex<Inner>,
     delay_tests: Mutex<HashSet<String>>,
+    proxy_labels: Mutex<LabelCache>,
+    reconciled_at: Mutex<Instant>,
     generation: AtomicU64,
     region_epoch: AtomicU64,
     events: broadcast::Sender<Event>,
@@ -131,6 +141,13 @@ impl App {
         Ok(Arc::new(Self {
             paths: paths.clone(),
             delay_tests: Mutex::new(HashSet::new()),
+            proxy_labels: Mutex::new(LabelCache {
+                at: Instant::now() - Duration::from_secs(60),
+                port: 0,
+                kde: "off".to_string(),
+                gnome: "off".to_string(),
+            }),
+            reconciled_at: Mutex::new(Instant::now() - Duration::from_secs(60)),
             generation: AtomicU64::new(1),
             region_epoch: AtomicU64::new(0),
             events,
@@ -177,7 +194,7 @@ impl App {
     }
 
     pub async fn shutdown(&self) {
-        self.stop_process().await;
+        let _ = self.stop_process().await;
         self.withdraw_proxy().await;
     }
 
@@ -210,11 +227,11 @@ impl App {
                 .save(&self.paths)
                 .map_err(|error| error.to_string())?;
         }
-        self.stop_process().await;
+        let stopped = self.stop_process().await;
         self.withdraw_proxy().await;
         self.schedule_region_lookup();
         self.emit(Event::Status);
-        Ok(())
+        stopped
     }
 
     pub async fn restart(self: &Arc<Self>) -> Result<(), String> {
@@ -252,30 +269,12 @@ impl App {
             let path = self.inner.lock().await.settings.mihomo_path.clone();
             let binary = core::resolve_binary(&path)?;
             crate::privilege::ensure_system_binary(&binary)?;
-            crate::admin::authorize_tun().await?;
-        } else {
-            crate::admin::revoke_tun().await?;
+            let grant = crate::admin::own_grant().await.unwrap_or_default();
+            if grant != "user" {
+                crate::admin::authorize_tun().await?;
+            }
         }
-        let running = {
-            let mut inner = self.inner.lock().await;
-            inner.settings.tun_enabled = enabled;
-            inner.settings.tun_machine = false;
-            inner
-                .settings
-                .save(&self.paths)
-                .map_err(|error| error.to_string())?;
-            inner.message.clear();
-            inner.core_running
-        };
-        let started = if running {
-            self.spawn_core().await
-        } else {
-            self.sync_system_proxy().await?;
-            self.emit(Event::Status);
-            Ok(())
-        };
-        self.schedule_region_lookup();
-        started
+        self.finish_capture(enabled, false).await
     }
 
     pub async fn set_machine_tun(self: &Arc<Self>, enabled: bool) -> Result<(), String> {
@@ -284,19 +283,26 @@ impl App {
             let binary = core::resolve_binary(&path)?;
             crate::privilege::ensure_system_binary(&binary)?;
             crate::admin::authorize_machine_tun().await?;
-        } else {
-            crate::admin::revoke_tun().await?;
         }
+        self.finish_capture(enabled, enabled).await
+    }
+
+    async fn finish_capture(self: &Arc<Self>, enabled: bool, machine: bool) -> Result<(), String> {
         let running = {
             let mut inner = self.inner.lock().await;
             inner.settings.tun_enabled = enabled;
-            inner.settings.tun_machine = enabled;
+            inner.settings.tun_machine = machine;
             inner
                 .settings
                 .save(&self.paths)
                 .map_err(|error| error.to_string())?;
             inner.message.clear();
             inner.core_running
+        };
+        let revoke = if enabled {
+            None
+        } else {
+            Some(tokio::spawn(crate::admin::revoke_quickly()))
         };
         let started = if running {
             self.spawn_core().await
@@ -306,7 +312,20 @@ impl App {
             Ok(())
         };
         self.schedule_region_lookup();
-        started
+        let revoke_error = match revoke {
+            Some(task) => match task.await {
+                Ok(Err(error)) => Some(error),
+                Ok(Ok(())) => None,
+                Err(_) => Some("没能撤销 TUN 授权".to_string()),
+            },
+            None => None,
+        };
+        match (started, revoke_error) {
+            (Err(start), Some(revoke)) => Err(format!("{start}\n{revoke}")),
+            (Err(start), None) => Err(start),
+            (Ok(()), Some(revoke)) => Err(revoke),
+            (Ok(()), None) => Ok(()),
+        }
     }
 
     pub async fn set_mode(&self, mode: &str) -> Result<(), String> {
@@ -469,7 +488,9 @@ impl App {
         match follow_up {
             Some(true) => self.spawn_core().await?,
             Some(false) => {
-                self.stop_process().await;
+                if let Err(error) = self.stop_process().await {
+                    self.set_message(error).await;
+                }
                 self.withdraw_proxy().await;
                 self.set_message("没有选择配置".to_string()).await;
                 self.emit(Event::Status);
@@ -928,15 +949,62 @@ impl App {
                 .map_err(|error| error.to_string())?;
             was_tun
         };
-        if was_tun {
-            let _ = crate::admin::revoke_tun().await;
-        }
+        let revoke = if was_tun {
+            Some(tokio::spawn(crate::admin::revoke_quickly()))
+        } else {
+            None
+        };
         self.stop().await?;
+        if let Some(task) = revoke {
+            match task.await {
+                Ok(result) => result?,
+                Err(_) => return Err("没能撤销 TUN 授权".to_string()),
+            }
+        }
         Ok(())
     }
 
-    pub async fn status_json(&self) -> String {
+    async fn reconcile_if_due(&self) {
+        {
+            let mut at = self.reconciled_at.lock().await;
+            if at.elapsed() < Duration::from_secs(3) {
+                return;
+            }
+            *at = Instant::now();
+        }
         self.reconcile_external_proxy().await;
+    }
+
+    async fn proxy_labels(&self, port: u16) -> (String, String) {
+        {
+            let cache = self.proxy_labels.lock().await;
+            if cache.port == port && cache.at.elapsed() < Duration::from_secs(3) {
+                return (cache.kde.clone(), cache.gnome.clone());
+            }
+        }
+        let paths = self.paths.clone();
+        let (kde, gnome) = tokio::task::spawn_blocking(move || {
+            (
+                proxy_settings::kde_proxy_label(&paths, port).to_string(),
+                proxy_settings::gnome_proxy_label(port).to_string(),
+            )
+        })
+        .await
+        .unwrap_or_else(|_| ("off".to_string(), "off".to_string()));
+        let mut cache = self.proxy_labels.lock().await;
+        *cache = LabelCache {
+            at: Instant::now(),
+            port,
+            kde: kde.clone(),
+            gnome: gnome.clone(),
+        };
+        (kde, gnome)
+    }
+
+    pub async fn status_json(&self) -> String {
+        self.reconcile_if_due().await;
+        let port = self.inner.lock().await.settings.mixed_port;
+        let (kde_proxy, gnome_proxy) = self.proxy_labels(port).await;
         let inner = self.inner.lock().await;
         let status = Status {
             core_desired: inner.settings.core_desired,
@@ -945,9 +1013,8 @@ impl App {
             system_proxy_applied: inner.system_proxy_applied,
             tun_enabled: inner.settings.tun_enabled,
             tun_machine: inner.settings.tun_machine,
-            kde_proxy: proxy_settings::kde_proxy_label(&self.paths, inner.settings.mixed_port)
-                .to_string(),
-            gnome_proxy: proxy_settings::gnome_proxy_label(inner.settings.mixed_port).to_string(),
+            kde_proxy,
+            gnome_proxy,
             mode: inner.settings.mode.clone(),
             listen_host: "127.0.0.1".to_string(),
             mixed_port: inner.settings.mixed_port,
@@ -983,7 +1050,11 @@ impl App {
         if let Err(error) = profile::write_runtime_config(&self.paths, &settings) {
             return self.fail_before_start(error).await;
         }
-        self.stop_process().await;
+        if let Err(error) = self.stop_process().await {
+            self.mark_stopped(error.clone()).await;
+            self.emit(Event::Status);
+            return Err(error);
+        }
 
         let launch = self.launch_process(settings, binary).await;
         if let Err(error) = launch {
@@ -1044,7 +1115,7 @@ impl App {
                 self.set_message(hint).await;
                 self.emit(Event::Status);
             }
-            tokio::time::sleep(Duration::from_millis(400)).await;
+            tokio::time::sleep(Duration::from_millis(50)).await;
         }
     }
 
@@ -1099,6 +1170,7 @@ impl App {
             inner.download_bps = 0;
             inner.message.clear();
             inner.running = Some(Running {
+                pid: process.pid(),
                 kill: kill_tx,
                 done: done_rx,
                 generation,
@@ -1233,7 +1305,7 @@ impl App {
         }
     }
 
-    async fn stop_process(&self) {
+    async fn stop_process(&self) -> Result<(), String> {
         let running = {
             let mut inner = self.inner.lock().await;
             inner.core_running = false;
@@ -1241,16 +1313,35 @@ impl App {
             inner.download_bps = 0;
             inner.running.take()
         };
-        if let Some(running) = running {
-            if let Some(task) = running.traffic {
-                task.abort();
-            }
-            if let Some(task) = running.region {
-                task.abort();
-            }
-            let _ = running.kill.send(());
-            let _ = tokio::time::timeout(Duration::from_secs(3), running.done).await;
+        let Some(running) = running else {
+            return Ok(());
+        };
+        if let Some(task) = running.traffic {
+            task.abort();
         }
+        if let Some(task) = running.region {
+            task.abort();
+        }
+        let pid = running.pid;
+        let _ = running.kill.send(());
+        if tokio::time::timeout(Duration::from_millis(800), running.done)
+            .await
+            .is_err()
+        {
+            unsafe {
+                libc::kill(pid as i32, libc::SIGKILL);
+            }
+            for _ in 0..5 {
+                if !core::process_alive(pid) {
+                    return Ok(());
+                }
+                tokio::time::sleep(Duration::from_millis(40)).await;
+            }
+            if core::process_alive(pid) {
+                return Err("内核没有在限定时间内退出".to_string());
+            }
+        }
+        Ok(())
     }
 
     pub async fn on_core_exit(self: &Arc<Self>, notice: ExitNotice) {
@@ -1368,6 +1459,7 @@ impl App {
         } else {
             self.withdraw_proxy().await;
         }
+        self.proxy_labels.lock().await.at = Instant::now() - Duration::from_secs(60);
         Ok(())
     }
 
@@ -1378,6 +1470,7 @@ impl App {
             return;
         }
         self.inner.lock().await.system_proxy_applied = false;
+        self.proxy_labels.lock().await.at = Instant::now() - Duration::from_secs(60);
     }
 
     async fn mark_stopped(&self, message: String) {

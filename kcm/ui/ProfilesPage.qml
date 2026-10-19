@@ -5,8 +5,40 @@ import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
 
 Item {
+    id: root
+
+    property string profileQuery: ""
+
     Tx {
         id: tx
+    }
+
+    Fuzzy {
+        id: fuzzy
+    }
+
+    readonly property var shownProfiles: {
+        const query = root.profileQuery;
+        const all = kcm.client.profiles;
+        if (query.trim().length === 0) {
+            return all;
+        }
+        const ranked = [];
+        for (let i = 0; i < all.length; ++i) {
+            const weight = fuzzy.score(query, all[i].name);
+            if (weight >= 0) {
+                ranked.push({
+                    item: all[i],
+                    weight: weight
+                });
+            }
+        }
+        ranked.sort((left, right) => right.weight - left.weight || String(left.item.name).localeCompare(String(right.item.name)));
+        const out = [];
+        for (let i = 0; i < ranked.length; ++i) {
+            out.push(ranked[i].item);
+        }
+        return out;
     }
 
     function formatUpdated(unix) {
@@ -275,9 +307,22 @@ Item {
             Layout.fillWidth: true
         }
 
+        Kirigami.SearchField {
+            Layout.fillWidth: true
+            visible: kcm.client.profiles.length > 0
+            onTextChanged: root.profileQuery = text
+        }
+
         QQC2.Label {
             visible: kcm.client.profiles.length === 0
             text: tx.i18n("No profiles yet")
+            opacity: 0.7
+            Layout.fillWidth: true
+        }
+
+        QQC2.Label {
+            visible: kcm.client.profiles.length > 0 && root.shownProfiles.length === 0
+            text: tx.i18n("No matches")
             opacity: 0.7
             Layout.fillWidth: true
         }
@@ -286,7 +331,7 @@ Item {
             Layout.fillWidth: true
             Layout.fillHeight: true
             clip: true
-            model: kcm.client.profiles
+            model: root.shownProfiles
 
             delegate: QQC2.RadioDelegate {
                 id: profileDelegate

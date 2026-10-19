@@ -6,8 +6,8 @@ use std::time::Duration;
 use serde::Serialize;
 use tokio::io::AsyncReadExt;
 use tokio::process::{Child, Command};
-use tokio::signal::unix::{SignalKind, signal};
-use tokio::sync::{Mutex, oneshot};
+use tokio::signal::unix::{signal, SignalKind};
+use tokio::sync::{oneshot, Mutex};
 use zbus::fdo;
 use zbus::fdo::DBusProxy;
 use zbus::message::Header;
@@ -32,7 +32,7 @@ impl TunTable {
     async fn replace(&self, uid: u32, stop: oneshot::Sender<()>, done: oneshot::Receiver<()>) {
         if let Some(previous) = self.slots.lock().await.insert(uid, Slot { stop, done }) {
             let _ = previous.stop.send(());
-            let _ = tokio::time::timeout(Duration::from_secs(3), previous.done).await;
+            let _ = tokio::time::timeout(Duration::from_millis(900), previous.done).await;
         }
     }
 
@@ -46,7 +46,7 @@ impl TunTable {
             .collect();
         for slot in slots {
             let _ = slot.stop.send(());
-            let _ = tokio::time::timeout(Duration::from_secs(3), slot.done).await;
+            let _ = tokio::time::timeout(Duration::from_millis(900), slot.done).await;
         }
     }
 }
@@ -92,6 +92,18 @@ impl Admin {
         }
         privilege::write_machine_stamp(Path::new(privilege::STAMP_DIR), uid)
             .map_err(|error| fdo::Error::Failed(error.to_string()))
+    }
+
+    #[zbus(name = "TunGrant")]
+    async fn tun_grant(
+        &self,
+        #[zbus(header)] header: Header<'_>,
+        #[zbus(connection)] connection: &zbus::Connection,
+    ) -> fdo::Result<String> {
+        let (uid, _) = caller(&header, connection).await?;
+        Ok(privilege::grant_scope(Path::new(privilege::STAMP_DIR), uid)
+            .unwrap_or_default()
+            .to_string())
     }
 
     #[zbus(name = "RevokeTun")]
@@ -221,8 +233,23 @@ pub async fn authorize_machine_tun() -> Result<(), String> {
     call("AuthorizeMachineTun", &()).await
 }
 
+pub async fn own_grant() -> Result<String, String> {
+    let reply = call_body("TunGrant", &()).await?;
+    reply
+        .body()
+        .deserialize()
+        .map_err(|error| error.to_string())
+}
+
 pub async fn revoke_tun() -> Result<(), String> {
     call("RevokeTun", &()).await
+}
+
+pub async fn revoke_quickly() -> Result<(), String> {
+    match tokio::time::timeout(Duration::from_millis(1200), revoke_tun()).await {
+        Ok(result) => result,
+        Err(_) => Err("没能及时撤销 TUN 授权".to_string()),
+    }
 }
 
 pub async fn spawn_tun(
@@ -251,25 +278,63 @@ async fn call(method: &str, body: &()) -> Result<(), String> {
     call_body(method, body).await.map(|_| ())
 }
 
-async fn call_body<B>(method: &str, body: &B) -> Result<zbus::message::Message, String>
-where
-    B: serde::ser::Serialize + zbus::zvariant::DynamicType + Send + Sync,
-{
+fn admin_bus() -> &'static tokio::sync::Mutex<Option<zbus::Connection>> {
+    static BUS: std::sync::OnceLock<tokio::sync::Mutex<Option<zbus::Connection>>> =
+        std::sync::OnceLock::new();
+    BUS.get_or_init(|| tokio::sync::Mutex::new(None))
+}
+
+async fn system_bus() -> Result<zbus::Connection, String> {
+    let mut slot = admin_bus().lock().await;
+    if let Some(connection) = slot.as_ref() {
+        return Ok(connection.clone());
+    }
     let connection = zbus::connection::Builder::system()
         .map_err(|error| error.to_string())?
         .build()
         .await
         .map_err(|error| error.to_string())?;
-    connection
-        .call_method(
-            Some("org.kde.clashkde.Admin"),
-            "/org/kde/clashkde",
-            Some("org.kde.clashkde.Admin"),
-            method,
-            body,
-        )
-        .await
-        .map_err(|error| plain_dbus(&error.to_string()))
+    *slot = Some(connection.clone());
+    Ok(connection)
+}
+
+fn retry_bus(error: &str) -> bool {
+    error.contains("Disconnected")
+        || error.contains("ServiceUnknown")
+        || error.contains("NoReply")
+        || error.contains("Timeout")
+}
+
+async fn call_body<B>(method: &str, body: &B) -> Result<zbus::message::Message, String>
+where
+    B: serde::ser::Serialize + zbus::zvariant::DynamicType + Send + Sync,
+{
+    let mut last = String::new();
+    for attempt in 0..2 {
+        let connection = system_bus().await?;
+        match connection
+            .call_method(
+                Some("org.kde.clashkde.Admin"),
+                "/org/kde/clashkde",
+                Some("org.kde.clashkde.Admin"),
+                method,
+                body,
+            )
+            .await
+        {
+            Ok(message) => return Ok(message),
+            Err(error) => {
+                let raw = error.to_string();
+                if attempt == 0 && retry_bus(&raw) {
+                    *admin_bus().lock().await = None;
+                    last = plain_dbus(&raw);
+                    continue;
+                }
+                return Err(plain_dbus(&raw));
+            }
+        }
+    }
+    Err(last)
 }
 
 fn plain_dbus(error: &str) -> String {
@@ -346,7 +411,7 @@ async fn launch(
         .kill_on_drop(true)
         .spawn()
         .map_err(|error| format!("无法启动 mihomo: {error} ({})", exe.display()))?;
-    for _ in 0..10 {
+    for _ in 0..3 {
         match child.try_wait() {
             Ok(Some(status)) => {
                 let mut text = String::new();
@@ -359,7 +424,7 @@ async fn launch(
                 }
                 return Err(text.to_string());
             }
-            Ok(None) => tokio::time::sleep(Duration::from_millis(50)).await,
+            Ok(None) => tokio::time::sleep(Duration::from_millis(30)).await,
             Err(error) => return Err(error.to_string()),
         }
     }
@@ -376,9 +441,9 @@ async fn supervise(mut child: Child, mut stop: oneshot::Receiver<()>) {
             }
             tokio::select! {
                 _ = child.wait() => {}
-                _ = tokio::time::sleep(Duration::from_secs(2)) => {
+                _ = tokio::time::sleep(Duration::from_millis(500)) => {
                     let _ = child.start_kill();
-                    let _ = child.wait().await;
+                    let _ = tokio::time::timeout(Duration::from_millis(200), child.wait()).await;
                 }
             }
         }

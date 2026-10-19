@@ -136,8 +136,8 @@ msgstr "보고 있는 그룹의 지연을 자동으로 측정합니다."
 msgid "Blur the IP"
 msgstr "IP 흐리게"
 
-msgid "Hides the latter half of the exit address."
-msgstr "출구 주소의 뒷부분을 숨깁니다."
+msgid "Hides the latter half of the exit address; right-click copies the full address, and three quick clicks show it."
+msgstr "출구 주소의 뒷부분을 숨기며, 오른쪽 클릭으로 전체 주소를 복사하고 세 번 누르면 표시합니다."
 
 msgid "TUN device"
 msgstr "TUN 장치"
@@ -450,3 +450,12 @@ msgstr "뒤로"
 
 msgid "Exit"
 msgstr "출구"
+
+msgid "Other"
+msgstr "기타"
+
+msgid "No matches"
+msgstr "일치하는 항목 없음"
+
+msgid "Copy"
+msgstr "복사"

@@ -136,8 +136,8 @@ msgstr "打開策略組時自動測試它的延遲。"
 msgid "Blur the IP"
 msgstr "模糊 IP"
 
-msgid "Hides the latter half of the exit address."
-msgstr "隱藏出口位址的後半段。"
+msgid "Hides the latter half of the exit address; right-click copies the full address, and three quick clicks show it."
+msgstr "隱藏出口位址的後半段；右鍵複製完整位址，連點三次則顯示出來。"
 
 msgid "TUN device"
 msgstr "虛擬網卡"
@@ -450,3 +450,12 @@ msgstr "返回"
 
 msgid "Exit"
 msgstr "出口"
+
+msgid "Other"
+msgstr "其他"
+
+msgid "No matches"
+msgstr "沒有相符項目"
+
+msgid "Copy"
+msgstr "複製"

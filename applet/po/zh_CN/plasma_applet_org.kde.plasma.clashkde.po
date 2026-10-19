@@ -169,3 +169,6 @@ msgstr "已复制"
 
 msgid "Copy a command that sets this proxy in the terminal."
 msgstr "把给终端设置这个代理的命令复制到剪贴板。"
+
+msgid "Copy"
+msgstr "复制"

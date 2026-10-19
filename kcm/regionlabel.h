@@ -76,7 +76,20 @@ inline QString blurAddress(const QString &address)
     return QStringLiteral("*");
 }
 
-inline QString formatExitRegion(const QString &raw, bool blurIp = false)
+inline QString exitAddress(const QString &raw)
+{
+    const QString text = raw.trimmed();
+    if (text.isEmpty() || text == QStringLiteral("正在检测")) {
+        return {};
+    }
+    const QStringList parts = text.split(QLatin1Char('\t'));
+    if (parts.size() == 3 && parts.at(0).size() == 2) {
+        return parts.at(2).trimmed();
+    }
+    return {};
+}
+
+inline QString formatExitPlace(const QString &raw)
 {
     if (raw.isEmpty() || raw == QStringLiteral("正在检测")) {
         return raw;
@@ -89,16 +102,31 @@ inline QString formatExitRegion(const QString &raw, bool blurIp = false)
     if (country.isEmpty()) {
         return QStringLiteral("❓");
     }
-    QString place = country;
+    QString place = flagEmoji(parts.at(0)) + QLatin1Char(' ') + country;
     if (!parts.at(1).isEmpty()) {
         place += QStringLiteral(" · ") + parts.at(1);
     }
-    QString address = parts.at(2);
-    if (blurIp) {
-        address = blurAddress(address);
+    return place;
+}
+
+inline QString formatExitAddress(const QString &raw, bool blurIp)
+{
+    const QString address = exitAddress(raw);
+    if (address.isEmpty()) {
+        return {};
     }
-    if (!address.isEmpty()) {
-        place = QStringLiteral("%1 (%2)").arg(place, address);
+    return blurIp ? blurAddress(address) : address;
+}
+
+inline QString formatExitRegion(const QString &raw, bool blurIp = false)
+{
+    const QString place = formatExitPlace(raw);
+    if (place.isEmpty() || place == QStringLiteral("正在检测") || place.startsWith(QStringLiteral("❓"))) {
+        return place;
     }
-    return flagEmoji(parts.at(0)) + QLatin1Char(' ') + place;
+    const QString address = formatExitAddress(raw, blurIp);
+    if (address.isEmpty()) {
+        return place;
+    }
+    return place + QLatin1Char('\n') + address;
 }

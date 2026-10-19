@@ -57,6 +57,10 @@ impl CoreProcess {
         }
     }
 
+    pub fn pid(&self) -> u32 {
+        self.pid
+    }
+
     pub fn try_wait(&mut self) -> std::io::Result<Option<std::process::ExitStatus>> {
         if let Some(child) = self.child.as_mut() {
             return child.try_wait();
@@ -73,17 +77,18 @@ impl CoreProcess {
         unsafe {
             libc::kill(pid, libc::SIGTERM);
         }
+        // mihomo 用 SIGTERM 拆掉自己的路由。只留这一小段，到点就强杀，避免关内核时干等数秒。
         tokio::select! {
             _ = self.wait() => {}
-            _ = tokio::time::sleep(Duration::from_secs(2)) => {
+            _ = tokio::time::sleep(Duration::from_millis(500)) => {
                 unsafe { libc::kill(pid, libc::SIGKILL); }
-                let _ = self.wait().await;
+                let _ = tokio::time::timeout(Duration::from_millis(200), self.wait()).await;
             }
         }
     }
 }
 
-fn process_alive(pid: u32) -> bool {
+pub(crate) fn process_alive(pid: u32) -> bool {
     let rc = unsafe { libc::kill(pid as i32, 0) };
     if rc == 0 {
         return true;

@@ -169,3 +169,6 @@ msgstr "全域"
 
 msgid "Direct"
 msgstr "直連"
+
+msgid "Copy"
+msgstr "複製"
