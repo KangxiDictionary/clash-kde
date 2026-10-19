@@ -9,6 +9,7 @@ mod app;
 mod controller;
 mod core;
 mod dbus_api;
+mod lan;
 mod paths;
 mod privilege;
 mod profile;

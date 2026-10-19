@@ -459,3 +459,60 @@ msgstr "Keine Treffer"
 
 msgid "Copy"
 msgstr "Kopieren"
+
+msgid "Copied the address."
+msgstr "Adresse kopiert."
+
+msgid "Allow LAN"
+msgstr "Lokales Netzwerk erlauben"
+
+msgid "The administrator turned this off."
+msgstr "Die Verwaltung hat das abgeschaltet."
+
+msgid "Lets other computers on the local network use the mixed port. The controller stays on this computer."
+msgstr "Andere Rechner im lokalen Netzwerk dürfen den gemischten Port nutzen. Die Steuerung bleibt auf diesem Rechner."
+
+msgid "Username"
+msgstr "Benutzername"
+
+msgid "Password"
+msgstr "Passwort"
+
+msgid "Lets every account open its mixed port to the local network."
+msgstr "Jedes Konto darf seinen gemischten Port für das lokale Netzwerk öffnen."
+
+msgid "Allow LAN for this account"
+msgstr "Lokales Netzwerk für dieses Konto erlauben"
+
+msgid "When this is off, this account's mixed port stays on this computer."
+msgstr "Wenn das aus ist, bleibt der gemischte Port dieses Kontos auf diesem Rechner."
+
+msgid "When this is off, that account's mixed port stays on this computer."
+msgstr "Wenn das aus ist, bleibt der gemischte Port jenes Kontos auf diesem Rechner."
+
+msgid "Adds a route to the current profile, which a subscription update replaces."
+msgstr "Fügt dem aktuellen Profil eine Route hinzu, die eine Abo-Aktualisierung ersetzt."
+
+msgid "Removes the selected route from the current profile, which a subscription update replaces."
+msgstr "Entfernt die gewählte Route aus dem aktuellen Profil, das eine Abo-Aktualisierung ersetzt."
+
+msgid "Remove this route?"
+msgstr "Diese Route entfernen?"
+
+msgid "Add a route"
+msgstr "Route hinzufügen"
+
+msgid "Show details"
+msgstr "Details anzeigen"
+
+msgid "Hide details"
+msgstr "Details ausblenden"
+
+msgid "Save"
+msgstr "Speichern"
+
+msgid "Server"
+msgstr "Server"
+
+msgid "Route"
+msgstr "Route"

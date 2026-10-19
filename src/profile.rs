@@ -183,10 +183,15 @@ pub fn load_override(path: &Path) -> Result<Value, String> {
     }
 }
 
-pub fn prepare_runtime_config(profile: Value, overlay: Value, settings: &Settings) -> Value {
+pub fn prepare_runtime_config(
+    profile: Value,
+    overlay: Value,
+    settings: &Settings,
+    lan_open: bool,
+) -> Value {
     let mut config = profile;
     deep_merge(&mut config, &overlay);
-    deep_merge(&mut config, &managed_keys(settings));
+    deep_merge(&mut config, &managed_keys(settings, lan_open));
     if settings.tun_enabled
         && let Value::Mapping(map) = &mut config
     {
@@ -299,16 +304,28 @@ pub fn deep_merge(base: &mut Value, overlay: &Value) {
     }
 }
 
-fn managed_keys(settings: &Settings) -> Value {
+fn managed_keys(settings: &Settings, lan_open: bool) -> Value {
+    let expose = lan_open && settings.allow_lan;
     let mut managed = Mapping::new();
     managed.insert(
         Value::String("mixed-port".into()),
         Value::Number(settings.mixed_port.into()),
     );
-    managed.insert(Value::String("allow-lan".into()), Value::Bool(false));
+    managed.insert(Value::String("allow-lan".into()), Value::Bool(expose));
     managed.insert(
         Value::String("bind-address".into()),
-        Value::String("127.0.0.1".into()),
+        Value::String(if expose { "*" } else { "127.0.0.1" }.into()),
+    );
+    let mut authentication = Vec::new();
+    if expose && !settings.lan_username.is_empty() && !settings.lan_password.is_empty() {
+        authentication.push(Value::String(format!(
+            "{}:{}",
+            settings.lan_username, settings.lan_password
+        )));
+    }
+    managed.insert(
+        Value::String("authentication".into()),
+        Value::Sequence(authentication),
     );
     managed.insert(
         Value::String("external-controller".into()),
@@ -341,11 +358,331 @@ pub fn write_runtime_config(paths: &Paths, settings: &Settings) -> Result<(), St
         paths,
         &settings.override_path,
     ))?;
-    let config = prepare_runtime_config(profile, overlay, settings);
+    let config = prepare_runtime_config(
+        profile,
+        overlay,
+        settings,
+        crate::lan::permitted(&crate::lan::policy_dir(), crate::lan::current_uid()),
+    );
     let text =
         serde_yaml::to_string(&config).map_err(|error| format!("无法生成运行配置: {error}"))?;
     fs::create_dir_all(paths.runtime_dir()).map_err(|error| error.to_string())?;
     write_private(&paths.runtime_config(), text.as_bytes()).map_err(|error| error.to_string())
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct RouteFields {
+    pub name: String,
+    pub kind: String,
+    pub server: String,
+    pub port: u16,
+    pub secret: String,
+}
+
+pub fn route_fields(body: &str, name: &str) -> Result<Option<RouteFields>, String> {
+    let value = decode_subscription(body)?;
+    let Some(list) = value.get("proxies").and_then(Value::as_sequence) else {
+        return Ok(None);
+    };
+    Ok(list.iter().find_map(|item| {
+        (item.get("name").and_then(Value::as_str) == Some(name)).then(|| read_route(item))
+    }))
+}
+
+pub fn add_route(body: &str, group: &str, fields: &RouteFields) -> Result<String, String> {
+    let fields = checked_route(fields)?;
+    edit_document(body, |map| {
+        if route_exists(map, &fields.name) {
+            return Err("已经有同名路线".to_string());
+        }
+        if group_named(map, &fields.name) {
+            return Err("已经有同名策略组".to_string());
+        }
+        proxy_list(map).push(route_mapping(&fields));
+        append_group_member(map, group, &fields.name);
+        Ok(())
+    })
+}
+
+pub fn remove_route(body: &str, name: &str) -> Result<String, String> {
+    let name = name.trim();
+    if name.is_empty() || reserved_route(name) || group_name_in(body, name) {
+        return Err("这条路线不能移除".to_string());
+    }
+    edit_document(body, |map| {
+        let removed = {
+            let list = proxy_list(map);
+            let before = list.len();
+            list.retain(|item| route_name(item) != name);
+            list.len() != before
+        };
+        if !removed {
+            return Err("这条路线不在配置文件里".to_string());
+        }
+        drop_member(map, name);
+        Ok(())
+    })
+}
+
+pub fn update_route(body: &str, previous: &str, fields: &RouteFields) -> Result<String, String> {
+    let previous = previous.trim().to_string();
+    if previous.is_empty() || reserved_route(&previous) {
+        return Err("这条路线不能修改".to_string());
+    }
+    let fields = checked_route(fields)?;
+    edit_document(body, |map| {
+        if fields.name != previous && route_exists(map, &fields.name) {
+            return Err("已经有同名路线".to_string());
+        }
+        if fields.name != previous && group_named(map, &fields.name) {
+            return Err("已经有同名路线".to_string());
+        }
+        let found = {
+            let list = proxy_list(map);
+            let Some(item) = list
+                .iter_mut()
+                .find(|item| route_name(item) == previous)
+                .and_then(Value::as_mapping_mut)
+            else {
+                return Err("这条路线不在配置文件里".to_string());
+            };
+            write_route(item, &fields);
+            true
+        };
+        if found && fields.name != previous {
+            rename_member(map, &previous, &fields.name);
+        }
+        Ok(())
+    })
+}
+
+fn group_name_in(body: &str, name: &str) -> bool {
+    decode_subscription(body)
+        .ok()
+        .and_then(|value| value.as_mapping().cloned())
+        .is_some_and(|map| group_named(&map, name))
+}
+
+fn checked_route(fields: &RouteFields) -> Result<RouteFields, String> {
+    let name = fields.name.trim();
+    if name.is_empty() || reserved_route(name) {
+        return Err("路线名称不能是空的或内置名称".to_string());
+    }
+    let kind = fields.kind.trim().to_ascii_lowercase();
+    if !matches!(kind.as_str(), "http" | "socks5" | "ss" | "vmess" | "trojan") {
+        return Err("不支持这种路线类型".to_string());
+    }
+    let server = fields.server.trim();
+    if server.is_empty() {
+        return Err("服务器不能为空".to_string());
+    }
+    if fields.port == 0 {
+        return Err("端口无效".to_string());
+    }
+    Ok(RouteFields {
+        name: name.to_string(),
+        kind,
+        server: server.to_string(),
+        port: fields.port,
+        secret: fields.secret.clone(),
+    })
+}
+
+fn reserved_route(name: &str) -> bool {
+    matches!(
+        name.to_ascii_uppercase().as_str(),
+        "DIRECT" | "REJECT" | "GLOBAL" | "PASS" | "COMPATIBLE"
+    )
+}
+
+fn read_route(item: &Value) -> RouteFields {
+    let kind = item
+        .get("type")
+        .and_then(Value::as_str)
+        .unwrap_or_default()
+        .to_string();
+    let secret = if kind.eq_ignore_ascii_case("vmess") {
+        item.get("uuid")
+    } else {
+        item.get("password")
+    }
+    .and_then(Value::as_str)
+    .unwrap_or_default()
+    .to_string();
+    let port = item
+        .get("port")
+        .and_then(Value::as_u64)
+        .or_else(|| {
+            item.get("port")
+                .and_then(Value::as_i64)
+                .map(|value| value as u64)
+        })
+        .unwrap_or(0);
+    RouteFields {
+        name: route_name(item),
+        kind,
+        server: item
+            .get("server")
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_string(),
+        port: port.min(u64::from(u16::MAX)) as u16,
+        secret,
+    }
+}
+
+fn route_mapping(fields: &RouteFields) -> Value {
+    let mut item = Mapping::new();
+    write_route(&mut item, fields);
+    Value::Mapping(item)
+}
+
+fn write_route(item: &mut Mapping, fields: &RouteFields) {
+    let secret_key = if fields.kind == "vmess" {
+        "uuid"
+    } else {
+        "password"
+    };
+    let other = if secret_key == "uuid" {
+        "password"
+    } else {
+        "uuid"
+    };
+    item.insert(
+        Value::String("name".into()),
+        Value::String(fields.name.clone()),
+    );
+    item.insert(
+        Value::String("type".into()),
+        Value::String(fields.kind.clone()),
+    );
+    item.insert(
+        Value::String("server".into()),
+        Value::String(fields.server.clone()),
+    );
+    item.insert(
+        Value::String("port".into()),
+        Value::Number(fields.port.into()),
+    );
+    item.remove(Value::String(other.into()));
+    if fields.secret.is_empty() {
+        item.remove(Value::String(secret_key.into()));
+    } else {
+        item.insert(
+            Value::String(secret_key.into()),
+            Value::String(fields.secret.clone()),
+        );
+    }
+}
+
+fn edit_document(
+    body: &str,
+    edit: impl FnOnce(&mut Mapping) -> Result<(), String>,
+) -> Result<String, String> {
+    let mut value = decode_subscription(body)?;
+    {
+        let Some(map) = value.as_mapping_mut() else {
+            return Err("配置需要是一组键值".to_string());
+        };
+        edit(map)?;
+    }
+    serde_yaml::to_string(&value).map_err(|error| format!("无法写回配置: {error}"))
+}
+
+fn proxy_list(map: &mut Mapping) -> &mut Vec<Value> {
+    let key = Value::String("proxies".into());
+    if !matches!(map.get(&key), Some(Value::Sequence(_))) {
+        map.insert(key.clone(), Value::Sequence(Vec::new()));
+    }
+    map.get_mut(&key)
+        .and_then(Value::as_sequence_mut)
+        .expect("proxies")
+}
+
+fn group_list(map: &mut Mapping) -> &mut Vec<Value> {
+    let key = Value::String("proxy-groups".into());
+    if !matches!(map.get(&key), Some(Value::Sequence(_))) {
+        map.insert(key.clone(), Value::Sequence(Vec::new()));
+    }
+    map.get_mut(&key)
+        .and_then(Value::as_sequence_mut)
+        .expect("groups")
+}
+
+fn route_name(item: &Value) -> String {
+    item.get("name")
+        .and_then(Value::as_str)
+        .unwrap_or_default()
+        .to_string()
+}
+
+fn named_sequence<'a>(map: &'a Mapping, key: &str) -> &'a [Value] {
+    map.get(Value::String(key.into()))
+        .and_then(Value::as_sequence)
+        .map(Vec::as_slice)
+        .unwrap_or(&[])
+}
+
+fn route_exists(map: &Mapping, name: &str) -> bool {
+    named_sequence(map, "proxies")
+        .iter()
+        .any(|item| route_name(item) == name)
+}
+
+fn group_named(map: &Mapping, name: &str) -> bool {
+    named_sequence(map, "proxy-groups")
+        .iter()
+        .any(|item| route_name(item) == name)
+}
+
+fn append_group_member(map: &mut Mapping, group: &str, name: &str) {
+    let Some(item) = group_list(map)
+        .iter_mut()
+        .find(|item| route_name(item) == group)
+        .and_then(Value::as_mapping_mut)
+    else {
+        return;
+    };
+    let key = Value::String("proxies".into());
+    if !matches!(item.get(&key), Some(Value::Sequence(_))) {
+        item.insert(key.clone(), Value::Sequence(Vec::new()));
+    }
+    let Some(members) = item.get_mut(&key).and_then(Value::as_sequence_mut) else {
+        return;
+    };
+    if !members.iter().any(|item| item.as_str() == Some(name)) {
+        members.push(Value::String(name.to_string()));
+    }
+}
+
+fn drop_member(map: &mut Mapping, name: &str) {
+    for group in group_list(map) {
+        let Some(members) = group
+            .as_mapping_mut()
+            .and_then(|item| item.get_mut("proxies"))
+            .and_then(Value::as_sequence_mut)
+        else {
+            continue;
+        };
+        members.retain(|item| item.as_str() != Some(name));
+    }
+}
+
+fn rename_member(map: &mut Mapping, previous: &str, name: &str) {
+    for group in group_list(map) {
+        let Some(members) = group
+            .as_mapping_mut()
+            .and_then(|item| item.get_mut("proxies"))
+            .and_then(Value::as_sequence_mut)
+        else {
+            continue;
+        };
+        for member in members {
+            if member.as_str() == Some(previous) {
+                *member = Value::String(name.to_string());
+            }
+        }
+    }
 }
 
 pub fn now_unix() -> i64 {
@@ -392,7 +729,7 @@ mod tests {
         settings.controller_port = 19090;
         settings.controller_secret = "secret".into();
         settings.mode = "rule".into();
-        let config = prepare_runtime_config(profile, overlay, &settings);
+        let config = prepare_runtime_config(profile, overlay, &settings, false);
         assert_eq!(
             config.get("allow-lan").and_then(Value::as_bool),
             Some(false)
@@ -432,7 +769,8 @@ mod tests {
         let mut settings = Settings::default();
         settings.tun_enabled = true;
         settings.mode = "rule".into();
-        let config = prepare_runtime_config(profile, Value::Mapping(Mapping::new()), &settings);
+        let config =
+            prepare_runtime_config(profile, Value::Mapping(Mapping::new()), &settings, false);
         let tun = config.get("tun").expect("tun");
         assert_eq!(tun.get("enable").and_then(Value::as_bool), Some(true));
         assert_eq!(tun.get("stack").and_then(Value::as_str), Some("mixed"));
@@ -453,7 +791,7 @@ mod tests {
             "tun:\n  enable: true\n  device: evil\n  include-uid: [0]\nsniffer:\n  enable: false\nproxies: []\n",
         )
         .unwrap();
-        let named = prepare_runtime_config(again, Value::Mapping(Mapping::new()), &settings);
+        let named = prepare_runtime_config(again, Value::Mapping(Mapping::new()), &settings, false);
         assert_eq!(
             named
                 .get("tun")
@@ -497,6 +835,7 @@ mod tests {
             .unwrap(),
             Value::Mapping(Mapping::new()),
             &settings,
+            false,
         );
         assert!(machine.get("tun").unwrap().get("include-uid").is_none());
         assert!(machine.get("tun").unwrap().get("exclude-uid").is_none());
@@ -529,6 +868,121 @@ proxy-groups:
         assert_eq!(groups[0].kind, "url-test");
         assert_eq!(groups[1].kind, "Selector");
         assert_eq!(groups[1].nodes.len(), 2);
+    }
+
+    #[test]
+    fn routes_are_written_back_into_the_profile_and_its_groups() {
+        let body = "\
+proxies:
+  - name: A
+    type: ss
+    server: one.example
+    port: 1
+    password: keep
+proxy-groups:
+  - name: 选择
+    type: select
+    proxies:
+      - A
+      - DIRECT
+";
+        let added = add_route(
+            body,
+            "选择",
+            &RouteFields {
+                name: "B".into(),
+                kind: "HTTP".into(),
+                server: " two.example ".into(),
+                port: 80,
+                secret: "pw".into(),
+            },
+        )
+        .unwrap();
+        let detail = route_fields(&added, "B").unwrap().unwrap();
+        assert_eq!(detail.kind, "http");
+        assert_eq!(detail.server, "two.example");
+        assert_eq!(detail.secret, "pw");
+        assert!(
+            selector_groups(&added)[0]
+                .nodes
+                .iter()
+                .any(|node| node.name == "B")
+        );
+        let renamed = update_route(
+            &added,
+            "B",
+            &RouteFields {
+                name: "C".into(),
+                kind: "vmess".into(),
+                server: "three.example".into(),
+                port: 443,
+                secret: "uuid".into(),
+            },
+        )
+        .unwrap();
+        assert!(route_fields(&renamed, "B").unwrap().is_none());
+        assert_eq!(route_fields(&renamed, "C").unwrap().unwrap().secret, "uuid");
+        assert!(
+            selector_groups(&renamed)[0]
+                .nodes
+                .iter()
+                .any(|node| node.name == "C")
+        );
+        let removed = remove_route(&renamed, "C").unwrap();
+        assert!(route_fields(&removed, "C").unwrap().is_none());
+        assert!(
+            selector_groups(&removed)[0]
+                .nodes
+                .iter()
+                .all(|node| node.name != "C")
+        );
+        assert!(remove_route(body, "DIRECT").is_err());
+        assert!(remove_route(body, "选择").is_err());
+    }
+
+    #[test]
+    fn lan_opens_the_mixed_port_only_when_allowed() {
+        let mut settings = Settings::default();
+        settings.mixed_port = 7890;
+        settings.controller_port = 9090;
+        settings.allow_lan = true;
+        settings.lan_username = "ada".into();
+        settings.lan_password = "secret".into();
+        let profile = decode_subscription("proxies: []\n").unwrap();
+        let open = prepare_runtime_config(
+            profile.clone(),
+            Value::Mapping(Mapping::new()),
+            &settings,
+            true,
+        );
+        assert_eq!(open.get("allow-lan").and_then(Value::as_bool), Some(true));
+        assert_eq!(open.get("bind-address").and_then(Value::as_str), Some("*"));
+        assert_eq!(
+            open.get("external-controller").and_then(Value::as_str),
+            Some("127.0.0.1:9090")
+        );
+        let auth = open
+            .get("authentication")
+            .and_then(Value::as_sequence)
+            .unwrap();
+        assert_eq!(auth[0].as_str(), Some("ada:secret"));
+        let closed =
+            prepare_runtime_config(profile, Value::Mapping(Mapping::new()), &settings, false);
+        assert_eq!(
+            closed.get("allow-lan").and_then(Value::as_bool),
+            Some(false)
+        );
+        assert_eq!(
+            closed.get("bind-address").and_then(Value::as_str),
+            Some("127.0.0.1")
+        );
+        assert!(
+            closed
+                .get("authentication")
+                .and_then(Value::as_sequence)
+                .unwrap()
+                .is_empty()
+        );
     }
 
     #[test]

@@ -459,3 +459,60 @@ msgstr "一致なし"
 
 msgid "Copy"
 msgstr "コピー"
+
+msgid "Copied the address."
+msgstr "アドレスをコピーしました。"
+
+msgid "Allow LAN"
+msgstr "ローカルネットワークを許可"
+
+msgid "The administrator turned this off."
+msgstr "管理者がこれをオフにしました。"
+
+msgid "Lets other computers on the local network use the mixed port. The controller stays on this computer."
+msgstr "同じネットワークの他のコンピューターが混合ポートを使えます。コントローラーはこのコンピューターのままです。"
+
+msgid "Username"
+msgstr "ユーザー名"
+
+msgid "Password"
+msgstr "パスワード"
+
+msgid "Lets every account open its mixed port to the local network."
+msgstr "各アカウントが混合ポートをローカルネットワークに開けます。"
+
+msgid "Allow LAN for this account"
+msgstr "このアカウントのローカルネットワークを許可"
+
+msgid "When this is off, this account's mixed port stays on this computer."
+msgstr "オフのとき、このアカウントの混合ポートはこのコンピューターだけです。"
+
+msgid "When this is off, that account's mixed port stays on this computer."
+msgstr "オフのとき、そのアカウントの混合ポートはこのコンピューターだけです。"
+
+msgid "Adds a route to the current profile, which a subscription update replaces."
+msgstr "現在のプロファイルにルートを追加します。購読を更新するとファイル全体が置き換わります。"
+
+msgid "Removes the selected route from the current profile, which a subscription update replaces."
+msgstr "現在のプロファイルから選んだルートを除きます。購読を更新するとファイル全体が置き換わります。"
+
+msgid "Remove this route?"
+msgstr "このルートを除きますか？"
+
+msgid "Add a route"
+msgstr "ルートを追加"
+
+msgid "Show details"
+msgstr "詳細を表示"
+
+msgid "Hide details"
+msgstr "詳細を隠す"
+
+msgid "Save"
+msgstr "保存"
+
+msgid "Server"
+msgstr "サーバー"
+
+msgid "Route"
+msgstr "ルート"

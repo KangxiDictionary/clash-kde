@@ -172,3 +172,6 @@ msgstr "Напрямую"
 
 msgid "Copy"
 msgstr "Копировать"
+
+msgid "Copied the address."
+msgstr "Адрес скопирован."

@@ -459,3 +459,60 @@ msgstr "Нет совпадений"
 
 msgid "Copy"
 msgstr "Копировать"
+
+msgid "Copied the address."
+msgstr "Адрес скопирован."
+
+msgid "Allow LAN"
+msgstr "Разрешить локальную сеть"
+
+msgid "The administrator turned this off."
+msgstr "Администратор это выключил."
+
+msgid "Lets other computers on the local network use the mixed port. The controller stays on this computer."
+msgstr "Другие компьютеры в локальной сети могут использовать смешанный порт. Контроллер остаётся на этом компьютере."
+
+msgid "Username"
+msgstr "Имя пользователя"
+
+msgid "Password"
+msgstr "Пароль"
+
+msgid "Lets every account open its mixed port to the local network."
+msgstr "Каждая учётная запись может открыть смешанный порт в локальную сеть."
+
+msgid "Allow LAN for this account"
+msgstr "Разрешить локальную сеть для этой учётной записи"
+
+msgid "When this is off, this account's mixed port stays on this computer."
+msgstr "Если выключено, смешанный порт этой учётной записи остаётся на этом компьютере."
+
+msgid "When this is off, that account's mixed port stays on this computer."
+msgstr "Если выключено, смешанный порт той учётной записи остаётся на этом компьютере."
+
+msgid "Adds a route to the current profile, which a subscription update replaces."
+msgstr "Добавляет маршрут в текущий профиль, который заменяется при обновлении подписки."
+
+msgid "Removes the selected route from the current profile, which a subscription update replaces."
+msgstr "Удаляет выбранный маршрут из текущего профиля, который заменяется при обновлении подписки."
+
+msgid "Remove this route?"
+msgstr "Удалить этот маршрут?"
+
+msgid "Add a route"
+msgstr "Добавить маршрут"
+
+msgid "Show details"
+msgstr "Показать сведения"
+
+msgid "Hide details"
+msgstr "Скрыть сведения"
+
+msgid "Save"
+msgstr "Сохранить"
+
+msgid "Server"
+msgstr "Сервер"
+
+msgid "Route"
+msgstr "Маршрут"

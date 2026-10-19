@@ -121,6 +121,10 @@ struct Status {
     blur_ip: bool,
     tun_device: String,
     override_default: String,
+    allow_lan: bool,
+    lan_username: String,
+    lan_password: String,
+    lan_allowed: bool,
 }
 
 impl App {
@@ -605,6 +609,130 @@ impl App {
         Ok(())
     }
 
+    pub async fn set_lan(
+        self: &Arc<Self>,
+        allow: bool,
+        username: String,
+        password: String,
+    ) -> Result<(), String> {
+        let (username, password) = crate::lan::normalize_auth(&username, &password)?;
+        let restart = {
+            let mut inner = self.inner.lock().await;
+            let changed = inner.settings.allow_lan != allow
+                || inner.settings.lan_username != username
+                || inner.settings.lan_password != password;
+            inner.settings.allow_lan = allow;
+            inner.settings.lan_username = username;
+            inner.settings.lan_password = password;
+            inner
+                .settings
+                .save(&self.paths)
+                .map_err(|error| error.to_string())?;
+            changed && inner.core_running
+        };
+        if restart {
+            self.spawn_core().await?;
+        }
+        self.emit(Event::Status);
+        Ok(())
+    }
+
+    pub async fn reload_runtime(self: &Arc<Self>) -> Result<(), String> {
+        let running = self.inner.lock().await.core_running;
+        if running {
+            self.spawn_core().await?;
+        }
+        self.emit(Event::Status);
+        Ok(())
+    }
+
+    pub async fn route_detail(&self, id: &str, name: &str) -> Result<String, String> {
+        let body = self.profile_body(id).await?;
+        let found = profile::route_fields(&body, name)?;
+        let in_file = found.is_some();
+        let fields = found.unwrap_or(profile::RouteFields {
+            name: name.to_string(),
+            kind: String::new(),
+            server: String::new(),
+            port: 0,
+            secret: String::new(),
+        });
+        #[derive(Serialize)]
+        struct Detail<'a> {
+            name: &'a str,
+            kind: &'a str,
+            server: &'a str,
+            port: u16,
+            secret: &'a str,
+            in_file: bool,
+        }
+        Ok(serde_json::to_string(&Detail {
+            name: &fields.name,
+            kind: &fields.kind,
+            server: &fields.server,
+            port: fields.port,
+            secret: &fields.secret,
+            in_file,
+        })
+        .expect("route detail"))
+    }
+
+    pub async fn add_route(
+        self: &Arc<Self>,
+        id: &str,
+        group: &str,
+        name: String,
+        kind: String,
+        server: String,
+        port: u16,
+        secret: String,
+    ) -> Result<(), String> {
+        let body = self.profile_body(id).await?;
+        let next = profile::add_route(
+            &body,
+            group,
+            &profile::RouteFields {
+                name,
+                kind,
+                server,
+                port,
+                secret,
+            },
+        )?;
+        self.set_profile_body(id, next).await
+    }
+
+    pub async fn remove_route(self: &Arc<Self>, id: &str, name: &str) -> Result<(), String> {
+        let body = self.profile_body(id).await?;
+        let next = profile::remove_route(&body, name)?;
+        self.set_profile_body(id, next).await
+    }
+
+    pub async fn update_route(
+        self: &Arc<Self>,
+        id: &str,
+        previous: &str,
+        name: String,
+        kind: String,
+        server: String,
+        port: u16,
+        secret: String,
+    ) -> Result<(), String> {
+        let body = self.profile_body(id).await?;
+        let next = profile::update_route(
+            &body,
+            previous,
+            &profile::RouteFields {
+                name,
+                kind,
+                server,
+                port,
+                secret,
+            },
+        )?;
+        self.set_profile_body(id, next).await
+    }
+
     pub async fn set_view_pref(
         &self,
         profile: &str,
@@ -1037,6 +1165,22 @@ impl App {
             blur_ip: inner.settings.blur_ip,
             tun_device: inner.settings.tun_device.clone(),
             override_default: self.paths.override_file().display().to_string(),
+            allow_lan: inner.settings.allow_lan,
+            lan_username: inner.settings.lan_username.clone(),
+            lan_password: inner.settings.lan_password.clone(),
+            lan_allowed: crate::lan::permitted(
+                &crate::lan::policy_dir(),
+                crate::lan::current_uid(),
+            ),
+        };
+        let expose = status.lan_allowed && status.allow_lan;
+        let status = Status {
+            listen_host: if expose {
+                "0.0.0.0".to_string()
+            } else {
+                "127.0.0.1".to_string()
+            },
+            ..status
         };
         serde_json::to_string(&status).expect("status json")
     }

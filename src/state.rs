@@ -46,6 +46,12 @@ pub struct Settings {
     pub tun_device: String,
     #[serde(default)]
     pub override_path: String,
+    #[serde(default)]
+    pub allow_lan: bool,
+    #[serde(default)]
+    pub lan_username: String,
+    #[serde(default)]
+    pub lan_password: String,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -102,6 +108,9 @@ impl Default for Settings {
             blur_ip: false,
             tun_device: String::new(),
             override_path: String::new(),
+            allow_lan: false,
+            lan_username: String::new(),
+            lan_password: String::new(),
         }
     }
 }

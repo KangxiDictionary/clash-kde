@@ -172,3 +172,6 @@ msgstr "直連"
 
 msgid "Copy"
 msgstr "複製"
+
+msgid "Copied the address."
+msgstr "已複製位址。"

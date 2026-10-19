@@ -459,3 +459,60 @@ msgstr "Aucun résultat"
 
 msgid "Copy"
 msgstr "Copier"
+
+msgid "Copied the address."
+msgstr "Adresse copiée."
+
+msgid "Allow LAN"
+msgstr "Autoriser le réseau local"
+
+msgid "The administrator turned this off."
+msgstr "L’administrateur l’a désactivé."
+
+msgid "Lets other computers on the local network use the mixed port. The controller stays on this computer."
+msgstr "Les autres ordinateurs du réseau local peuvent utiliser le port mixte. Le contrôleur reste sur cet ordinateur."
+
+msgid "Username"
+msgstr "Nom d’utilisateur"
+
+msgid "Password"
+msgstr "Mot de passe"
+
+msgid "Lets every account open its mixed port to the local network."
+msgstr "Chaque compte peut ouvrir son port mixte au réseau local."
+
+msgid "Allow LAN for this account"
+msgstr "Autoriser le réseau local pour ce compte"
+
+msgid "When this is off, this account's mixed port stays on this computer."
+msgstr "Si c’est désactivé, le port mixte de ce compte reste sur cet ordinateur."
+
+msgid "When this is off, that account's mixed port stays on this computer."
+msgstr "Si c’est désactivé, le port mixte de ce compte reste sur cet ordinateur."
+
+msgid "Adds a route to the current profile, which a subscription update replaces."
+msgstr "Ajoute une route au profil actuel, qu’une mise à jour d’abonnement remplace."
+
+msgid "Removes the selected route from the current profile, which a subscription update replaces."
+msgstr "Retire la route choisie du profil actuel, qu’une mise à jour d’abonnement remplace."
+
+msgid "Remove this route?"
+msgstr "Retirer cette route ?"
+
+msgid "Add a route"
+msgstr "Ajouter une route"
+
+msgid "Show details"
+msgstr "Afficher les détails"
+
+msgid "Hide details"
+msgstr "Masquer les détails"
+
+msgid "Save"
+msgstr "Enregistrer"
+
+msgid "Server"
+msgstr "Serveur"
+
+msgid "Route"
+msgstr "Route"

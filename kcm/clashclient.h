@@ -61,6 +61,16 @@ class ClashClient : public QObject
     Q_PROPERTY(QVariantMap sortPrefs READ sortPrefs NOTIFY statusChanged)
     Q_PROPERTY(bool autoTestDelay READ autoTestDelay NOTIFY statusChanged)
     Q_PROPERTY(bool blurIp READ blurIp NOTIFY statusChanged)
+    Q_PROPERTY(bool allowLan READ allowLan NOTIFY statusChanged)
+    Q_PROPERTY(QString lanUsername READ lanUsername NOTIFY statusChanged)
+    Q_PROPERTY(QString lanPassword READ lanPassword NOTIFY statusChanged)
+    Q_PROPERTY(bool lanAllowed READ lanAllowed NOTIFY statusChanged)
+    Q_PROPERTY(bool draftAllowLan READ draftAllowLan WRITE setDraftAllowLan NOTIFY draftChanged)
+    Q_PROPERTY(QString draftLanUsername READ draftLanUsername WRITE setDraftLanUsername NOTIFY draftChanged)
+    Q_PROPERTY(QString draftLanPassword READ draftLanPassword WRITE setDraftLanPassword NOTIFY draftChanged)
+    Q_PROPERTY(bool machineLanAllowed READ machineLanAllowed NOTIFY accountsChanged)
+    Q_PROPERTY(QVariantMap lanAccounts READ lanAccounts NOTIFY accountsChanged)
+    Q_PROPERTY(QString hint READ hint NOTIFY hintChanged)
     Q_PROPERTY(bool settingsDirty READ settingsDirty NOTIFY draftChanged)
 
 public:
@@ -130,6 +140,19 @@ public:
     QVariantMap sortPrefs() const;
     bool autoTestDelay() const;
     bool blurIp() const;
+    bool allowLan() const;
+    QString lanUsername() const;
+    QString lanPassword() const;
+    bool lanAllowed() const;
+    bool draftAllowLan() const;
+    void setDraftAllowLan(bool enabled);
+    QString draftLanUsername() const;
+    void setDraftLanUsername(const QString &username);
+    QString draftLanPassword() const;
+    void setDraftLanPassword(const QString &password);
+    bool machineLanAllowed() const;
+    QVariantMap lanAccounts() const;
+    QString hint() const;
     bool settingsDirty() const;
 
     Q_INVOKABLE void setCoreDesired(bool desired);
@@ -145,6 +168,8 @@ public:
     Q_INVOKABLE QString addressOf(const QString &raw) const;
     Q_INVOKABLE void ensureProxies();
     Q_INVOKABLE void copyText(const QString &text) const;
+    Q_INVOKABLE void showHint(const QString &text);
+    Q_INVOKABLE void clearHint();
     Q_INVOKABLE void reloadAccounts();
     Q_INVOKABLE void startAccount(qulonglong uid);
     Q_INVOKABLE void stopAccount(qulonglong uid);
@@ -165,6 +190,12 @@ public:
     Q_INVOKABLE void setProfileMeta(const QString &id, const QString &name, const QString &url);
     Q_INVOKABLE void importProfile(const QString &name, const QString &fileUrl);
     Q_INVOKABLE void refreshExitRegion();
+    Q_INVOKABLE QVariantMap routeDetail(const QString &name);
+    Q_INVOKABLE bool addRoute(const QString &group, const QString &name, const QString &kind, const QString &server, int port, const QString &secret);
+    Q_INVOKABLE void removeRoute(const QString &name);
+    Q_INVOKABLE bool saveRoute(const QString &previous, const QString &name, const QString &kind, const QString &server, int port, const QString &secret);
+    Q_INVOKABLE void setMachineLan(bool enabled);
+    Q_INVOKABLE void setAccountLan(qulonglong uid, bool enabled);
     Q_INVOKABLE void openOverrideFile(const QString &path);
     Q_INVOKABLE void openOverrideFolder(const QString &path);
     Q_INVOKABLE void reload();
@@ -182,6 +213,7 @@ Q_SIGNALS:
     void delayTestingChanged();
     void delayUpdated(const QString &group, const QString &name, qlonglong delayMs);
     void draftChanged();
+    void hintChanged();
     void errorOccurred(const QString &message);
     void editorTextReady(const QString &body);
 
@@ -262,6 +294,16 @@ private:
     QVariantMap m_sortPrefs;
     bool m_autoTestDelay = false;
     bool m_blurIp = false;
+    bool m_allowLan = false;
+    QString m_lanUsername;
+    QString m_lanPassword;
+    bool m_lanAllowed = true;
+    bool m_draftAllowLan = false;
+    QString m_draftLanUsername;
+    QString m_draftLanPassword;
+    bool m_machineLanAllowed = true;
+    QVariantMap m_lanAccounts;
+    QString m_hint;
     QVariantList m_profiles;
     QVariantList m_groups;
     QVariantList m_accounts;

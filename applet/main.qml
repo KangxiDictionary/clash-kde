@@ -380,6 +380,8 @@ PlasmoidItem {
             return visible;
         }
 
+        property string copiedHint: ""
+
         function closeRouteMenu() {
             routeMenu.close();
         }
@@ -628,6 +630,19 @@ PlasmoidItem {
                 width: flick.width
                 spacing: Kirigami.Units.smallSpacing
 
+            Kirigami.InlineMessage {
+                Layout.fillWidth: true
+                type: Kirigami.MessageType.Information
+                visible: popupRoot.copiedHint.length > 0
+                text: popupRoot.copiedHint
+                showCloseButton: true
+                onVisibleChanged: {
+                    if (!visible && popupRoot.copiedHint.length > 0) {
+                        popupRoot.copiedHint = "";
+                    }
+                }
+            }
+
             RowLayout {
                 Layout.fillWidth: true
                 spacing: Kirigami.Units.smallSpacing
@@ -715,8 +730,9 @@ PlasmoidItem {
                     acceptedButtons: Qt.LeftButton | Qt.RightButton
                     property int clicks: 0
                     onPressed: mouse => {
-                        if (mouse.button === Qt.RightButton) {
-                            copyMenu.popup();
+                        if (mouse.button === Qt.RightButton && regionLabel.fullAddress.length > 0) {
+                            session.copyText(regionLabel.fullAddress);
+                            popupRoot.copiedHint = i18n("Copied the address.");
                         }
                     }
                     onClicked: mouse => {
@@ -734,14 +750,6 @@ PlasmoidItem {
                         id: regionClicks
                         interval: 450
                         onTriggered: parent.clicks = 0
-                    }
-                }
-
-                PC3.Menu {
-                    id: copyMenu
-                    PC3.MenuItem {
-                        text: i18n("Copy")
-                        onTriggered: session.copyText(regionLabel.fullAddress)
                     }
                 }
             }

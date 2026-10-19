@@ -172,3 +172,6 @@ msgstr "직접"
 
 msgid "Copy"
 msgstr "복사"
+
+msgid "Copied the address."
+msgstr "주소를 복사했습니다."

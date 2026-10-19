@@ -172,3 +172,6 @@ msgstr "Direct"
 
 msgid "Copy"
 msgstr "Copier"
+
+msgid "Copied the address."
+msgstr "Adresse copiée."

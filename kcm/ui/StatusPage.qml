@@ -299,7 +299,8 @@ Item {
                         property int clicks: 0
                         onPressed: mouse => {
                             if (mouse.button === Qt.RightButton && exitHeading.fullAddress.length > 0) {
-                                copyMenu.popup();
+                                kcm.client.copyText(exitHeading.fullAddress);
+                                kcm.client.showHint(tx.i18n("Copied the address."));
                             }
                         }
                         onClicked: mouse => {
@@ -317,14 +318,6 @@ Item {
                             id: exitClicks
                             interval: 450
                             onTriggered: parent.clicks = 0
-                        }
-                    }
-
-                    QQC2.Menu {
-                        id: copyMenu
-                        QQC2.MenuItem {
-                            text: tx.i18n("Copy")
-                            onTriggered: kcm.client.copyText(exitHeading.fullAddress)
                         }
                     }
                 }

@@ -17,6 +17,18 @@ Item {
     property string groupNow: ""
     property string groupType: ""
     property string nodeQuery: ""
+    property string picked: ""
+    property bool detailsOpen: false
+    property var detail: ({})
+
+    function refreshDetail() {
+        root.detail = root.picked.length === 0 ? {} : kcm.client.routeDetail(root.picked);
+        detailName.text = root.detail.name || "";
+        detailKind.currentIndex = Math.max(0, detailKind.indexOfValue(String(root.detail.kind || "http").toLowerCase()));
+        detailServer.text = root.detail.server || "";
+        detailPort.value = root.detail.port > 0 ? root.detail.port : 443;
+        detailSecret.text = root.detail.secret || "";
+    }
 
     Tx {
         id: tx
@@ -383,12 +395,6 @@ Item {
                 onClicked: kcm.client.testGroupDelay(root.selectedGroup)
             }
 
-            Kirigami.SearchField {
-                Layout.fillWidth: true
-                Layout.maximumWidth: Kirigami.Units.gridUnit * 16
-                onTextChanged: root.nodeQuery = text
-            }
-
             QQC2.ToolButton {
                 id: sortButton
                 icon.name: "view-sort"
@@ -447,48 +453,245 @@ Item {
             visible: root.selectedGroup.length > 0
         }
 
-        QQC2.Label {
-            visible: root.selectedGroup.length > 0 && root.nodeQuery.trim().length > 0 && !root.anyNodeShown
-            text: tx.i18n("No matches")
-            opacity: 0.7
-            Layout.fillWidth: true
-        }
-
-        ListView {
+        Item {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            clip: true
             visible: root.selectedGroup.length > 0
-            model: nodeModel
 
-            delegate: QQC2.RadioDelegate {
-                id: nodeDelegate
-                required property string name
-                required property var delay_ms
-                width: ListView.view ? ListView.view.width : 0
-                visible: (root.viewPref().show || delay_ms !== 0) && root.nodeMatches(name)
-                height: visible ? implicitHeight : 0
-                text: name
-                checked: root.groupNow === name
-                enabled: root.groupType === "Selector"
-                onClicked: {
-                    root.chooseNode(name);
-                    checked = Qt.binding(() => root.groupNow === name);
+            Kirigami.SearchField {
+                id: routeSearch
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: parent.top
+                onTextChanged: root.nodeQuery = text
+                Keys.onDownPressed: event => {
+                    routeList.currentIndex = 0;
+                    event.accepted = false;
+                }
+                KeyNavigation.down: routeScroll
+            }
+
+            QQC2.Label {
+                anchors.top: routeSearch.bottom
+                anchors.topMargin: Kirigami.Units.largeSpacing
+                anchors.left: parent.left
+                visible: root.nodeQuery.trim().length > 0 && !root.anyNodeShown
+                text: tx.i18n("No matches")
+                opacity: 0.7
+            }
+
+            QQC2.ScrollView {
+                id: routeScroll
+                Kirigami.StyleHints.showFramedBackground: true
+                anchors.top: routeSearch.bottom
+                anchors.topMargin: Kirigami.Units.smallSpacing
+                anchors.left: parent.left
+                anchors.bottom: buttonRow.top
+                anchors.bottomMargin: Kirigami.Units.smallSpacing
+                anchors.right: detailPane.left
+                anchors.rightMargin: root.detailsOpen ? Kirigami.Units.largeSpacing : 0
+                visible: root.anyNodeShown || root.nodeQuery.trim().length === 0
+
+                ListView {
+                    id: routeList
+                    clip: true
+                    focus: true
+                    model: nodeModel
+                    boundsBehavior: Flickable.StopAtBounds
+                    KeyNavigation.up: routeSearch
+
+                    delegate: QQC2.ItemDelegate {
+                        id: nodeDelegate
+                        required property string name
+                        required property var delay_ms
+                        width: ListView.view ? ListView.view.width : 0
+                        visible: (root.viewPref().show || delay_ms !== 0) && root.nodeMatches(name)
+                        height: visible ? implicitHeight : 0
+                        highlighted: root.groupNow === name
+                        onClicked: {
+                            root.picked = name;
+                            root.refreshDetail();
+                            root.chooseNode(name);
+                        }
+
+                        contentItem: Kirigami.IconTitleSubtitle {
+                            title: nodeDelegate.name
+                            subtitle: root.delayText(nodeDelegate.delay_ms)
+                            selected: nodeDelegate.highlighted
+                        }
+                    }
+                }
+            }
+
+            ColumnLayout {
+                id: detailPane
+                anchors.top: routeSearch.bottom
+                anchors.topMargin: Kirigami.Units.smallSpacing
+                anchors.right: parent.right
+                anchors.bottom: buttonRow.top
+                width: root.detailsOpen ? Kirigami.Units.gridUnit * 16 : 0
+                visible: root.detailsOpen
+                spacing: Kirigami.Units.smallSpacing
+
+                QQC2.Label {
+                    text: tx.i18n("Route")
+                    Layout.fillWidth: true
                 }
 
-                contentItem: RowLayout {
-                    spacing: Kirigami.Units.largeSpacing
+                QQC2.TextField {
+                    id: detailName
+                    Layout.fillWidth: true
+                    enabled: root.detail.in_file === true
+                    placeholderText: tx.i18n("Name")
+                }
 
-                    QQC2.Label {
-                        text: nodeDelegate.text
-                        elide: Text.ElideRight
-                        Layout.fillWidth: true
-                    }
-                    QQC2.Label {
-                        text: root.delayText(nodeDelegate.delay_ms)
-                        color: root.delayColor(nodeDelegate.delay_ms)
+                QQC2.ComboBox {
+                    id: detailKind
+                    Layout.fillWidth: true
+                    enabled: root.detail.in_file === true
+                    model: ["http", "socks5", "ss", "vmess", "trojan"]
+                }
+
+                QQC2.TextField {
+                    id: detailServer
+                    Layout.fillWidth: true
+                    enabled: root.detail.in_file === true
+                    placeholderText: tx.i18n("Server")
+                }
+
+                QQC2.SpinBox {
+                    id: detailPort
+                    Layout.fillWidth: true
+                    enabled: root.detail.in_file === true
+                    from: 1
+                    to: 65535
+                    editable: true
+                }
+
+                QQC2.TextField {
+                    id: detailSecret
+                    Layout.fillWidth: true
+                    enabled: root.detail.in_file === true
+                    echoMode: TextInput.Password
+                    placeholderText: tx.i18n("Password")
+                }
+
+                QQC2.Button {
+                    text: tx.i18n("Save")
+                    enabled: root.detail.in_file === true && root.picked.length > 0
+                    Layout.alignment: Qt.AlignRight
+                    onClicked: {
+                        if (kcm.client.saveRoute(root.picked, detailName.text, detailKind.currentText, detailServer.text, detailPort.value, detailSecret.text)) {
+                            root.picked = detailName.text;
+                            root.refreshDetail();
+                        }
                     }
                 }
+            }
+
+            Row {
+                id: detailButtonRow
+                anchors.left: parent.left
+                anchors.bottom: parent.bottom
+                spacing: Kirigami.Units.smallSpacing
+
+                QQC2.ToolButton {
+                    icon.name: root.detailsOpen ? "view-right-close" : "view-right-new"
+                    display: QQC2.AbstractButton.IconOnly
+                    text: QQC2.ToolTip.text
+                    onClicked: root.detailsOpen = !root.detailsOpen
+                    QQC2.ToolTip.text: root.detailsOpen ? tx.i18n("Hide details") : tx.i18n("Show details")
+                    QQC2.ToolTip.visible: hovered
+                }
+            }
+
+            Row {
+                id: buttonRow
+                anchors.right: parent.right
+                anchors.bottom: parent.bottom
+                spacing: Kirigami.Units.smallSpacing
+
+                QQC2.ToolButton {
+                    icon.name: "list-add"
+                    display: QQC2.AbstractButton.IconOnly
+                    text: QQC2.ToolTip.text
+                    enabled: root.selectedGroup.length > 0
+                    onClicked: addDialog.open()
+                    QQC2.ToolTip.text: tx.i18n("Adds a route to the current profile, which a subscription update replaces.")
+                    QQC2.ToolTip.visible: hovered
+                }
+
+                QQC2.ToolButton {
+                    icon.name: "list-remove"
+                    display: QQC2.AbstractButton.IconOnly
+                    text: QQC2.ToolTip.text
+                    enabled: root.detail.in_file === true
+                    onClicked: removeDialog.open()
+                    QQC2.ToolTip.text: tx.i18n("Removes the selected route from the current profile, which a subscription update replaces.")
+                    QQC2.ToolTip.visible: hovered
+                }
+            }
+        }
+    }
+
+    Kirigami.PromptDialog {
+        id: removeDialog
+        standardButtons: Kirigami.Dialog.Ok | Kirigami.Dialog.Cancel
+        title: tx.i18n("Remove this route?")
+        subtitle: root.picked
+        onAccepted: {
+            kcm.client.removeRoute(root.picked);
+            root.picked = "";
+            root.detail = {};
+        }
+    }
+
+    QQC2.Dialog {
+        id: addDialog
+        title: tx.i18n("Add a route")
+        modal: true
+        standardButtons: QQC2.Dialog.Ok | QQC2.Dialog.Cancel
+        anchors.centerIn: parent
+        width: Kirigami.Units.gridUnit * 22
+
+        contentItem: ColumnLayout {
+            spacing: Kirigami.Units.smallSpacing
+
+            QQC2.TextField {
+                id: addName
+                Layout.fillWidth: true
+                placeholderText: tx.i18n("Name")
+            }
+            QQC2.ComboBox {
+                id: addKind
+                Layout.fillWidth: true
+                model: ["http", "socks5", "ss", "vmess", "trojan"]
+            }
+            QQC2.TextField {
+                id: addServer
+                Layout.fillWidth: true
+                placeholderText: tx.i18n("Server")
+            }
+            QQC2.SpinBox {
+                id: addPort
+                Layout.fillWidth: true
+                from: 1
+                to: 65535
+                value: 443
+                editable: true
+            }
+            QQC2.TextField {
+                id: addSecret
+                Layout.fillWidth: true
+                echoMode: TextInput.Password
+                placeholderText: tx.i18n("Password")
+            }
+        }
+
+        onAccepted: {
+            if (kcm.client.addRoute(root.selectedGroup, addName.text, addKind.currentText, addServer.text, addPort.value, addSecret.text)) {
+                root.picked = addName.text;
+                root.refreshDetail();
             }
         }
     }

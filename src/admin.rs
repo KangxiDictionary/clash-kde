@@ -6,8 +6,8 @@ use std::time::Duration;
 use serde::Serialize;
 use tokio::io::AsyncReadExt;
 use tokio::process::{Child, Command};
-use tokio::signal::unix::{signal, SignalKind};
-use tokio::sync::{oneshot, Mutex};
+use tokio::signal::unix::{SignalKind, signal};
+use tokio::sync::{Mutex, oneshot};
 use zbus::fdo;
 use zbus::fdo::DBusProxy;
 use zbus::message::Header;
@@ -191,6 +191,75 @@ impl Admin {
         let (_, sender) = caller(&header, connection).await?;
         allow(&sender, POLKIT_USERS, "停止这个账户的 Mihomo").await?;
         bridge(uid, "Stop").await.map_err(fdo::Error::Failed)?;
+        Ok(())
+    }
+
+    #[zbus(name = "LanPolicy")]
+    async fn lan_policy(
+        &self,
+        #[zbus(header)] header: Header<'_>,
+        #[zbus(connection)] connection: &zbus::Connection,
+    ) -> fdo::Result<String> {
+        let (_, sender) = caller(&header, connection).await?;
+        allow(&sender, POLKIT_USERS, "查看局域网开关").await?;
+        #[derive(serde::Serialize)]
+        struct Policy {
+            global: bool,
+            accounts: Vec<AccountLan>,
+        }
+        #[derive(serde::Serialize)]
+        struct AccountLan {
+            uid: u32,
+            allow: bool,
+        }
+        let dir = crate::lan::policy_dir();
+        let accounts = privilege::signed_in_uids()
+            .into_iter()
+            .map(|uid| AccountLan {
+                uid,
+                allow: crate::lan::user_allowed(&dir, uid),
+            })
+            .collect();
+        Ok(serde_json::to_string(&Policy {
+            global: crate::lan::global_allowed(&dir),
+            accounts,
+        })
+        .expect("lan policy"))
+    }
+
+    #[zbus(name = "SetMachineLan")]
+    async fn set_machine_lan(
+        &self,
+        #[zbus(header)] header: Header<'_>,
+        #[zbus(connection)] connection: &zbus::Connection,
+        enabled: bool,
+    ) -> fdo::Result<()> {
+        let (_, sender) = caller(&header, connection).await?;
+        allow(&sender, POLKIT_USERS, "设置整机是否允许局域网").await?;
+        crate::lan::set_global(&crate::lan::policy_dir(), enabled)
+            .map_err(|error| fdo::Error::Failed(error.to_string()))?;
+        for uid in privilege::signed_in_uids() {
+            let _ = bridge(uid, "Reload").await;
+        }
+        Ok(())
+    }
+
+    #[zbus(name = "SetAccountLan")]
+    async fn set_account_lan(
+        &self,
+        #[zbus(header)] header: Header<'_>,
+        #[zbus(connection)] connection: &zbus::Connection,
+        uid: u32,
+        enabled: bool,
+    ) -> fdo::Result<()> {
+        let (_, sender) = caller(&header, connection).await?;
+        allow(&sender, POLKIT_USERS, "设置这个账户是否允许局域网").await?;
+        if !privilege::signed_in_uids().contains(&uid) {
+            return Err(fdo::Error::Failed("找不到这个账户".to_string()));
+        }
+        crate::lan::set_user(&crate::lan::policy_dir(), uid, enabled)
+            .map_err(|error| fdo::Error::Failed(error.to_string()))?;
+        let _ = bridge(uid, "Reload").await;
         Ok(())
     }
 }
@@ -501,6 +570,7 @@ async fn describe(uid: u32) -> ListedUser {
                 system_proxy_enabled: false,
                 mode: String::new(),
                 exit_region: String::new(),
+                lan_allowed: crate::lan::permitted(&crate::lan::policy_dir(), uid),
                 error,
             };
         }
@@ -522,6 +592,7 @@ async fn describe(uid: u32) -> ListedUser {
         system_proxy_enabled: status.system_proxy_enabled,
         mode: status.mode,
         exit_region: status.exit_region,
+        lan_allowed: crate::lan::permitted(&crate::lan::policy_dir(), uid),
         error: String::new(),
     }
 }
@@ -536,6 +607,7 @@ struct ListedUser {
     system_proxy_enabled: bool,
     mode: String,
     exit_region: String,
+    lan_allowed: bool,
     error: String,
 }
 

@@ -74,6 +74,7 @@ async fn call(uid: u32, action: &str) -> Result<(), String> {
         "Status" => print_status(&account).await,
         "Start" => session_method(true).await,
         "Stop" => session_method(false).await,
+        "Reload" => reload_runtime().await,
         _ => Err("缺少动作".to_string()),
     }
 }
@@ -157,6 +158,21 @@ async fn session_method(start: bool) -> Result<(), String> {
     result.map_err(|error| error.to_string())
 }
 
+async fn reload_runtime() -> Result<(), String> {
+    let connection = zbus::connection::Builder::session()
+        .map_err(|error| error.to_string())?
+        .build()
+        .await
+        .map_err(|error| error.to_string())?;
+    let proxy = SessionManagerProxy::new(&connection)
+        .await
+        .map_err(|error| error.to_string())?;
+    proxy
+        .reload_runtime()
+        .await
+        .map_err(|error| error.to_string())
+}
+
 #[derive(Serialize)]
 struct SlimStatus {
     core_running: bool,
@@ -174,4 +190,5 @@ trait SessionManager {
     fn start(&self) -> zbus::Result<()>;
     fn stop(&self) -> zbus::Result<()>;
     fn get_status(&self) -> zbus::Result<String>;
+    fn reload_runtime(&self) -> zbus::Result<()>;
 }

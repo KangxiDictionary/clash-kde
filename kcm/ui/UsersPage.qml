@@ -186,6 +186,57 @@ Flickable {
                 FormCard.FormDelegateSeparator {}
 
                 FormCard.FormSwitchDelegate {
+                    text: tx.i18n("Allow LAN")
+                    checked: kcm.client.draftAllowLan
+                    enabled: kcm.client.lanAllowed
+                    description: kcm.client.lanAllowed ? "" : tx.i18n("The administrator turned this off.")
+                    onToggled: {
+                        if (checked !== kcm.client.draftAllowLan) {
+                            kcm.client.draftAllowLan = checked;
+                        }
+                    }
+
+                    QQC2.ToolTip.visible: hovered
+                    QQC2.ToolTip.delay: 700
+                    QQC2.ToolTip.text: tx.i18n("Lets other computers on the local network use the mixed port. The controller stays on this computer.")
+                }
+
+                FormCard.FormDelegateSeparator {
+                    visible: kcm.client.draftAllowLan
+                }
+
+                FormCard.FormTextFieldDelegate {
+                    visible: kcm.client.draftAllowLan
+                    label: tx.i18n("Username")
+                    enabled: kcm.client.lanAllowed
+                    text: kcm.client.draftLanUsername
+                    onTextChanged: {
+                        if (text !== kcm.client.draftLanUsername) {
+                            kcm.client.draftLanUsername = text;
+                        }
+                    }
+                }
+
+                FormCard.FormDelegateSeparator {
+                    visible: kcm.client.draftAllowLan
+                }
+
+                FormCard.FormTextFieldDelegate {
+                    visible: kcm.client.draftAllowLan
+                    label: tx.i18n("Password")
+                    enabled: kcm.client.lanAllowed
+                    echoMode: TextInput.Password
+                    text: kcm.client.draftLanPassword
+                    onTextChanged: {
+                        if (text !== kcm.client.draftLanPassword) {
+                            kcm.client.draftLanPassword = text;
+                        }
+                    }
+                }
+
+                FormCard.FormDelegateSeparator {}
+
+                FormCard.FormSwitchDelegate {
                     text: tx.i18n("Use the same sort for every group")
                     checked: kcm.client.draftSortGlobal
                     onToggled: {
@@ -358,6 +409,26 @@ Flickable {
                     enabled: !kcm.client.busy
                     onClicked: kcm.client.setMachineTun(!(kcm.client.tunEnabled && kcm.client.tunMachine))
                 }
+
+                FormCard.FormDelegateSeparator {}
+
+                FormCard.FormSwitchDelegate {
+                    text: tx.i18n("Allow LAN")
+                    description: tx.i18n("Lets every account open its mixed port to the local network.")
+                    checked: kcm.client.machineLanAllowed
+                    enabled: !kcm.client.busy
+                    onClicked: kcm.client.setMachineLan(!kcm.client.machineLanAllowed)
+                }
+
+                FormCard.FormDelegateSeparator {}
+
+                FormCard.FormSwitchDelegate {
+                    text: tx.i18n("Allow LAN for this account")
+                    description: tx.i18n("When this is off, this account's mixed port stays on this computer.")
+                    checked: kcm.client.lanAccounts[String(kcm.client.ownUid)] !== false
+                    enabled: !kcm.client.busy
+                    onClicked: kcm.client.setAccountLan(kcm.client.ownUid, kcm.client.lanAccounts[String(kcm.client.ownUid)] === false)
+                }
             }
 
             FormCard.FormHeader {
@@ -442,6 +513,21 @@ Flickable {
 
                 FormCard.FormDelegateSeparator {}
 
+                FormCard.FormSwitchDelegate {
+                    text: tx.i18n("Allow LAN")
+                    description: tx.i18n("When this is off, that account's mixed port stays on this computer.")
+                    enabled: root.detailAccount && !kcm.client.busy
+                    checked: root.detailAccount ? kcm.client.lanAccounts[String(root.detailAccount.uid)] !== false : true
+                    onClicked: {
+                        if (!root.detailAccount) {
+                            return;
+                        }
+                        kcm.client.setAccountLan(root.detailAccount.uid, kcm.client.lanAccounts[String(root.detailAccount.uid)] === false);
+                    }
+                }
+
+                FormCard.FormDelegateSeparator {}
+
                 FormCard.FormTextDelegate {
                     id: exitLine
                     readonly property string rawExit: root.detailAccount ? (root.detailAccount.exit_region || "") : ""
@@ -461,8 +547,10 @@ Flickable {
                         acceptedButtons: Qt.LeftButton | Qt.RightButton
                         property int clicks: 0
                         onPressed: mouse => {
-                            if (mouse.button === Qt.RightButton && kcm.client.addressOf(exitLine.rawExit).length > 0) {
-                                copyMenu.popup();
+                            const address = kcm.client.addressOf(exitLine.rawExit);
+                            if (mouse.button === Qt.RightButton && address.length > 0) {
+                                kcm.client.copyText(address);
+                                kcm.client.showHint(tx.i18n("Copied the address."));
                             }
                         }
                         onClicked: mouse => {
@@ -480,14 +568,6 @@ Flickable {
                             id: exitClicks
                             interval: 450
                             onTriggered: parent.clicks = 0
-                        }
-                    }
-
-                    QQC2.Menu {
-                        id: copyMenu
-                        QQC2.MenuItem {
-                            text: tx.i18n("Copy")
-                            onTriggered: kcm.client.copyText(kcm.client.addressOf(exitLine.rawExit))
                         }
                     }
                 }

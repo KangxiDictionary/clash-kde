@@ -459,3 +459,60 @@ msgstr "Nessun risultato"
 
 msgid "Copy"
 msgstr "Copia"
+
+msgid "Copied the address."
+msgstr "Indirizzo copiato."
+
+msgid "Allow LAN"
+msgstr "Consenti la rete locale"
+
+msgid "The administrator turned this off."
+msgstr "L’amministratore l’ha disattivato."
+
+msgid "Lets other computers on the local network use the mixed port. The controller stays on this computer."
+msgstr "Gli altri computer della rete locale possono usare la porta mista. Il controller resta su questo computer."
+
+msgid "Username"
+msgstr "Nome utente"
+
+msgid "Password"
+msgstr "Password"
+
+msgid "Lets every account open its mixed port to the local network."
+msgstr "Ogni account può aprire la propria porta mista alla rete locale."
+
+msgid "Allow LAN for this account"
+msgstr "Consenti la rete locale per questo account"
+
+msgid "When this is off, this account's mixed port stays on this computer."
+msgstr "Se è spento, la porta mista di questo account resta su questo computer."
+
+msgid "When this is off, that account's mixed port stays on this computer."
+msgstr "Se è spento, la porta mista di quell’account resta su questo computer."
+
+msgid "Adds a route to the current profile, which a subscription update replaces."
+msgstr "Aggiunge una rotta al profilo attuale, che un aggiornamento dell’abbonamento sostituisce."
+
+msgid "Removes the selected route from the current profile, which a subscription update replaces."
+msgstr "Rimuove la rotta selezionata dal profilo attuale, che un aggiornamento dell’abbonamento sostituisce."
+
+msgid "Remove this route?"
+msgstr "Rimuovere questa rotta?"
+
+msgid "Add a route"
+msgstr "Aggiungi una rotta"
+
+msgid "Show details"
+msgstr "Mostra dettagli"
+
+msgid "Hide details"
+msgstr "Nascondi dettagli"
+
+msgid "Save"
+msgstr "Salva"
+
+msgid "Server"
+msgstr "Server"
+
+msgid "Route"
+msgstr "Rotta"

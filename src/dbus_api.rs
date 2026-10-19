@@ -156,6 +156,63 @@ impl Manager {
             .map_err(failed)
     }
 
+    #[zbus(name = "SetLan")]
+    async fn set_lan(&self, allow: bool, username: String, password: String) -> fdo::Result<()> {
+        self.app
+            .set_lan(allow, username, password)
+            .await
+            .map_err(failed)
+    }
+
+    #[zbus(name = "ReloadRuntime")]
+    async fn reload_runtime(&self) -> fdo::Result<()> {
+        self.app.reload_runtime().await.map_err(failed)
+    }
+
+    #[zbus(name = "RouteDetail")]
+    async fn route_detail(&self, id: String, name: String) -> fdo::Result<String> {
+        self.app.route_detail(&id, &name).await.map_err(failed)
+    }
+
+    #[zbus(name = "AddRoute")]
+    async fn add_route(
+        &self,
+        id: String,
+        group: String,
+        name: String,
+        kind: String,
+        server: String,
+        port: u16,
+        secret: String,
+    ) -> fdo::Result<()> {
+        self.app
+            .add_route(&id, &group, name, kind, server, port, secret)
+            .await
+            .map_err(failed)
+    }
+
+    #[zbus(name = "RemoveRoute")]
+    async fn remove_route(&self, id: String, name: String) -> fdo::Result<()> {
+        self.app.remove_route(&id, &name).await.map_err(failed)
+    }
+
+    #[zbus(name = "UpdateRoute")]
+    async fn update_route(
+        &self,
+        id: String,
+        previous: String,
+        name: String,
+        kind: String,
+        server: String,
+        port: u16,
+        secret: String,
+    ) -> fdo::Result<()> {
+        self.app
+            .update_route(&id, &previous, name, kind, server, port, secret)
+            .await
+            .map_err(failed)
+    }
+
     #[zbus(name = "SetViewPref")]
     async fn set_view_pref(
         &self,

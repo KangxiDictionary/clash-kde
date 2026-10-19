@@ -23,6 +23,19 @@ Kirigami.Page {
         anchors.fill: parent
         anchors.margins: Kirigami.Units.smallSpacing
 
+        Kirigami.InlineMessage {
+            Layout.fillWidth: true
+            type: Kirigami.MessageType.Information
+            visible: kcm.client.hint.length > 0
+            text: kcm.client.hint
+            showCloseButton: true
+            onVisibleChanged: {
+                if (!visible && kcm.client.hint.length > 0) {
+                    kcm.client.clearHint();
+                }
+            }
+        }
+
         RowLayout {
             QQC2.TabBar {
                 id: tabs

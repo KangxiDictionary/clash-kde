@@ -459,3 +459,60 @@ msgstr "일치하는 항목 없음"
 
 msgid "Copy"
 msgstr "복사"
+
+msgid "Copied the address."
+msgstr "주소를 복사했습니다."
+
+msgid "Allow LAN"
+msgstr "로컬 네트워크 허용"
+
+msgid "The administrator turned this off."
+msgstr "관리자가 이 기능을 껐습니다."
+
+msgid "Lets other computers on the local network use the mixed port. The controller stays on this computer."
+msgstr "같은 네트워크의 다른 컴퓨터가 혼합 포트를 사용할 수 있습니다. 컨트롤러는 이 컴퓨터에 남습니다."
+
+msgid "Username"
+msgstr "사용자 이름"
+
+msgid "Password"
+msgstr "암호"
+
+msgid "Lets every account open its mixed port to the local network."
+msgstr "각 계정이 혼합 포트를 로컬 네트워크에 열 수 있습니다."
+
+msgid "Allow LAN for this account"
+msgstr "이 계정의 로컬 네트워크 허용"
+
+msgid "When this is off, this account's mixed port stays on this computer."
+msgstr "끄면 이 계정의 혼합 포트는 이 컴퓨터에만 남습니다."
+
+msgid "When this is off, that account's mixed port stays on this computer."
+msgstr "끄면 그 계정의 혼합 포트는 이 컴퓨터에만 남습니다."
+
+msgid "Adds a route to the current profile, which a subscription update replaces."
+msgstr "현재 프로필에 경로를 추가합니다. 구독을 업데이트하면 파일 전체가 바뀝니다."
+
+msgid "Removes the selected route from the current profile, which a subscription update replaces."
+msgstr "현재 프로필에서 선택한 경로를 제거합니다. 구독을 업데이트하면 파일 전체가 바뀝니다."
+
+msgid "Remove this route?"
+msgstr "이 경로를 제거할까요?"
+
+msgid "Add a route"
+msgstr "경로 추가"
+
+msgid "Show details"
+msgstr "자세히 보기"
+
+msgid "Hide details"
+msgstr "자세히 숨기기"
+
+msgid "Save"
+msgstr "저장"
+
+msgid "Server"
+msgstr "서버"
+
+msgid "Route"
+msgstr "경로"

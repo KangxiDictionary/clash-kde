@@ -460,3 +460,60 @@ msgstr "没有匹配项"
 
 msgid "Copy"
 msgstr "复制"
+
+msgid "Copied the address."
+msgstr "已复制地址。"
+
+msgid "Allow LAN"
+msgstr "允许局域网"
+
+msgid "The administrator turned this off."
+msgstr "管理员关闭了这项。"
+
+msgid "Lets other computers on the local network use the mixed port. The controller stays on this computer."
+msgstr "局域网里的其他电脑可以使用混合端口。控制器仍然只在这台电脑上。"
+
+msgid "Username"
+msgstr "用户名"
+
+msgid "Password"
+msgstr "密码"
+
+msgid "Lets every account open its mixed port to the local network."
+msgstr "每个账户都可以把混合端口对局域网开放。"
+
+msgid "Allow LAN for this account"
+msgstr "允许这个账户使用局域网"
+
+msgid "When this is off, this account's mixed port stays on this computer."
+msgstr "关闭后，这个账户的混合端口只留在这台电脑上。"
+
+msgid "When this is off, that account's mixed port stays on this computer."
+msgstr "关闭后，那个账户的混合端口只留在这台电脑上。"
+
+msgid "Adds a route to the current profile, which a subscription update replaces."
+msgstr "往当前配置文件添加一条路线。更新订阅会整份替换这个文件。"
+
+msgid "Removes the selected route from the current profile, which a subscription update replaces."
+msgstr "从当前配置文件移除选中的路线。更新订阅会整份替换这个文件。"
+
+msgid "Remove this route?"
+msgstr "要移除这条路线吗？"
+
+msgid "Add a route"
+msgstr "添加路线"
+
+msgid "Show details"
+msgstr "显示详情"
+
+msgid "Hide details"
+msgstr "隐藏详情"
+
+msgid "Save"
+msgstr "保存"
+
+msgid "Server"
+msgstr "服务器"
+
+msgid "Route"
+msgstr "路线"

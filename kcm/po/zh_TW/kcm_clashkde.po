@@ -459,3 +459,60 @@ msgstr "沒有相符項目"
 
 msgid "Copy"
 msgstr "複製"
+
+msgid "Copied the address."
+msgstr "已複製位址。"
+
+msgid "Allow LAN"
+msgstr "允許區域網路"
+
+msgid "The administrator turned this off."
+msgstr "管理員關閉了這項。"
+
+msgid "Lets other computers on the local network use the mixed port. The controller stays on this computer."
+msgstr "區域網路裡的其他電腦可以使用混合連接埠。控制器仍然只在這台電腦上。"
+
+msgid "Username"
+msgstr "使用者名稱"
+
+msgid "Password"
+msgstr "密碼"
+
+msgid "Lets every account open its mixed port to the local network."
+msgstr "每個帳戶都可以把混合連接埠對區域網路開放。"
+
+msgid "Allow LAN for this account"
+msgstr "允許這個帳戶使用區域網路"
+
+msgid "When this is off, this account's mixed port stays on this computer."
+msgstr "關閉後，這個帳戶的混合連接埠只留在這台電腦上。"
+
+msgid "When this is off, that account's mixed port stays on this computer."
+msgstr "關閉後，那個帳戶的混合連接埠只留在這台電腦上。"
+
+msgid "Adds a route to the current profile, which a subscription update replaces."
+msgstr "往目前設定檔加入一條路線。更新訂閱會整份替換這個檔案。"
+
+msgid "Removes the selected route from the current profile, which a subscription update replaces."
+msgstr "從目前設定檔移除選取的路線。更新訂閱會整份替換這個檔案。"
+
+msgid "Remove this route?"
+msgstr "要移除這條路線嗎？"
+
+msgid "Add a route"
+msgstr "加入路線"
+
+msgid "Show details"
+msgstr "顯示詳細資料"
+
+msgid "Hide details"
+msgstr "隱藏詳細資料"
+
+msgid "Save"
+msgstr "儲存"
+
+msgid "Server"
+msgstr "伺服器"
+
+msgid "Route"
+msgstr "路線"

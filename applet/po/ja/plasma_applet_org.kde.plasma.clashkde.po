@@ -172,3 +172,6 @@ msgstr "直接"
 
 msgid "Copy"
 msgstr "コピー"
+
+msgid "Copied the address."
+msgstr "アドレスをコピーしました。"
