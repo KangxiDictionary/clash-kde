@@ -27,6 +27,63 @@ pub fn apply_if_needed(paths: &Paths, port: u16) -> std::io::Result<()> {
     Ok(())
 }
 
+pub fn kde_proxy_label(paths: &Paths, port: u16) -> &'static str {
+    let Ok(text) = fs::read_to_string(&paths.kioslaverc) else {
+        return "off";
+    };
+    let Some(body) = extract_group_body(&text, "Proxy Settings") else {
+        return "off";
+    };
+    let mut proxy_type = "";
+    let mut http_proxy = "";
+    for line in body.lines() {
+        let line = line.trim();
+        if let Some(value) = line.strip_prefix("ProxyType=") {
+            proxy_type = value.trim();
+        } else if let Some(value) = line.strip_prefix("httpProxy=") {
+            http_proxy = value.trim();
+        }
+    }
+    classify_manual_proxy(proxy_type, http_proxy, "", port)
+}
+
+pub fn gnome_proxy_label(port: u16) -> &'static str {
+    if cfg!(test) {
+        return "off";
+    }
+    let mode = gsettings_get("org.gnome.system.proxy", "mode").unwrap_or_default();
+    let host = gsettings_get("org.gnome.system.proxy.http", "host").unwrap_or_default();
+    let current = gsettings_get("org.gnome.system.proxy.http", "port").unwrap_or_default();
+    let mode = mode.trim().trim_matches('\'');
+    if mode.is_empty() || mode == "none" {
+        return "off";
+    }
+    if mode != "manual" {
+        return "other";
+    }
+    classify_manual_proxy("1", &host, current.trim().trim_matches('\''), port)
+}
+
+fn classify_manual_proxy(
+    proxy_type: &str,
+    host: &str,
+    explicit_port: &str,
+    port: u16,
+) -> &'static str {
+    let ours = if explicit_port.is_empty() {
+        proxy_type == "1" && endpoint_is_local(host) && endpoint_port(host) == Some(port)
+    } else {
+        proxy_type == "1" && endpoint_is_local(host) && explicit_port == port.to_string()
+    };
+    if ours {
+        "ours"
+    } else if proxy_type.is_empty() || proxy_type == "0" {
+        "off"
+    } else {
+        "other"
+    }
+}
+
 pub fn still_points_at_us(paths: &Paths, port: u16) -> bool {
     let Ok(text) = fs::read_to_string(&paths.kioslaverc) else {
         return false;
@@ -462,6 +519,25 @@ fn notify_kio() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn proxy_labels_distinguish_off_ours_and_other() {
+        assert_eq!(classify_manual_proxy("0", "", "", 7890), "off");
+        assert_eq!(classify_manual_proxy("", "", "", 7890), "off");
+        assert_eq!(
+            classify_manual_proxy("1", "http://127.0.0.1 7890", "", 7890),
+            "ours"
+        );
+        assert_eq!(
+            classify_manual_proxy("1", "127.0.0.1", "7890", 7890),
+            "ours"
+        );
+        assert_eq!(
+            classify_manual_proxy("1", "http://10.0.0.1 8080", "", 7890),
+            "other"
+        );
+        assert_eq!(classify_manual_proxy("4", "", "", 7890), "other");
+    }
 
     #[test]
     fn a_manual_kde_change_no_longer_points_at_us() {

@@ -132,6 +132,10 @@ bool ClashClient::coreRunning() const { return m_coreRunning; }
 bool ClashClient::systemProxyEnabled() const { return m_systemProxyEnabled; }
 bool ClashClient::systemProxyApplied() const { return m_systemProxyApplied; }
 bool ClashClient::tunEnabled() const { return m_tunEnabled; }
+bool ClashClient::tunMachine() const { return m_tunMachine; }
+QString ClashClient::kdeProxy() const { return m_kdeProxy; }
+QString ClashClient::gnomeProxy() const { return m_gnomeProxy; }
+bool ClashClient::accountsUnlocked() const { return m_accountsUnlocked; }
 bool ClashClient::firewallActive() const { return m_firewallActive; }
 QString ClashClient::mode() const { return m_mode; }
 QString ClashClient::listenAddress() const
@@ -373,6 +377,23 @@ void ClashClient::setTunEnabled(bool enabled)
     asyncCall(QStringLiteral("SetTun"), {enabled}, false, false);
 }
 
+void ClashClient::setMachineTun(bool enabled)
+{
+    asyncCall(QStringLiteral("SetMachineTun"), {enabled}, false, false);
+}
+
+void ClashClient::lockAccounts()
+{
+    m_accountsUnlocked = false;
+    m_accountsError.clear();
+    Q_EMIT accountsChanged();
+}
+
+QString ClashClient::formatExit(const QString &raw) const
+{
+    return formatExitRegion(raw, m_blurIp);
+}
+
 void ClashClient::reloadAccounts()
 {
     setBusy(true);
@@ -387,6 +408,7 @@ void ClashClient::reloadAccounts()
         } else {
             m_accountsError.clear();
             m_accounts = jsonArray(reply.value());
+            m_accountsUnlocked = true;
             overlayCurrentAccount();
         }
         Q_EMIT accountsChanged();
@@ -591,7 +613,7 @@ void ClashClient::copyLiveToDraft()
     m_draftMihomoPath = m_mihomoPath;
     m_draftCoreDesired = m_coreDesired;
     m_draftSystemProxyEnabled = m_systemProxyEnabled;
-    m_draftTunEnabled = m_tunEnabled;
+    m_draftTunEnabled = m_tunEnabled && !m_tunMachine;
     m_draftMode = m_mode;
     m_draftActiveProfile = m_activeProfile;
     m_draftSelections = m_selections;
@@ -609,7 +631,7 @@ bool ClashClient::draftMatchesLive() const
         && m_draftMihomoPath == m_mihomoPath
         && m_draftCoreDesired == m_coreDesired
         && m_draftSystemProxyEnabled == m_systemProxyEnabled
-        && m_draftTunEnabled == m_tunEnabled
+        && m_draftTunEnabled == (m_tunEnabled && !m_tunMachine)
         && m_draftMode == m_mode
         && m_draftActiveProfile == m_activeProfile
         && m_draftSelections == m_selections
@@ -699,7 +721,8 @@ bool ClashClient::commitSettings()
             return false;
         }
     }
-    if (draftDevice != m_tunDevice) {
+    const bool personalOn = m_tunEnabled && !m_tunMachine;
+    if (draftDevice != m_tunDevice || (m_draftTunEnabled && !personalOn)) {
         const QDBusReply<void> auth = m_admin->call(QStringLiteral("AuthorizeTun"));
         if (!auth.isValid()) {
             return failed(auth.error());
@@ -731,7 +754,7 @@ bool ClashClient::commitSettings()
             return failed(reply.error());
         }
     }
-    if (m_draftTunEnabled != m_tunEnabled) {
+    if (m_draftTunEnabled != (m_tunEnabled && !m_tunMachine)) {
         const QDBusReply<void> reply = m_iface->call(QStringLiteral("SetTun"), m_draftTunEnabled);
         if (!reply.isValid()) {
             return failed(reply.error());
@@ -869,6 +892,15 @@ void ClashClient::applyStatus(const QVariantMap &status)
     m_systemProxyEnabled = status.value(QStringLiteral("system_proxy_enabled")).toBool();
     m_systemProxyApplied = status.value(QStringLiteral("system_proxy_applied")).toBool();
     m_tunEnabled = status.value(QStringLiteral("tun_enabled")).toBool();
+    m_tunMachine = status.value(QStringLiteral("tun_machine")).toBool();
+    m_kdeProxy = status.value(QStringLiteral("kde_proxy")).toString();
+    if (m_kdeProxy.isEmpty()) {
+        m_kdeProxy = QStringLiteral("off");
+    }
+    m_gnomeProxy = status.value(QStringLiteral("gnome_proxy")).toString();
+    if (m_gnomeProxy.isEmpty()) {
+        m_gnomeProxy = QStringLiteral("off");
+    }
     m_mode = status.value(QStringLiteral("mode")).toString();
     m_listenHost = status.value(QStringLiteral("listen_host"), QStringLiteral("127.0.0.1")).toString();
     m_mixedPort = status.value(QStringLiteral("mixed_port")).toInt();
@@ -921,15 +953,19 @@ void ClashClient::overlayCurrentAccount()
         }
         const bool same = map.value(QStringLiteral("core_running")).toBool() == m_coreRunning
             && map.value(QStringLiteral("tun_enabled")).toBool() == m_tunEnabled
+            && map.value(QStringLiteral("tun_machine")).toBool() == m_tunMachine
             && map.value(QStringLiteral("system_proxy_enabled")).toBool() == m_systemProxyEnabled
             && map.value(QStringLiteral("mode")).toString() == m_mode
+            && map.value(QStringLiteral("exit_region")).toString() == m_exitRegion
             && map.value(QStringLiteral("error")).toString().isEmpty();
         if (same) {
             continue;
         }
         map.insert(QStringLiteral("core_running"), m_coreRunning);
         map.insert(QStringLiteral("tun_enabled"), m_tunEnabled);
+        map.insert(QStringLiteral("tun_machine"), m_tunMachine);
         map.insert(QStringLiteral("system_proxy_enabled"), m_systemProxyEnabled);
+        map.insert(QStringLiteral("exit_region"), m_exitRegion);
         map.insert(QStringLiteral("mode"), m_mode);
         map.insert(QStringLiteral("error"), QString());
         m_accounts[i] = map;

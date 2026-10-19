@@ -396,3 +396,57 @@ msgstr "Sito web"
 
 msgid "Mihomo"
 msgstr "Mihomo"
+
+msgid "Pointing at this core."
+msgstr "Punta a questo core."
+
+msgid "Pointing somewhere else."
+msgstr "Punta altrove."
+
+msgid "Not set."
+msgstr "Non impostato."
+
+msgid "KDE proxy"
+msgstr "Proxy KDE"
+
+msgid "GNOME proxy"
+msgstr "Proxy GNOME"
+
+msgid "Shows whether KDE is telling programs to use a proxy."
+msgstr "Mostra se KDE sta dicendo ai programmi di usare un proxy."
+
+msgid "Shows whether GNOME is telling programs to use a proxy."
+msgstr "Mostra se GNOME sta dicendo ai programmi di usare un proxy."
+
+msgid "This computer"
+msgstr "Questo computer"
+
+msgid "Accounts"
+msgstr "Account"
+
+msgid "Manage signed-in accounts"
+msgstr "Gestisci gli account collegati"
+
+msgid "Asks for the administrator password, then lists the other signed-in accounts."
+msgstr "Chiede la password di amministratore, poi elenca gli altri account collegati."
+
+msgid "Lock"
+msgstr "Blocca"
+
+msgid "Capture the whole computer"
+msgstr "Cattura l'intero computer"
+
+msgid "Sends every account and root through this account's configuration."
+msgstr "Invia tutti gli account e root attraverso la configurazione di questo account."
+
+msgid "Signed-in accounts"
+msgstr "Account collegati"
+
+msgid "No other signed-in accounts."
+msgstr "Nessun altro account collegato."
+
+msgid "Back"
+msgstr "Indietro"
+
+msgid "Exit"
+msgstr "Uscita"

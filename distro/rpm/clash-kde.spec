@@ -11,6 +11,7 @@ BuildRequires:  cmake
 BuildRequires:  extra-cmake-modules
 BuildRequires:  gcc
 BuildRequires:  kf6-kcmutils-devel
+BuildRequires:  kf6-kirigami-addons-devel
 BuildRequires:  kf6-kconfig-devel
 BuildRequires:  kf6-kcoreaddons-devel
 BuildRequires:  kf6-ki18n-devel
@@ -25,6 +26,7 @@ BuildRequires:  systemd-rpm-macros
 Requires:       dbus
 Requires:       kf6-kcmutils
 Requires:       kf6-kirigami
+Requires:       kf6-kirigami-addons
 Requires:       kf6-kquickcharts
 Requires:       mihomo
 Requires:       plasma-workspace

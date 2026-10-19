@@ -87,12 +87,25 @@ pub fn judge_runtime(
     Ok(())
 }
 
-pub fn assess_tun_document(text: &str, uid: u32) -> Result<(), String> {
+pub fn assess_tun_document(text: &str, uid: u32, scope: &str) -> Result<(), String> {
     let value: Value =
         serde_yaml::from_str(text).map_err(|error| format!("运行配置无法解析: {error}"))?;
     let tun = value.get("tun").ok_or("运行配置里没有 TUN")?;
     if tun.get("enable").and_then(Value::as_bool) != Some(true) {
         return Err("运行配置没有打开 TUN".to_string());
+    }
+    if scope == "machine" {
+        if tun.get("include-uid").is_some() {
+            return Err("整机捕获不能限制账户".to_string());
+        }
+        let excludes_us = tun
+            .get("exclude-uid")
+            .and_then(Value::as_sequence)
+            .is_some_and(|ids| ids.iter().any(|id| id.as_u64() == Some(u64::from(uid))));
+        if excludes_us {
+            return Err("整机捕获不能排除这个账户".to_string());
+        }
+        return Ok(());
     }
     let ids = tun
         .get("include-uid")
@@ -102,6 +115,26 @@ pub fn assess_tun_document(text: &str, uid: u32) -> Result<(), String> {
         return Err("TUN 只能包含这个账户".to_string());
     }
     Ok(())
+}
+
+pub fn personal_tun_in(text: &str) -> bool {
+    let Ok(settings) = toml::from_str::<crate::state::Settings>(text) else {
+        return false;
+    };
+    settings.tun_enabled && !settings.tun_machine
+}
+
+pub fn other_personal_tun(caller: u32) -> bool {
+    signed_in_uids()
+        .into_iter()
+        .filter(|uid| *uid != caller)
+        .any(|uid| {
+            let Ok(account) = lookup_account(uid) else {
+                return false;
+            };
+            let path = account.home.join(".config/clash-kde/config.toml");
+            fs::read_to_string(path).is_ok_and(|text| personal_tun_in(&text))
+        })
 }
 
 pub fn ensure_tun_launch(
@@ -119,8 +152,12 @@ pub fn ensure_tun_launch(
     let config_path =
         fs::canonicalize(config).map_err(|_| "TUN 只能使用这个账户自己的运行配置".to_string())?;
     judge_runtime(&config_path, &runtime, &expected, uid)?;
+    let scope = grant_scope(Path::new(STAMP_DIR), uid)?;
+    if scope == "machine" && other_personal_tun(uid) {
+        return Err("已有账户开着自己的 TUN".to_string());
+    }
     let text = fs::read_to_string(&config_path).map_err(|error| error.to_string())?;
-    assess_tun_document(&text, uid)
+    assess_tun_document(&text, uid, scope)
 }
 
 pub fn log_path_is_runtime(log: &Path, runtime: &Path) -> Result<(), String> {
@@ -141,8 +178,26 @@ pub fn stamp_path(root: &Path, uid: u32) -> PathBuf {
 }
 
 pub fn write_stamp(root: &Path, uid: u32) -> io::Result<()> {
+    write_grant(root, uid, "user")
+}
+
+pub fn write_machine_stamp(root: &Path, uid: u32) -> io::Result<()> {
+    write_grant(root, uid, "machine")
+}
+
+fn write_grant(root: &Path, uid: u32, scope: &str) -> io::Result<()> {
     fs::create_dir_all(root)?;
-    write_private(&stamp_path(root, uid), b"")
+    write_private(&stamp_path(root, uid), scope.as_bytes())
+}
+
+pub fn grant_scope(root: &Path, uid: u32) -> Result<&'static str, String> {
+    let text =
+        fs::read_to_string(stamp_path(root, uid)).map_err(|_| "TUN 还没有得到授权".to_string())?;
+    match text.trim() {
+        "machine" => Ok("machine"),
+        "user" | "" => Ok("user"),
+        _ => Err("TUN 还没有得到授权".to_string()),
+    }
 }
 
 pub fn stamp_exists(root: &Path, uid: u32) -> bool {
@@ -333,11 +388,28 @@ mod tests {
         judge_runtime(&config, &runtime, &runtime, uid).unwrap();
         assert!(judge_runtime(&config, &runtime, dir.path(), uid).is_err());
         assert!(judge_runtime(&runtime.join("other.yaml"), &runtime, &runtime, uid).is_err());
-        assert!(assess_tun_document(&fs::read_to_string(&config).unwrap(), 1).is_ok());
+        assert!(assess_tun_document(&fs::read_to_string(&config).unwrap(), 1, "user").is_ok());
         assert!(
-            assess_tun_document(&fs::read_to_string(&config).unwrap(), uid).is_err() || uid == 1
+            assess_tun_document(&fs::read_to_string(&config).unwrap(), uid, "user").is_err()
+                || uid == 1
         );
-        assert!(assess_tun_document("tun:\n  enable: true\n  include-uid: [1, 0]\n", 1).is_err());
+        assert!(
+            assess_tun_document("tun:\n  enable: true\n  include-uid: [1, 0]\n", 1, "user")
+                .is_err()
+        );
+        assert!(assess_tun_document("tun:\n  enable: true\n", 1, "user").is_err());
+        assert!(assess_tun_document("tun:\n  enable: true\n", 1, "machine").is_ok());
+        assert!(
+            assess_tun_document("tun:\n  enable: true\n  include-uid: [1]\n", 1, "machine")
+                .is_err()
+        );
+        assert!(
+            assess_tun_document("tun:\n  enable: true\n  exclude-uid: [1]\n", 1, "machine")
+                .is_err()
+        );
+        assert!(personal_tun_in("tun_enabled = true\n"));
+        assert!(!personal_tun_in("tun_enabled = true\ntun_machine = true\n"));
+        assert!(!personal_tun_in("tun_enabled = false\n"));
     }
 
     #[test]
@@ -345,6 +417,9 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         write_stamp(dir.path(), 7).unwrap();
         assert!(stamp_exists(dir.path(), 7));
+        assert_eq!(grant_scope(dir.path(), 7).unwrap(), "user");
+        write_machine_stamp(dir.path(), 7).unwrap();
+        assert_eq!(grant_scope(dir.path(), 7).unwrap(), "machine");
         let mode = fs::metadata(stamp_path(dir.path(), 7)).unwrap().mode() & 0o777;
         assert_eq!(mode, 0o600);
         remove_stamp(dir.path(), 7).unwrap();

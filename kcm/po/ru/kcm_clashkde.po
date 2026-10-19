@@ -396,3 +396,57 @@ msgstr "Сайт"
 
 msgid "Mihomo"
 msgstr "Mihomo"
+
+msgid "Pointing at this core."
+msgstr "Указывает на это ядро."
+
+msgid "Pointing somewhere else."
+msgstr "Указывает в другое место."
+
+msgid "Not set."
+msgstr "Не задано."
+
+msgid "KDE proxy"
+msgstr "Прокси KDE"
+
+msgid "GNOME proxy"
+msgstr "Прокси GNOME"
+
+msgid "Shows whether KDE is telling programs to use a proxy."
+msgstr "Показывает, указывает ли KDE программам использовать прокси."
+
+msgid "Shows whether GNOME is telling programs to use a proxy."
+msgstr "Показывает, указывает ли GNOME программам использовать прокси."
+
+msgid "This computer"
+msgstr "Этот компьютер"
+
+msgid "Accounts"
+msgstr "Учётные записи"
+
+msgid "Manage signed-in accounts"
+msgstr "Управлять вошедшими учётными записями"
+
+msgid "Asks for the administrator password, then lists the other signed-in accounts."
+msgstr "Спрашивает пароль администратора, затем показывает другие вошедшие учётные записи."
+
+msgid "Lock"
+msgstr "Заблокировать"
+
+msgid "Capture the whole computer"
+msgstr "Перехватывать весь компьютер"
+
+msgid "Sends every account and root through this account's configuration."
+msgstr "Направляет все учётные записи и root через конфигурацию этой учётной записи."
+
+msgid "Signed-in accounts"
+msgstr "Вошедшие учётные записи"
+
+msgid "No other signed-in accounts."
+msgstr "Других вошедших учётных записей нет."
+
+msgid "Back"
+msgstr "Назад"
+
+msgid "Exit"
+msgstr "Выход"

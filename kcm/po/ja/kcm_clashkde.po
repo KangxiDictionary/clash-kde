@@ -396,3 +396,57 @@ msgstr "ウェブサイト"
 
 msgid "Mihomo"
 msgstr "Mihomo"
+
+msgid "Pointing at this core."
+msgstr "このコアを指しています。"
+
+msgid "Pointing somewhere else."
+msgstr "別の場所を指しています。"
+
+msgid "Not set."
+msgstr "設定されていません。"
+
+msgid "KDE proxy"
+msgstr "KDE プロキシ"
+
+msgid "GNOME proxy"
+msgstr "GNOME プロキシ"
+
+msgid "Shows whether KDE is telling programs to use a proxy."
+msgstr "KDE がプログラムにプロキシを使うよう指示しているかを表示します。"
+
+msgid "Shows whether GNOME is telling programs to use a proxy."
+msgstr "GNOME がプログラムにプロキシを使うよう指示しているかを表示します。"
+
+msgid "This computer"
+msgstr "このコンピューター"
+
+msgid "Accounts"
+msgstr "アカウント"
+
+msgid "Manage signed-in accounts"
+msgstr "ログイン中のアカウントを管理"
+
+msgid "Asks for the administrator password, then lists the other signed-in accounts."
+msgstr "管理者のパスワードを聞いてから、他のログイン中のアカウントを表示します。"
+
+msgid "Lock"
+msgstr "ロック"
+
+msgid "Capture the whole computer"
+msgstr "コンピューター全体を取り込む"
+
+msgid "Sends every account and root through this account's configuration."
+msgstr "すべてのアカウントと root をこのアカウントの設定に通します。"
+
+msgid "Signed-in accounts"
+msgstr "ログイン中のアカウント"
+
+msgid "No other signed-in accounts."
+msgstr "他にログイン中のアカウントはありません。"
+
+msgid "Back"
+msgstr "戻る"
+
+msgid "Exit"
+msgstr "出口"

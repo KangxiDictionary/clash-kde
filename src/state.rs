@@ -29,6 +29,8 @@ pub struct Settings {
     #[serde(default)]
     pub tun_enabled: bool,
     #[serde(default)]
+    pub tun_machine: bool,
+    #[serde(default)]
     pub sort_global: bool,
     #[serde(default = "default_sort_mode")]
     pub sort_mode: String,
@@ -91,6 +93,7 @@ impl Default for Settings {
             active_profile: String::new(),
             selections: BTreeMap::new(),
             tun_enabled: false,
+            tun_machine: false,
             sort_global: false,
             sort_mode: default_sort_mode(),
             show_unreachable: default_show_unreachable(),

@@ -396,3 +396,57 @@ msgstr "웹사이트"
 
 msgid "Mihomo"
 msgstr "Mihomo"
+
+msgid "Pointing at this core."
+msgstr "이 코어를 가리키고 있습니다."
+
+msgid "Pointing somewhere else."
+msgstr "다른 곳을 가리키고 있습니다."
+
+msgid "Not set."
+msgstr "설정되지 않았습니다."
+
+msgid "KDE proxy"
+msgstr "KDE 프록시"
+
+msgid "GNOME proxy"
+msgstr "GNOME 프록시"
+
+msgid "Shows whether KDE is telling programs to use a proxy."
+msgstr "KDE가 프로그램에 프록시를 쓰라고 알려 주는지 표시합니다."
+
+msgid "Shows whether GNOME is telling programs to use a proxy."
+msgstr "GNOME이 프로그램에 프록시를 쓰라고 알려 주는지 표시합니다."
+
+msgid "This computer"
+msgstr "이 컴퓨터"
+
+msgid "Accounts"
+msgstr "계정"
+
+msgid "Manage signed-in accounts"
+msgstr "로그인한 계정 관리"
+
+msgid "Asks for the administrator password, then lists the other signed-in accounts."
+msgstr "관리자 암호를 확인한 다음 다른 로그인 계정을 보여 줍니다."
+
+msgid "Lock"
+msgstr "잠금"
+
+msgid "Capture the whole computer"
+msgstr "컴퓨터 전체 캡처"
+
+msgid "Sends every account and root through this account's configuration."
+msgstr "모든 계정과 root를 이 계정의 설정으로 보냅니다."
+
+msgid "Signed-in accounts"
+msgstr "로그인한 계정"
+
+msgid "No other signed-in accounts."
+msgstr "다른 로그인 계정이 없습니다."
+
+msgid "Back"
+msgstr "뒤로"
+
+msgid "Exit"
+msgstr "출구"

@@ -396,3 +396,57 @@ msgstr "網站"
 
 msgid "Mihomo"
 msgstr "Mihomo"
+
+msgid "Pointing at this core."
+msgstr "正指向這個核心。"
+
+msgid "Pointing somewhere else."
+msgstr "指向了別處。"
+
+msgid "Not set."
+msgstr "沒有設定。"
+
+msgid "KDE proxy"
+msgstr "KDE 代理"
+
+msgid "GNOME proxy"
+msgstr "GNOME 代理"
+
+msgid "Shows whether KDE is telling programs to use a proxy."
+msgstr "顯示 KDE 是否在告訴程式走代理。"
+
+msgid "Shows whether GNOME is telling programs to use a proxy."
+msgstr "顯示 GNOME 是否在告訴程式走代理。"
+
+msgid "This computer"
+msgstr "這台電腦"
+
+msgid "Accounts"
+msgstr "帳戶"
+
+msgid "Manage signed-in accounts"
+msgstr "管理已登入的帳戶"
+
+msgid "Asks for the administrator password, then lists the other signed-in accounts."
+msgstr "先問管理員密碼，然後列出其他已登入的帳戶。"
+
+msgid "Lock"
+msgstr "鎖定"
+
+msgid "Capture the whole computer"
+msgstr "擷取整台電腦"
+
+msgid "Sends every account and root through this account's configuration."
+msgstr "讓所有帳戶和 root 走這個帳戶的設定。"
+
+msgid "Signed-in accounts"
+msgstr "已登入的帳戶"
+
+msgid "No other signed-in accounts."
+msgstr "沒有其他已登入的帳戶。"
+
+msgid "Back"
+msgstr "返回"
+
+msgid "Exit"
+msgstr "出口"

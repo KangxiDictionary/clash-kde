@@ -193,7 +193,7 @@ pub fn prepare_runtime_config(profile: Value, overlay: Value, settings: &Setting
         let uid = unsafe { libc::getuid() };
         map.insert(
             Value::String("tun".into()),
-            enabled_tun(uid, &settings.tun_device),
+            enabled_tun(uid, &settings.tun_device, settings.tun_machine),
         );
         // 系统代理把域名交给内核。TUN 截到的是 IP，域名规则对不上，
         // 握手会打到错误的地址。嗅探 TLS 里的域名后再解析，才和系统代理同一条路。
@@ -202,7 +202,7 @@ pub fn prepare_runtime_config(profile: Value, overlay: Value, settings: &Setting
     config
 }
 
-fn enabled_tun(uid: u32, device: &str) -> Value {
+fn enabled_tun(uid: u32, device: &str, machine: bool) -> Value {
     let hijack = vec![
         Value::String("any:53".into()),
         Value::String("tcp://any:53".into()),
@@ -222,10 +222,12 @@ fn enabled_tun(uid: u32, device: &str) -> Value {
     );
     tun.insert(Value::String("strict-route".into()), Value::Bool(true));
     tun.insert(Value::String("dns-hijack".into()), Value::Sequence(hijack));
-    tun.insert(
-        Value::String("include-uid".into()),
-        Value::Sequence(include),
-    );
+    if !machine {
+        tun.insert(
+            Value::String("include-uid".into()),
+            Value::Sequence(include),
+        );
+    }
     if !device.is_empty() {
         tun.insert(Value::String("device".into()), Value::String(device.into()));
     }
@@ -486,7 +488,21 @@ mod tests {
             Some(true)
         );
         let text = serde_yaml::to_string(&config).unwrap();
-        crate::privilege::assess_tun_document(&text, uid).unwrap();
+        crate::privilege::assess_tun_document(&text, uid, "user").unwrap();
+        settings.tun_machine = true;
+        let machine = prepare_runtime_config(
+            serde_yaml::from_str(
+                "tun:\n  enable: true\n  device: evil\n  include-uid: [0]\nsniffer:\n  enable: false\nproxies: []\n",
+            )
+            .unwrap(),
+            Value::Mapping(Mapping::new()),
+            &settings,
+        );
+        assert!(machine.get("tun").unwrap().get("include-uid").is_none());
+        assert!(machine.get("tun").unwrap().get("exclude-uid").is_none());
+        let machine_text = serde_yaml::to_string(&machine).unwrap();
+        crate::privilege::assess_tun_document(&machine_text, uid, "machine").unwrap();
+        assert!(crate::privilege::assess_tun_document(&machine_text, uid, "user").is_err());
         assert_eq!(
             config.get("allow-lan").and_then(Value::as_bool),
             Some(false)

@@ -14,6 +14,7 @@ include(KDECompilerSettings NO_POLICY_SCOPE)
 
 find_package(Qt6 ${QT_MIN_VERSION} REQUIRED COMPONENTS Core Quick Gui Qml DBus)
 find_package(KF6 ${KF6_MIN_VERSION} REQUIRED COMPONENTS CoreAddons I18n KCMUtils)
+find_package(KF6KirigamiAddons REQUIRED)
 find_package(Plasma REQUIRED)
 find_package(ICU REQUIRED COMPONENTS uc)
 

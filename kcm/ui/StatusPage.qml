@@ -168,7 +168,7 @@ Item {
             QQC2.Switch {
                 id: proxySwitch
                 checked: kcm.client.draftSystemProxyEnabled
-                enabled: checked || (kcm.client.draftCoreDesired && !kcm.client.draftTunEnabled)
+                enabled: checked || (kcm.client.draftCoreDesired && !kcm.client.draftTunEnabled && !kcm.client.tunMachine)
                 onToggled: {
                     if (checked !== kcm.client.draftSystemProxyEnabled) {
                         kcm.client.draftSystemProxyEnabled = checked;
@@ -185,21 +185,17 @@ Item {
             }
 
             QQC2.Label {
-                text: tx.i18n("TUN")
+                text: tx.i18n("Traffic capture")
             }
 
-            QQC2.Switch {
-                checked: kcm.client.draftTunEnabled
-                enabled: !kcm.client.busy && (checked || kcm.client.coreRunning)
-                onToggled: {
-                    if (checked !== kcm.client.draftTunEnabled) {
-                        kcm.client.draftTunEnabled = checked;
+            QQC2.Label {
+                text: {
+                    if (!kcm.client.tunEnabled) {
+                        return tx.i18n("Off");
                     }
+                    return kcm.client.tunMachine ? tx.i18n("This computer") : tx.i18n("This account");
                 }
-
-                QQC2.ToolTip.visible: hovered
-                QQC2.ToolTip.delay: 700
-                QQC2.ToolTip.text: tx.i18n("This captures only this account's traffic, and the system proxy steps aside while it is on.")
+                opacity: 0.75
             }
 
             Item {

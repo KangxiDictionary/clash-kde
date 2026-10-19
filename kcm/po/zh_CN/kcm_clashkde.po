@@ -397,3 +397,57 @@ msgstr "记住一套排序和筛选，用在每个策略组和每个配置上。
 
 msgid "Mihomo"
 msgstr "Mihomo"
+
+msgid "Pointing at this core."
+msgstr "正指向这个内核。"
+
+msgid "Pointing somewhere else."
+msgstr "指向了别处。"
+
+msgid "Not set."
+msgstr "没有设置。"
+
+msgid "KDE proxy"
+msgstr "KDE 代理"
+
+msgid "GNOME proxy"
+msgstr "GNOME 代理"
+
+msgid "Shows whether KDE is telling programs to use a proxy."
+msgstr "显示 KDE 是否在告诉程序走代理。"
+
+msgid "Shows whether GNOME is telling programs to use a proxy."
+msgstr "显示 GNOME 是否在告诉程序走代理。"
+
+msgid "This computer"
+msgstr "这台电脑"
+
+msgid "Accounts"
+msgstr "账户"
+
+msgid "Manage signed-in accounts"
+msgstr "管理已登录的账户"
+
+msgid "Asks for the administrator password, then lists the other signed-in accounts."
+msgstr "先问管理员密码，然后列出其他已登录的账户。"
+
+msgid "Lock"
+msgstr "锁定"
+
+msgid "Capture the whole computer"
+msgstr "捕获整台电脑"
+
+msgid "Sends every account and root through this account's configuration."
+msgstr "让所有账户和 root 走这个账户的配置。"
+
+msgid "Signed-in accounts"
+msgstr "已登录的账户"
+
+msgid "No other signed-in accounts."
+msgstr "没有其他已登录的账户。"
+
+msgid "Back"
+msgstr "返回"
+
+msgid "Exit"
+msgstr "出口"

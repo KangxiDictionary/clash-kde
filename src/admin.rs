@@ -15,6 +15,7 @@ use zbus::message::Header;
 use crate::privilege;
 
 const POLKIT_TUN: &str = "org.kde.clashkde.tun";
+const POLKIT_TUN_MACHINE: &str = "org.kde.clashkde.tun-machine";
 const POLKIT_USERS: &str = "org.kde.clashkde.manage-users";
 
 struct Slot {
@@ -70,6 +71,26 @@ impl Admin {
         )
         .await?;
         privilege::write_stamp(Path::new(privilege::STAMP_DIR), uid)
+            .map_err(|error| fdo::Error::Failed(error.to_string()))
+    }
+
+    #[zbus(name = "AuthorizeMachineTun")]
+    async fn authorize_machine_tun(
+        &self,
+        #[zbus(header)] header: Header<'_>,
+        #[zbus(connection)] connection: &zbus::Connection,
+    ) -> fdo::Result<()> {
+        let (uid, sender) = caller(&header, connection).await?;
+        allow(
+            &sender,
+            POLKIT_TUN_MACHINE,
+            "send every account and root through this account",
+        )
+        .await?;
+        if privilege::other_personal_tun(uid) {
+            return Err(fdo::Error::Failed("已有账户开着自己的 TUN".to_string()));
+        }
+        privilege::write_machine_stamp(Path::new(privilege::STAMP_DIR), uid)
             .map_err(|error| fdo::Error::Failed(error.to_string()))
     }
 
@@ -194,6 +215,10 @@ pub async fn run() -> Result<(), String> {
 
 pub async fn authorize_tun() -> Result<(), String> {
     call("AuthorizeTun", &()).await
+}
+
+pub async fn authorize_machine_tun() -> Result<(), String> {
+    call("AuthorizeMachineTun", &()).await
 }
 
 pub async fn revoke_tun() -> Result<(), String> {
@@ -407,8 +432,10 @@ async fn describe(uid: u32) -> ListedUser {
                 name,
                 core_running: false,
                 tun_enabled: false,
+                tun_machine: false,
                 system_proxy_enabled: false,
                 mode: String::new(),
+                exit_region: String::new(),
                 error,
             };
         }
@@ -416,16 +443,20 @@ async fn describe(uid: u32) -> ListedUser {
     let status = parsed.unwrap_or(SlimStatus {
         core_running: false,
         tun_enabled: false,
+        tun_machine: false,
         system_proxy_enabled: false,
         mode: String::new(),
+        exit_region: String::new(),
     });
     ListedUser {
         uid,
         name,
         core_running: status.core_running,
         tun_enabled: status.tun_enabled,
+        tun_machine: status.tun_machine,
         system_proxy_enabled: status.system_proxy_enabled,
         mode: status.mode,
+        exit_region: status.exit_region,
         error: String::new(),
     }
 }
@@ -436,8 +467,10 @@ struct ListedUser {
     name: String,
     core_running: bool,
     tun_enabled: bool,
+    tun_machine: bool,
     system_proxy_enabled: bool,
     mode: String,
+    exit_region: String,
     error: String,
 }
 
@@ -445,6 +478,10 @@ struct ListedUser {
 struct SlimStatus {
     core_running: bool,
     tun_enabled: bool,
+    #[serde(default)]
+    tun_machine: bool,
     system_proxy_enabled: bool,
     mode: String,
+    #[serde(default)]
+    exit_region: String,
 }

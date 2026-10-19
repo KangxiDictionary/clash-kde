@@ -17,6 +17,10 @@ class ClashClient : public QObject
     Q_PROPERTY(bool systemProxyEnabled READ systemProxyEnabled NOTIFY statusChanged)
     Q_PROPERTY(bool systemProxyApplied READ systemProxyApplied NOTIFY statusChanged)
     Q_PROPERTY(bool tunEnabled READ tunEnabled NOTIFY statusChanged)
+    Q_PROPERTY(bool tunMachine READ tunMachine NOTIFY statusChanged)
+    Q_PROPERTY(QString kdeProxy READ kdeProxy NOTIFY statusChanged)
+    Q_PROPERTY(QString gnomeProxy READ gnomeProxy NOTIFY statusChanged)
+    Q_PROPERTY(bool accountsUnlocked READ accountsUnlocked NOTIFY accountsChanged)
     Q_PROPERTY(bool firewallActive READ firewallActive NOTIFY statusChanged)
     Q_PROPERTY(QString mode READ mode NOTIFY statusChanged)
     Q_PROPERTY(QString listenAddress READ listenAddress NOTIFY statusChanged)
@@ -65,6 +69,10 @@ public:
     bool systemProxyEnabled() const;
     bool systemProxyApplied() const;
     bool tunEnabled() const;
+    bool tunMachine() const;
+    QString kdeProxy() const;
+    QString gnomeProxy() const;
+    bool accountsUnlocked() const;
     bool firewallActive() const;
     QString mode() const;
     QString listenAddress() const;
@@ -124,6 +132,9 @@ public:
     Q_INVOKABLE void restartCore();
     Q_INVOKABLE void setSystemProxyEnabled(bool enabled);
     Q_INVOKABLE void setTunEnabled(bool enabled);
+    Q_INVOKABLE void setMachineTun(bool enabled);
+    Q_INVOKABLE void lockAccounts();
+    Q_INVOKABLE QString formatExit(const QString &raw) const;
     Q_INVOKABLE void reloadAccounts();
     Q_INVOKABLE void startAccount(qulonglong uid);
     Q_INVOKABLE void stopAccount(qulonglong uid);
@@ -189,6 +200,10 @@ private:
     bool m_systemProxyEnabled = false;
     bool m_systemProxyApplied = false;
     bool m_tunEnabled = false;
+    bool m_tunMachine = false;
+    QString m_kdeProxy = QStringLiteral("off");
+    QString m_gnomeProxy = QStringLiteral("off");
+    bool m_accountsUnlocked = false;
     bool m_firewallActive = false;
     qint64 m_firewallCheckedAt = 0;
     QString m_mode = QStringLiteral("rule");

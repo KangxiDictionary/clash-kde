@@ -88,6 +88,9 @@ struct Status {
     system_proxy_enabled: bool,
     system_proxy_applied: bool,
     tun_enabled: bool,
+    tun_machine: bool,
+    kde_proxy: String,
+    gnome_proxy: String,
     mode: String,
     listen_host: String,
     mixed_port: u16,
@@ -256,6 +259,38 @@ impl App {
         let running = {
             let mut inner = self.inner.lock().await;
             inner.settings.tun_enabled = enabled;
+            inner.settings.tun_machine = false;
+            inner
+                .settings
+                .save(&self.paths)
+                .map_err(|error| error.to_string())?;
+            inner.message.clear();
+            inner.core_running
+        };
+        let started = if running {
+            self.spawn_core().await
+        } else {
+            self.sync_system_proxy().await?;
+            self.emit(Event::Status);
+            Ok(())
+        };
+        self.schedule_region_lookup();
+        started
+    }
+
+    pub async fn set_machine_tun(self: &Arc<Self>, enabled: bool) -> Result<(), String> {
+        if enabled {
+            let path = self.inner.lock().await.settings.mihomo_path.clone();
+            let binary = core::resolve_binary(&path)?;
+            crate::privilege::ensure_system_binary(&binary)?;
+            crate::admin::authorize_machine_tun().await?;
+        } else {
+            crate::admin::revoke_tun().await?;
+        }
+        let running = {
+            let mut inner = self.inner.lock().await;
+            inner.settings.tun_enabled = enabled;
+            inner.settings.tun_machine = enabled;
             inner
                 .settings
                 .save(&self.paths)
@@ -909,6 +944,10 @@ impl App {
             system_proxy_enabled: inner.settings.system_proxy_enabled,
             system_proxy_applied: inner.system_proxy_applied,
             tun_enabled: inner.settings.tun_enabled,
+            tun_machine: inner.settings.tun_machine,
+            kde_proxy: proxy_settings::kde_proxy_label(&self.paths, inner.settings.mixed_port)
+                .to_string(),
+            gnome_proxy: proxy_settings::gnome_proxy_label(inner.settings.mixed_port).to_string(),
             mode: inner.settings.mode.clone(),
             listen_host: "127.0.0.1".to_string(),
             mixed_port: inner.settings.mixed_port,

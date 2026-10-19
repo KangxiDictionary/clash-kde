@@ -32,11 +32,6 @@ Kirigami.Page {
                 QQC2.TabButton { text: tx.i18n("Proxies") }
                 QQC2.TabButton { text: tx.i18n("Users") }
                 QQC2.TabButton { text: tx.i18n("Advanced") }
-                onCurrentIndexChanged: {
-                    if (currentIndex === 3) {
-                        kcm.client.reloadAccounts();
-                    }
-                }
             }
             QQC2.BusyIndicator {
                 running: kcm.client.busy

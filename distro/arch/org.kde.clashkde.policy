@@ -28,9 +28,39 @@
     <message xml:lang="ru">Чтобы перехватывать сетевой трафик этой учётной записи, нужна аутентификация.</message>
     <message xml:lang="it">Serve un'autenticazione per catturare il traffico di rete di questo account.</message>
     <defaults>
-      <allow_any>auth_admin_keep</allow_any>
-      <allow_inactive>auth_admin_keep</allow_inactive>
-      <allow_active>auth_admin_keep</allow_active>
+      <allow_any>auth_admin</allow_any>
+      <allow_inactive>auth_admin</allow_inactive>
+      <allow_active>auth_self_keep</allow_active>
+    </defaults>
+  </action>
+
+  <action id="org.kde.clashkde.tun-machine">
+    <description>Send every account and root through this account</description>
+    <description xml:lang="zh-Hans-CN">让所有账户和 root 走这个账户</description>
+    <description xml:lang="zh-Hant-TW">讓所有帳戶和 root 走這個帳戶</description>
+    <description xml:lang="ja">すべてのアカウントと root をこのアカウントに通す</description>
+    <description xml:lang="ko">모든 계정과 root를 이 계정으로 보내기</description>
+    <description xml:lang="de">Alle Konten und root durch dieses Konto leiten</description>
+    <description xml:lang="fr">Envoyer tous les comptes et root par ce compte</description>
+    <description xml:lang="es">Enviar todas las cuentas y root por esta cuenta</description>
+    <description xml:lang="pt-BR">Enviar todas as contas e o root por esta conta</description>
+    <description xml:lang="ru">Направить все учётные записи и root через эту учётную запись</description>
+    <description xml:lang="it">Instradare tutti gli account e root attraverso questo account</description>
+    <message>Authentication is required to send every account and root through this account.</message>
+    <message xml:lang="zh-Hans-CN">需要管理员认证才能让所有账户和 root 走这个账户。</message>
+    <message xml:lang="zh-Hant-TW">需要管理員認證才能讓所有帳戶和 root 走這個帳戶。</message>
+    <message xml:lang="ja">すべてのアカウントと root をこのアカウントに通すには管理者の認証が必要です。</message>
+    <message xml:lang="ko">모든 계정과 root를 이 계정으로 보내려면 관리자 인증이 필요합니다.</message>
+    <message xml:lang="de">Zum Leiten aller Konten und von root durch dieses Konto ist eine Administrator-Authentifizierung nötig.</message>
+    <message xml:lang="fr">Une authentification d'administrateur est nécessaire pour envoyer tous les comptes et root par ce compte.</message>
+    <message xml:lang="es">Hace falta autenticarse como administrador para enviar todas las cuentas y root por esta cuenta.</message>
+    <message xml:lang="pt-BR">É preciso autenticar como administrador para enviar todas as contas e o root por esta conta.</message>
+    <message xml:lang="ru">Чтобы направить все учётные записи и root через эту учётную запись, нужна аутентификация администратора.</message>
+    <message xml:lang="it">Serve un'autenticazione da amministratore per instradare tutti gli account e root attraverso questo account.</message>
+    <defaults>
+      <allow_any>auth_admin</allow_any>
+      <allow_inactive>auth_admin</allow_inactive>
+      <allow_active>auth_admin</allow_active>
     </defaults>
   </action>
 

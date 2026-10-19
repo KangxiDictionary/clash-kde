@@ -12,6 +12,7 @@ depends=(
     'qt6-declarative'
     'kcmutils'
     'kirigami'
+    'kirigami-addons'
     'kquickcharts'
     'ki18n'
     'kconfig'
