@@ -139,6 +139,24 @@ msgstr "IP をぼかす"
 msgid "Hides the latter half of the exit address."
 msgstr "出口アドレスの後半を隠します。"
 
+msgid "TUN device"
+msgstr "TUN デバイス"
+
+msgid "Leave this empty to let the kernel choose the name, and applying a new name asks you to confirm."
+msgstr "空欄ならカーネルが名前を付け、新しい名前の適用には確認が必要です。"
+
+msgid "Open file"
+msgstr "ファイルを開く"
+
+msgid "Opens the override file, creating it from the template when it is missing."
+msgstr "上書きファイルを開き、無いときは雛形から作ります。"
+
+msgid "Open folder"
+msgstr "フォルダーを開く"
+
+msgid "Opens the folder that contains the override file."
+msgstr "上書きファイルがあるフォルダーを開きます。"
+
 msgid "Keeps one sort and filter for every group and profile."
 msgstr "並べ替えと絞り込みを一つ覚えて、すべてのグループとプロファイルに使います。"
 

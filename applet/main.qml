@@ -385,14 +385,20 @@ PlasmoidItem {
             if (!session.autoTestDelay || !session.coreRunning || groupName.length === 0) {
                 return;
             }
+            if (session.groupDelayTesting(groupName)) {
+                return;
+            }
             session.testGroupDelay(groupName);
         }
 
         function patchMenu(menu, byName) {
+            let changed = false;
             for (let i = 0; i < menu.count; ++i) {
                 const sub = menu.menuAt(i);
                 if (sub) {
-                    popupRoot.patchMenu(sub, byName);
+                    if (popupRoot.patchMenu(sub, byName)) {
+                        changed = true;
+                    }
                     continue;
                 }
                 const item = menu.itemAt(i);
@@ -409,8 +415,82 @@ PlasmoidItem {
                 const delay = state.delays[item.nodeName];
                 if (typeof delay === "number" && item.delayMs !== delay) {
                     item.delayMs = delay;
+                    changed = true;
                 }
             }
+            return changed;
+        }
+
+        function rankDelay(ms) {
+            if (ms < 0) {
+                return 1e15;
+            }
+            if (ms === 0) {
+                return 1e14;
+            }
+            return ms;
+        }
+
+        function reorderDelayMenu(menu) {
+            const nodes = [];
+            let index = 0;
+            while (index < menu.count) {
+                const sub = menu.menuAt(index);
+                if (sub) {
+                    popupRoot.reorderDelayMenu(sub);
+                    index += 1;
+                    continue;
+                }
+                const item = menu.itemAt(index);
+                if (!item || !item.nodeName) {
+                    index += 1;
+                    continue;
+                }
+                if (root.routeSort !== "delay") {
+                    const show = root.showUnreachable || item.delayMs !== 0;
+                    item.visible = show;
+                    item.height = show ? Math.max(item.implicitHeight, Kirigami.Units.gridUnit) : 0;
+                    index += 1;
+                    continue;
+                }
+                const taken = menu.takeItem(index);
+                if (!taken) {
+                    index += 1;
+                    continue;
+                }
+                nodes.push(taken);
+            }
+            if (root.routeSort === "delay") {
+                nodes.sort((left, right) => {
+                    const difference = rankDelay(left.delayMs) - rankDelay(right.delayMs);
+                    if (difference !== 0) {
+                        return difference;
+                    }
+                    return String(left.nodeName).localeCompare(String(right.nodeName));
+                });
+                for (let n = 0; n < nodes.length; ++n) {
+                    const item = nodes[n];
+                    const show = root.showUnreachable || item.delayMs !== 0;
+                    item.visible = show;
+                    item.height = show ? Math.max(item.implicitHeight, Kirigami.Units.gridUnit) : 0;
+                    menu.insertItem(n, item);
+                }
+            }
+            if (!menu.opened) {
+                return;
+            }
+            let visible = 0;
+            for (let i = 0; i < menu.count; ++i) {
+                if (menu.menuAt(i)) {
+                    visible += 1;
+                    continue;
+                }
+                const item = menu.itemAt(i);
+                if (item && item.visible !== false) {
+                    visible += 1;
+                }
+            }
+            root.fitRouteMenu(menu, Math.max(visible, 1));
         }
 
         function syncOpenRouteMenu() {
@@ -434,7 +514,9 @@ PlasmoidItem {
                     delays: delays
                 };
             }
-            patchMenu(routeMenu, byName);
+            if (patchMenu(routeMenu, byName)) {
+                reorderDelayMenu(routeMenu);
+            }
         }
 
         implicitWidth: Kirigami.Units.gridUnit * 20

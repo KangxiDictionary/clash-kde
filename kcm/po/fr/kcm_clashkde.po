@@ -139,6 +139,24 @@ msgstr "Masquer l'adresse IP"
 msgid "Hides the latter half of the exit address."
 msgstr "Masque la seconde moitié de l'adresse de sortie."
 
+msgid "TUN device"
+msgstr "Périphérique TUN"
+
+msgid "Leave this empty to let the kernel choose the name, and applying a new name asks you to confirm."
+msgstr "Laisser vide pour que le noyau choisisse le nom ; un nouveau nom demande une confirmation."
+
+msgid "Open file"
+msgstr "Ouvrir le fichier"
+
+msgid "Opens the override file, creating it from the template when it is missing."
+msgstr "Ouvre le fichier de remplacement et le crée d'après le modèle s'il manque."
+
+msgid "Open folder"
+msgstr "Ouvrir le dossier"
+
+msgid "Opens the folder that contains the override file."
+msgstr "Ouvre le dossier qui contient le fichier de remplacement."
+
 msgid "Keeps one sort and filter for every group and profile."
 msgstr "Retient un tri et un filtre pour chaque groupe et chaque profil."
 

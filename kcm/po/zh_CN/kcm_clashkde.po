@@ -374,6 +374,24 @@ msgstr "模糊 IP"
 msgid "Hides the latter half of the exit address."
 msgstr "隐藏出口地址的后半段。"
 
+msgid "TUN device"
+msgstr "虚拟网卡"
+
+msgid "Leave this empty to let the kernel choose the name, and applying a new name asks you to confirm."
+msgstr "留空则由内核自己命名，应用新名称时需要验证身份。"
+
+msgid "Open file"
+msgstr "打开文件"
+
+msgid "Opens the override file, creating it from the template when it is missing."
+msgstr "打开覆盖文件，不存在时按模板创建。"
+
+msgid "Open folder"
+msgstr "打开文件夹"
+
+msgid "Opens the folder that contains the override file."
+msgstr "打开覆盖文件所在的文件夹。"
+
 msgid "Keeps one sort and filter for every group and profile."
 msgstr "记住一套排序和筛选，用在每个策略组和每个配置上。"
 

@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
@@ -40,6 +40,10 @@ pub struct Settings {
     pub auto_test_delay: bool,
     #[serde(default)]
     pub blur_ip: bool,
+    #[serde(default)]
+    pub tun_device: String,
+    #[serde(default)]
+    pub override_path: String,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -93,6 +97,8 @@ impl Default for Settings {
             sort_prefs: BTreeMap::new(),
             auto_test_delay: false,
             blur_ip: false,
+            tun_device: String::new(),
+            override_path: String::new(),
         }
     }
 }
@@ -120,6 +126,9 @@ impl Settings {
         if settings.controller_port == 0 {
             settings.controller_port = default_controller_port();
         }
+        settings.tun_device = normalize_tun_device(&settings.tun_device).unwrap_or_default();
+        settings.override_path =
+            normalize_override_path(paths, &settings.override_path).unwrap_or_default();
         Ok(settings)
     }
 
@@ -176,5 +185,103 @@ pub fn normalize_mode(mode: &str) -> Result<String, String> {
     match mode {
         "rule" | "global" | "direct" => Ok(mode.to_string()),
         _ => Err("模式只能是 rule、global 或 direct".to_string()),
+    }
+}
+
+pub fn normalize_tun_device(name: &str) -> Result<String, String> {
+    let name = name.trim();
+    if name.is_empty() {
+        return Ok(String::new());
+    }
+    let ok = (1..=15).contains(&name.len())
+        && name
+            .chars()
+            .all(|ch| ch.is_ascii_alphanumeric() || ch == '_' || ch == '-');
+    if !ok {
+        return Err("网卡名称只允许 1 到 15 个字母、数字、下划线或连字符".to_string());
+    }
+    Ok(name.to_string())
+}
+
+pub fn effective_override(paths: &Paths, stored: &str) -> PathBuf {
+    let stored = stored.trim();
+    if stored.is_empty() {
+        paths.override_file()
+    } else {
+        PathBuf::from(stored)
+    }
+}
+
+pub fn normalize_override_path(paths: &Paths, text: &str) -> Result<String, String> {
+    let text = text.trim();
+    if text.is_empty() {
+        return Ok(String::new());
+    }
+    let path = PathBuf::from(text);
+    if !path.is_absolute() {
+        return Err("覆盖文件需要绝对路径".to_string());
+    }
+    if path.file_name().is_none_or(|name| name.is_empty()) {
+        return Err("覆盖文件需要文件名".to_string());
+    }
+    if path.is_dir() {
+        return Err("覆盖路径是文件夹".to_string());
+    }
+    if path == paths.override_file() {
+        return Ok(String::new());
+    }
+    Ok(path.display().to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn sample_paths() -> Paths {
+        Paths {
+            config_dir: PathBuf::from("/tmp/clash-kde-settings"),
+            data_dir: PathBuf::from("/tmp/clash-kde-data"),
+            kioslaverc: PathBuf::from("/tmp/kioslaverc"),
+        }
+    }
+
+    #[test]
+    fn tun_device_name_is_empty_or_a_short_interface_name() {
+        assert_eq!(normalize_tun_device("  ").unwrap(), "");
+        assert_eq!(normalize_tun_device(" clash0 ").unwrap(), "clash0");
+        assert_eq!(normalize_tun_device("a").unwrap(), "a");
+        assert_eq!(normalize_tun_device("ok-name_1").unwrap(), "ok-name_1");
+        assert_eq!(
+            normalize_tun_device("a".repeat(15).as_str()).unwrap().len(),
+            15
+        );
+        assert!(normalize_tun_device(&"a".repeat(16)).is_err());
+        assert!(normalize_tun_device("bad name").is_err());
+        assert!(normalize_tun_device("bad.name").is_err());
+        assert!(normalize_tun_device("网卡").is_err());
+    }
+
+    #[test]
+    fn override_path_empty_or_default_is_stored_as_empty() {
+        let paths = sample_paths();
+        let default = paths.override_file().display().to_string();
+        assert_eq!(normalize_override_path(&paths, "  ").unwrap(), "");
+        assert_eq!(normalize_override_path(&paths, &default).unwrap(), "");
+        assert_eq!(
+            normalize_override_path(&paths, "/tmp/custom-override.yaml").unwrap(),
+            "/tmp/custom-override.yaml"
+        );
+        assert!(normalize_override_path(&paths, "override.yaml").is_err());
+        assert!(normalize_override_path(&paths, "/").is_err());
+    }
+
+    #[test]
+    fn override_path_rejects_an_existing_directory() {
+        let paths = sample_paths();
+        let dir = std::env::temp_dir().join("clash-kde-override-dir-test");
+        fs::create_dir_all(&dir).unwrap();
+        let error = normalize_override_path(&paths, dir.to_str().unwrap()).unwrap_err();
+        assert!(error.contains("文件夹"));
+        let _ = fs::remove_dir(&dir);
     }
 }

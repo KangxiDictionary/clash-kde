@@ -139,6 +139,24 @@ msgstr "IP unkenntlich machen"
 msgid "Hides the latter half of the exit address."
 msgstr "Verbirgt die hintere Hälfte der Ausgangsadresse."
 
+msgid "TUN device"
+msgstr "TUN-Gerät"
+
+msgid "Leave this empty to let the kernel choose the name, and applying a new name asks you to confirm."
+msgstr "Leer lassen, damit der Kernel den Namen vergibt; ein neuer Name verlangt eine Bestätigung."
+
+msgid "Open file"
+msgstr "Datei öffnen"
+
+msgid "Opens the override file, creating it from the template when it is missing."
+msgstr "Öffnet die Ergänzungsdatei und legt sie bei Bedarf aus der Vorlage an."
+
+msgid "Open folder"
+msgstr "Ordner öffnen"
+
+msgid "Opens the folder that contains the override file."
+msgstr "Öffnet den Ordner der Ergänzungsdatei."
+
 msgid "Keeps one sort and filter for every group and profile."
 msgstr "Merkt sich eine Sortierung und einen Filter für jede Gruppe und jedes Profil."
 

@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, Instant};
@@ -69,11 +69,16 @@ fn region_probe_of(inner: &Inner) -> controller::RegionProbe {
 pub struct App {
     paths: Paths,
     inner: Mutex<Inner>,
+    delay_tests: Mutex<HashSet<String>>,
     generation: AtomicU64,
     region_epoch: AtomicU64,
     events: broadcast::Sender<Event>,
     exit_tx: mpsc::UnboundedSender<ExitNotice>,
     exit_rx: Mutex<Option<mpsc::UnboundedReceiver<ExitNotice>>>,
+}
+
+fn claim_delay_group(testing: &mut HashSet<String>, group: &str) -> bool {
+    testing.insert(group.to_string())
 }
 
 #[derive(Serialize)]
@@ -101,14 +106,20 @@ struct Status {
     sort_prefs: BTreeMap<String, crate::state::SortPref>,
     auto_test_delay: bool,
     blur_ip: bool,
+    tun_device: String,
+    override_default: String,
 }
 
 impl App {
     pub fn new(paths: Paths) -> Result<Arc<Self>, String> {
         std::fs::create_dir_all(&paths.config_dir).map_err(|error| error.to_string())?;
         std::fs::create_dir_all(&paths.data_dir).map_err(|error| error.to_string())?;
-        profile::ensure_override_file(&paths.override_file()).map_err(|error| error.to_string())?;
         let mut settings = Settings::load(&paths).map_err(|error| error.to_string())?;
+        profile::ensure_override_file(&paths.override_file()).map_err(|error| error.to_string())?;
+        let override_path = state::effective_override(&paths, &settings.override_path);
+        if override_path != paths.override_file() {
+            profile::ensure_override_file(&override_path).map_err(|error| error.to_string())?;
+        }
         if state::ensure_secret(&mut settings) {
             settings.save(&paths).map_err(|error| error.to_string())?;
         }
@@ -116,6 +127,7 @@ impl App {
         let (exit_tx, exit_rx) = mpsc::unbounded_channel();
         Ok(Arc::new(Self {
             paths: paths.clone(),
+            delay_tests: Mutex::new(HashSet::new()),
             generation: AtomicU64::new(1),
             region_epoch: AtomicU64::new(0),
             events,
@@ -290,23 +302,38 @@ impl App {
         mixed_port: u32,
         controller_port: u32,
         mihomo_path: String,
+        tun_device: String,
+        override_path: String,
     ) -> Result<(), String> {
         let (mixed_port, controller_port) = state::validate_ports(mixed_port, controller_port)?;
         let mihomo_path = mihomo_path.trim().to_string();
         if mihomo_path.is_empty() {
             return Err("mihomo 路径不能为空".to_string());
         }
+        let tun_device = state::normalize_tun_device(&tun_device)?;
+        let override_path = state::normalize_override_path(&self.paths, &override_path)?;
+        let effective = state::effective_override(&self.paths, &override_path);
+        profile::ensure_override_file(&effective).map_err(|error| error.to_string())?;
         let should_restart = {
             let mut inner = self.inner.lock().await;
+            let ports_changed = inner.settings.mixed_port != mixed_port
+                || inner.settings.controller_port != controller_port
+                || inner.settings.mihomo_path != mihomo_path;
+            let device_changed = inner.settings.tun_device != tun_device;
+            let override_changed = inner.settings.override_path != override_path;
+            let running = inner.core_running;
+            let tun_on = inner.settings.tun_enabled;
             inner.settings.mixed_port = mixed_port;
             inner.settings.controller_port = controller_port;
             inner.settings.mihomo_path = mihomo_path;
+            inner.settings.tun_device = tun_device;
+            inner.settings.override_path = override_path;
             inner
                 .settings
                 .save(&self.paths)
                 .map_err(|error| error.to_string())?;
             inner.message.clear();
-            inner.core_running
+            running && (ports_changed || override_changed || (device_changed && tun_on))
         };
         if should_restart {
             self.spawn_core().await?;
@@ -315,6 +342,13 @@ impl App {
             self.emit(Event::Status);
         }
         Ok(())
+    }
+
+    pub async fn ensure_override(&self, requested: &str) -> Result<String, String> {
+        let stored = state::normalize_override_path(&self.paths, requested)?;
+        let path = state::effective_override(&self.paths, &stored);
+        profile::ensure_override_file(&path).map_err(|error| error.to_string())?;
+        Ok(path.display().to_string())
     }
 
     pub async fn profiles_json(&self) -> String {
@@ -620,6 +654,18 @@ impl App {
     }
 
     pub async fn test_group_delay(&self, group: &str) -> Result<(), String> {
+        {
+            let mut testing = self.delay_tests.lock().await;
+            if !claim_delay_group(&mut testing, group) {
+                return Ok(());
+            }
+        }
+        let result = self.probe_group_delay(group).await;
+        self.delay_tests.lock().await.remove(group);
+        result
+    }
+
+    async fn probe_group_delay(&self, group: &str) -> Result<(), String> {
         let (running, port, secret) = self.controller_endpoint().await;
         if !running {
             return Err("内核没有在运行".to_string());
@@ -873,7 +919,9 @@ impl App {
             exit_region: inner.exit_region.clone(),
             active_profile: inner.settings.active_profile.clone(),
             message: inner.message.clone(),
-            override_path: self.paths.override_file().display().to_string(),
+            override_path: state::effective_override(&self.paths, &inner.settings.override_path)
+                .display()
+                .to_string(),
             selections: inner.settings.selections.clone(),
             sort_global: inner.settings.sort_global,
             sort_mode: inner.settings.sort_mode.clone(),
@@ -881,6 +929,8 @@ impl App {
             sort_prefs: inner.settings.sort_prefs.clone(),
             auto_test_delay: inner.settings.auto_test_delay,
             blur_ip: inner.settings.blur_ip,
+            tun_device: inner.settings.tun_device.clone(),
+            override_default: self.paths.override_file().display().to_string(),
         };
         serde_json::to_string(&status).expect("status json")
     }
@@ -1315,5 +1365,20 @@ impl App {
 
     fn emit(&self, event: Event) {
         let _ = self.events.send(event);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_group_already_testing_is_not_claimed_again() {
+        let mut testing = HashSet::new();
+        assert!(claim_delay_group(&mut testing, "happy"));
+        assert!(!claim_delay_group(&mut testing, "happy"));
+        assert!(claim_delay_group(&mut testing, "other"));
+        testing.remove("happy");
+        assert!(claim_delay_group(&mut testing, "happy"));
     }
 }

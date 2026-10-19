@@ -48,6 +48,8 @@ class ClashClient : public QObject
     Q_PROPERTY(bool draftSortGlobal READ draftSortGlobal WRITE setDraftSortGlobal NOTIFY draftChanged)
     Q_PROPERTY(bool draftAutoTestDelay READ draftAutoTestDelay WRITE setDraftAutoTestDelay NOTIFY draftChanged)
     Q_PROPERTY(bool draftBlurIp READ draftBlurIp WRITE setDraftBlurIp NOTIFY draftChanged)
+    Q_PROPERTY(QString draftTunDevice READ draftTunDevice WRITE setDraftTunDevice NOTIFY draftChanged)
+    Q_PROPERTY(QString draftOverridePath READ draftOverridePath WRITE setDraftOverridePath NOTIFY draftChanged)
     Q_PROPERTY(bool sortGlobal READ sortGlobal NOTIFY statusChanged)
     Q_PROPERTY(QString sortMode READ sortMode NOTIFY statusChanged)
     Q_PROPERTY(bool showUnreachable READ showUnreachable NOTIFY statusChanged)
@@ -107,6 +109,10 @@ public:
     void setDraftAutoTestDelay(bool enabled);
     bool draftBlurIp() const;
     void setDraftBlurIp(bool enabled);
+    QString draftTunDevice() const;
+    void setDraftTunDevice(const QString &name);
+    QString draftOverridePath() const;
+    void setDraftOverridePath(const QString &path);
     bool sortGlobal() const;
     QString sortMode() const;
     bool showUnreachable() const;
@@ -138,6 +144,8 @@ public:
     Q_INVOKABLE void setProfileMeta(const QString &id, const QString &name, const QString &url);
     Q_INVOKABLE void importProfile(const QString &name, const QString &fileUrl);
     Q_INVOKABLE void refreshExitRegion();
+    Q_INVOKABLE void openOverrideFile(const QString &path);
+    Q_INVOKABLE void openOverrideFolder(const QString &path);
     Q_INVOKABLE void reload();
     bool commitSettings();
     void revertDraft();
@@ -171,6 +179,7 @@ private:
     void refreshFirewall();
     void overlayCurrentAccount();
     void reportError(const QString &message);
+    QString prepareOverride(const QString &path);
     void asyncCall(const QString &method, const QVariantList &args, bool refreshProfilesAfter, bool refreshProxiesAfter, bool markBusy = true);
     void accountCall(const QString &method, qulonglong uid);
 
@@ -209,6 +218,10 @@ private:
     bool m_draftSortGlobal = false;
     bool m_draftAutoTestDelay = false;
     bool m_draftBlurIp = false;
+    QString m_draftTunDevice;
+    QString m_draftOverridePath;
+    QString m_tunDevice;
+    QString m_overrideDefault;
     QVariantMap m_selections;
     bool m_sortGlobal = false;
     QString m_sortMode = QStringLiteral("profile");

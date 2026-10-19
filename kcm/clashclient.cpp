@@ -19,6 +19,8 @@
 #include <QStandardPaths>
 #include <QTemporaryFile>
 #include <QTimer>
+#include <QDesktopServices>
+#include <QFileInfo>
 #include <QUrl>
 #include <unistd.h>
 
@@ -31,6 +33,27 @@ QVariantList jsonArray(const QString &text)
         items.append(value.toObject().toVariantMap());
     }
     return items;
+}
+
+bool tunDeviceAcceptable(const QString &name)
+{
+    if (name.isEmpty() || name.size() > 15) {
+        return name.isEmpty();
+    }
+    for (const QChar &ch : name) {
+        const char16_t code = ch.unicode();
+        const bool ok = (code >= u'0' && code <= u'9') || (code >= u'A' && code <= u'Z') || (code >= u'a' && code <= u'z') || code == u'_' || code == u'-';
+        if (!ok) {
+            return false;
+        }
+    }
+    return true;
+}
+
+QString canonicalOverride(const QString &text, const QString &fallback)
+{
+    const QString trimmed = text.trimmed();
+    return trimmed.isEmpty() ? fallback : trimmed;
 }
 
 bool firewallIsEnabled()
@@ -283,6 +306,31 @@ void ClashClient::setDraftBlurIp(bool enabled)
     Q_EMIT draftChanged();
 }
 
+QString ClashClient::draftTunDevice() const { return m_draftTunDevice; }
+QString ClashClient::draftOverridePath() const { return m_draftOverridePath; }
+
+void ClashClient::setDraftTunDevice(const QString &name)
+{
+    if (m_draftTunDevice == name) {
+        return;
+    }
+    m_draftTunDevice = name;
+    m_draftDirty = true;
+    m_preferReset = false;
+    Q_EMIT draftChanged();
+}
+
+void ClashClient::setDraftOverridePath(const QString &path)
+{
+    if (m_draftOverridePath == path) {
+        return;
+    }
+    m_draftOverridePath = path;
+    m_draftDirty = true;
+    m_preferReset = false;
+    Q_EMIT draftChanged();
+}
+
 void ClashClient::setViewPref(const QString &profile, const QString &group, const QString &mode, bool showUnreachable, bool global)
 {
     const QDBusReply<void> reply = m_iface->call(QStringLiteral("SetViewPref"), profile, group, mode, showUnreachable, global);
@@ -496,6 +544,34 @@ void ClashClient::importProfile(const QString &name, const QString &fileUrl)
     asyncCall(QStringLiteral("ImportProfile"), {name, path}, true, false);
 }
 
+QString ClashClient::prepareOverride(const QString &path)
+{
+    const QDBusReply<QString> reply = m_iface->call(QStringLiteral("EnsureOverride"), path);
+    if (!reply.isValid()) {
+        reportError(reply.error().message());
+        return {};
+    }
+    return reply.value();
+}
+
+void ClashClient::openOverrideFile(const QString &path)
+{
+    const QString ready = prepareOverride(path);
+    if (ready.isEmpty()) {
+        return;
+    }
+    QDesktopServices::openUrl(QUrl::fromLocalFile(ready));
+}
+
+void ClashClient::openOverrideFolder(const QString &path)
+{
+    const QString ready = prepareOverride(path);
+    if (ready.isEmpty()) {
+        return;
+    }
+    QDesktopServices::openUrl(QUrl::fromLocalFile(QFileInfo(ready).absolutePath()));
+}
+
 void ClashClient::refreshExitRegion()
 {
     asyncCall(QStringLiteral("RefreshExitRegion"), {}, false, false);
@@ -522,6 +598,8 @@ void ClashClient::copyLiveToDraft()
     m_draftSortGlobal = m_sortGlobal;
     m_draftAutoTestDelay = m_autoTestDelay;
     m_draftBlurIp = m_blurIp;
+    m_draftTunDevice = m_tunDevice;
+    m_draftOverridePath = m_overridePath;
 }
 
 bool ClashClient::draftMatchesLive() const
@@ -537,7 +615,9 @@ bool ClashClient::draftMatchesLive() const
         && m_draftSelections == m_selections
         && m_draftSortGlobal == m_sortGlobal
         && m_draftAutoTestDelay == m_autoTestDelay
-        && m_draftBlurIp == m_blurIp;
+        && m_draftBlurIp == m_blurIp
+        && m_draftTunDevice.trimmed() == m_tunDevice
+        && canonicalOverride(m_draftOverridePath, m_overrideDefault) == canonicalOverride(m_overridePath, m_overrideDefault);
 }
 
 void ClashClient::revertDraft()
@@ -560,6 +640,8 @@ void ClashClient::applyDefaultsToDraft()
     m_draftSortGlobal = false;
     m_draftAutoTestDelay = false;
     m_draftBlurIp = false;
+    m_draftTunDevice.clear();
+    m_draftOverridePath = m_overrideDefault;
     m_draftDirty = !draftMatchesLive();
     m_preferReset = true;
     Q_EMIT draftChanged();
@@ -569,7 +651,9 @@ bool ClashClient::draftIsDefaults() const
 {
     return m_draftMixedPort == 7890 && m_draftControllerPort == 9090 && m_draftMihomoPath == QStringLiteral("mihomo")
         && !m_draftCoreDesired && !m_draftSystemProxyEnabled && !m_draftTunEnabled && m_draftMode == QStringLiteral("rule")
-        && !m_draftSortGlobal && !m_draftAutoTestDelay && !m_draftBlurIp;
+        && !m_draftSortGlobal && !m_draftAutoTestDelay && !m_draftBlurIp
+        && m_draftTunDevice.trimmed().isEmpty()
+        && canonicalOverride(m_draftOverridePath, m_overrideDefault) == m_overrideDefault;
 }
 
 bool ClashClient::commitSettings()
@@ -579,6 +663,12 @@ bool ClashClient::commitSettings()
         return false;
     };
     if (m_preferReset && draftIsDefaults()) {
+        if (!m_tunDevice.isEmpty()) {
+            const QDBusReply<void> auth = m_admin->call(QStringLiteral("AuthorizeTun"));
+            if (!auth.isValid()) {
+                return failed(auth.error());
+            }
+        }
         const QDBusReply<void> reply = m_iface->call(QStringLiteral("ResetPreferences"));
         if (!reply.isValid()) {
             return failed(reply.error());
@@ -588,17 +678,49 @@ bool ClashClient::commitSettings()
         refreshStatus();
         return true;
     }
+    const QString draftDevice = m_draftTunDevice.trimmed();
+    const QString draftOverride = m_draftOverridePath.trimmed();
+    if (!tunDeviceAcceptable(draftDevice)) {
+        reportError(QStringLiteral("网卡名称只允许 1 到 15 个字母、数字、下划线或连字符"));
+        return false;
+    }
+    if (!draftOverride.isEmpty()) {
+        const QFileInfo info(draftOverride);
+        if (!info.isAbsolute()) {
+            reportError(QStringLiteral("覆盖文件需要绝对路径"));
+            return false;
+        }
+        if (info.fileName().isEmpty()) {
+            reportError(QStringLiteral("覆盖文件需要文件名"));
+            return false;
+        }
+        if (info.isDir()) {
+            reportError(QStringLiteral("覆盖路径是文件夹"));
+            return false;
+        }
+    }
+    if (draftDevice != m_tunDevice) {
+        const QDBusReply<void> auth = m_admin->call(QStringLiteral("AuthorizeTun"));
+        if (!auth.isValid()) {
+            return failed(auth.error());
+        }
+    }
     if (!m_draftCoreDesired && m_coreDesired) {
         const QDBusReply<void> reply = m_iface->call(QStringLiteral("Stop"));
         if (!reply.isValid()) {
             return failed(reply.error());
         }
     }
-    if (m_draftMixedPort != m_mixedPort || m_draftControllerPort != m_controllerPort || m_draftMihomoPath != m_mihomoPath) {
+    const bool settingsDiffer = m_draftMixedPort != m_mixedPort || m_draftControllerPort != m_controllerPort || m_draftMihomoPath != m_mihomoPath
+        || draftDevice != m_tunDevice
+        || canonicalOverride(draftOverride, m_overrideDefault) != canonicalOverride(m_overridePath, m_overrideDefault);
+    if (settingsDiffer) {
         const QDBusReply<void> reply = m_iface->call(QStringLiteral("SetSettings"),
                                                      static_cast<quint32>(m_draftMixedPort),
                                                      static_cast<quint32>(m_draftControllerPort),
-                                                     m_draftMihomoPath);
+                                                     m_draftMihomoPath,
+                                                     draftDevice,
+                                                     draftOverride);
         if (!reply.isValid()) {
             return failed(reply.error());
         }
@@ -753,6 +875,11 @@ void ClashClient::applyStatus(const QVariantMap &status)
     m_controllerPort = status.value(QStringLiteral("controller_port")).toInt();
     m_mihomoPath = status.value(QStringLiteral("mihomo_path")).toString();
     m_overridePath = status.value(QStringLiteral("override_path")).toString();
+    m_overrideDefault = status.value(QStringLiteral("override_default")).toString();
+    if (m_overrideDefault.isEmpty()) {
+        m_overrideDefault = m_overridePath;
+    }
+    m_tunDevice = status.value(QStringLiteral("tun_device")).toString();
     m_uploadBps = status.value(QStringLiteral("upload_bps")).toULongLong();
     m_downloadBps = status.value(QStringLiteral("download_bps")).toULongLong();
     m_exitRegion = status.value(QStringLiteral("exit_region")).toString();

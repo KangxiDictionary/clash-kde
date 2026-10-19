@@ -243,9 +243,29 @@ void ClashCalls::selectProxy(const QString &group, const QString &name)
     call(QStringLiteral("SelectProxy"), {group, name});
 }
 
+bool ClashCalls::groupDelayTesting(const QString &group) const
+{
+    return m_testingGroups.contains(group);
+}
+
 void ClashCalls::testGroupDelay(const QString &group)
 {
-    call(QStringLiteral("TestGroupDelay"), {group});
+    if (group.isEmpty() || m_testingGroups.contains(group)) {
+        return;
+    }
+    m_testingGroups.insert(group);
+    auto *watcher = new QDBusPendingCallWatcher(m_iface->asyncCall(QStringLiteral("TestGroupDelay"), group), this);
+    connect(watcher, &QDBusPendingCallWatcher::finished, this, [this, group](QDBusPendingCallWatcher *call) {
+        call->deleteLater();
+        m_testingGroups.remove(group);
+        const QDBusPendingReply<> reply = *call;
+        if (reply.isError()) {
+            fail(reply.error().message());
+            return;
+        }
+        refresh();
+        refreshLists();
+    });
 }
 
 bool ClashCalls::copyTerminalProxyCommand()

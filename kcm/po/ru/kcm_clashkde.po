@@ -139,6 +139,24 @@ msgstr "Скрывать часть IP"
 msgid "Hides the latter half of the exit address."
 msgstr "Скрывает вторую половину адреса выхода."
 
+msgid "TUN device"
+msgstr "Устройство TUN"
+
+msgid "Leave this empty to let the kernel choose the name, and applying a new name asks you to confirm."
+msgstr "Оставьте пустым, чтобы ядро выбрало имя; новое имя требует подтверждения."
+
+msgid "Open file"
+msgstr "Открыть файл"
+
+msgid "Opens the override file, creating it from the template when it is missing."
+msgstr "Открывает файл замены и создаёт его из шаблона, если его нет."
+
+msgid "Open folder"
+msgstr "Открыть папку"
+
+msgid "Opens the folder that contains the override file."
+msgstr "Открывает папку, в которой лежит файл замены."
+
 msgid "Keeps one sort and filter for every group and profile."
 msgstr "Запоминает одну сортировку и фильтр для каждой группы и каждого профиля."
 

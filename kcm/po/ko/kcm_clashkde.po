@@ -139,6 +139,24 @@ msgstr "IP 흐리게"
 msgid "Hides the latter half of the exit address."
 msgstr "출구 주소의 뒷부분을 숨깁니다."
 
+msgid "TUN device"
+msgstr "TUN 장치"
+
+msgid "Leave this empty to let the kernel choose the name, and applying a new name asks you to confirm."
+msgstr "비워 두면 커널이 이름을 정하고, 새 이름을 적용하면 확인을 요청합니다."
+
+msgid "Open file"
+msgstr "파일 열기"
+
+msgid "Opens the override file, creating it from the template when it is missing."
+msgstr "덮어쓰기 파일을 열고, 없으면 서식으로 만듭니다."
+
+msgid "Open folder"
+msgstr "폴더 열기"
+
+msgid "Opens the folder that contains the override file."
+msgstr "덮어쓰기 파일이 있는 폴더를 엽니다."
+
 msgid "Keeps one sort and filter for every group and profile."
 msgstr "정렬과 필터를 하나로 기억해서 모든 그룹과 프로필에 씁니다."
 

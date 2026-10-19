@@ -191,7 +191,10 @@ pub fn prepare_runtime_config(profile: Value, overlay: Value, settings: &Setting
         && let Value::Mapping(map) = &mut config
     {
         let uid = unsafe { libc::getuid() };
-        map.insert(Value::String("tun".into()), enabled_tun(uid));
+        map.insert(
+            Value::String("tun".into()),
+            enabled_tun(uid, &settings.tun_device),
+        );
         // 系统代理把域名交给内核。TUN 截到的是 IP，域名规则对不上，
         // 握手会打到错误的地址。嗅探 TLS 里的域名后再解析，才和系统代理同一条路。
         map.insert(Value::String("sniffer".into()), tun_sniffer());
@@ -199,7 +202,7 @@ pub fn prepare_runtime_config(profile: Value, overlay: Value, settings: &Setting
     config
 }
 
-fn enabled_tun(uid: u32) -> Value {
+fn enabled_tun(uid: u32, device: &str) -> Value {
     let hijack = vec![
         Value::String("any:53".into()),
         Value::String("tcp://any:53".into()),
@@ -223,6 +226,9 @@ fn enabled_tun(uid: u32) -> Value {
         Value::String("include-uid".into()),
         Value::Sequence(include),
     );
+    if !device.is_empty() {
+        tun.insert(Value::String("device".into()), Value::String(device.into()));
+    }
     Value::Mapping(tun)
 }
 
@@ -329,7 +335,10 @@ pub fn write_runtime_config(paths: &Paths, settings: &Settings) -> Result<(), St
     let body = read_profile_body(paths, &settings.active_profile)
         .map_err(|_| "找不到所选配置的原文".to_string())?;
     let profile = decode_subscription(&body)?;
-    let overlay = load_override(&paths.override_file())?;
+    let overlay = load_override(&crate::state::effective_override(
+        paths,
+        &settings.override_path,
+    ))?;
     let config = prepare_runtime_config(profile, overlay, settings);
     let text =
         serde_yaml::to_string(&config).map_err(|error| format!("无法生成运行配置: {error}"))?;
@@ -437,6 +446,19 @@ mod tests {
         );
         assert_eq!(tun.get("strict-route").and_then(Value::as_bool), Some(true));
         assert!(tun.get("device").is_none());
+        settings.tun_device = "clash0".into();
+        let again = serde_yaml::from_str(
+            "tun:\n  enable: true\n  device: evil\n  include-uid: [0]\nsniffer:\n  enable: false\nproxies: []\n",
+        )
+        .unwrap();
+        let named = prepare_runtime_config(again, Value::Mapping(Mapping::new()), &settings);
+        assert_eq!(
+            named
+                .get("tun")
+                .and_then(|tun| tun.get("device"))
+                .and_then(Value::as_str),
+            Some("clash0")
+        );
         let hijack = tun.get("dns-hijack").and_then(Value::as_sequence).unwrap();
         assert_eq!(hijack.len(), 2);
         assert_eq!(hijack[0].as_str(), Some("any:53"));

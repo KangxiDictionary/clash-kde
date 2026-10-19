@@ -4,6 +4,7 @@
 #pragma once
 
 #include <QObject>
+#include <QSet>
 #include <QVariantList>
 #include <qqmlregistration.h>
 
@@ -61,6 +62,7 @@ public:
     Q_INVOKABLE void setActiveProfile(const QString &id);
     Q_INVOKABLE void selectProxy(const QString &group, const QString &name);
     Q_INVOKABLE void testGroupDelay(const QString &group);
+    Q_INVOKABLE bool groupDelayTesting(const QString &group) const;
     Q_INVOKABLE bool copyTerminalProxyCommand();
 
 public Q_SLOTS:
@@ -95,4 +97,5 @@ private:
     bool m_blurIp = false;
     QVariantList m_profiles;
     QVariantList m_groups;
+    QSet<QString> m_testingGroups;
 };

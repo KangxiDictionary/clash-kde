@@ -56,11 +56,24 @@ impl Manager {
         mixed_port: u32,
         controller_port: u32,
         mihomo_path: String,
+        tun_device: String,
+        override_path: String,
     ) -> fdo::Result<()> {
         self.app
-            .set_settings(mixed_port, controller_port, mihomo_path)
+            .set_settings(
+                mixed_port,
+                controller_port,
+                mihomo_path,
+                tun_device,
+                override_path,
+            )
             .await
             .map_err(failed)
+    }
+
+    #[zbus(name = "EnsureOverride")]
+    async fn ensure_override(&self, path: String) -> fdo::Result<String> {
+        self.app.ensure_override(&path).await.map_err(failed)
     }
 
     #[zbus(name = "AddSubscription")]
