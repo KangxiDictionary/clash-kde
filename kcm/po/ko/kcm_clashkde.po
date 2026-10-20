@@ -516,3 +516,54 @@ msgstr "서버"
 
 msgid "Route"
 msgstr "경로"
+
+msgid "Current"
+msgstr "현재"
+
+msgid "Available"
+msgstr "사용 가능"
+
+msgid "Type"
+msgstr "종류"
+
+msgid "Port"
+msgstr "포트"
+
+msgid "Hold to show the password."
+msgstr "누르고 있는 동안 비밀번호를 보여 줍니다."
+
+msgid "Select a route to see its details."
+msgstr "경로를 고르면 자세한 내용이 나옵니다."
+
+msgid "Opens this profile in the editor. A subscription update replaces the whole file."
+msgstr "이 프로필을 편집기에서 엽니다. 구독을 업데이트하면 파일 전체가 바뀝니다."
+
+msgid "Appearance"
+msgstr "모양"
+
+msgid "Compact mode"
+msgstr "간단히 보기"
+
+msgid "Shows only the name in the profile list and the route list."
+msgstr "프로필 목록과 경로 목록에는 이름만 표시합니다."
+
+msgid "System proxy does nothing while traffic capture is on."
+msgstr "트래픽 가로채기가 켜져 있으면 시스템 프록시는 동작하지 않습니다."
+
+msgid "This computer's capture stays on until it is turned off from the Other page."
+msgstr "이 컴퓨터의 가로채기는 기타 페이지에서 끄기 전까지 유지됩니다."
+
+msgid "The name shown in the list. Renaming it updates the groups that use it."
+msgstr "목록에 보이는 이름입니다. 바꾸면 이 이름을 쓰는 그룹도 함께 바뀝니다."
+
+msgid "The protocol this route uses."
+msgstr "이 경로가 사용하는 프로토콜입니다."
+
+msgid "The server this route connects to."
+msgstr "이 경로가 연결하는 서버입니다."
+
+msgid "The server port."
+msgstr "서버의 포트입니다."
+
+msgid "The password for this route. For VMess this is the UUID."
+msgstr "이 경로의 비밀번호입니다. VMess에서는 UUID입니다."

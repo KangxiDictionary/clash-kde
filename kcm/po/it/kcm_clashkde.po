@@ -516,3 +516,54 @@ msgstr "Server"
 
 msgid "Route"
 msgstr "Rotta"
+
+msgid "Current"
+msgstr "Attuale"
+
+msgid "Available"
+msgstr "Disponibili"
+
+msgid "Type"
+msgstr "Tipo"
+
+msgid "Port"
+msgstr "Porta"
+
+msgid "Hold to show the password."
+msgstr "Tenere premuto per mostrare la password."
+
+msgid "Select a route to see its details."
+msgstr "Scegli una rotta per vederne i dettagli."
+
+msgid "Opens this profile in the editor. A subscription update replaces the whole file."
+msgstr "Apre questo profilo nell'editor. Un aggiornamento dell'abbonamento sostituisce l'intero file."
+
+msgid "Appearance"
+msgstr "Aspetto"
+
+msgid "Compact mode"
+msgstr "Modalità compatta"
+
+msgid "Shows only the name in the profile list and the route list."
+msgstr "Mostra solo il nome nell'elenco dei profili e delle rotte."
+
+msgid "System proxy does nothing while traffic capture is on."
+msgstr "Il proxy di sistema non fa nulla mentre la cattura è attiva."
+
+msgid "This computer's capture stays on until it is turned off from the Other page."
+msgstr "La cattura di questo computer resta attiva finché non viene spenta dalla pagina Altro."
+
+msgid "The name shown in the list. Renaming it updates the groups that use it."
+msgstr "Il nome mostrato nell'elenco. Rinominarlo aggiorna anche i gruppi che lo usano."
+
+msgid "The protocol this route uses."
+msgstr "Il protocollo usato da questa rotta."
+
+msgid "The server this route connects to."
+msgstr "Il server a cui questa rotta si collega."
+
+msgid "The server port."
+msgstr "La porta del server."
+
+msgid "The password for this route. For VMess this is the UUID."
+msgstr "La password di questa rotta. Per VMess è l'UUID."

@@ -516,3 +516,54 @@ msgstr "Сервер"
 
 msgid "Route"
 msgstr "Маршрут"
+
+msgid "Current"
+msgstr "Текущий"
+
+msgid "Available"
+msgstr "Доступные"
+
+msgid "Type"
+msgstr "Тип"
+
+msgid "Port"
+msgstr "Порт"
+
+msgid "Hold to show the password."
+msgstr "Удерживайте, чтобы показать пароль."
+
+msgid "Select a route to see its details."
+msgstr "Выберите маршрут, чтобы увидеть подробности."
+
+msgid "Opens this profile in the editor. A subscription update replaces the whole file."
+msgstr "Открывает этот профиль в редакторе. Обновление подписки заменяет весь файл."
+
+msgid "Appearance"
+msgstr "Внешний вид"
+
+msgid "Compact mode"
+msgstr "Компактный вид"
+
+msgid "Shows only the name in the profile list and the route list."
+msgstr "В списках профилей и маршрутов показывает только имя."
+
+msgid "System proxy does nothing while traffic capture is on."
+msgstr "Пока захват включён, системный прокси ничего не делает."
+
+msgid "This computer's capture stays on until it is turned off from the Other page."
+msgstr "Захват этого компьютера остаётся включённым, пока его не выключат на странице «Прочее»."
+
+msgid "The name shown in the list. Renaming it updates the groups that use it."
+msgstr "Имя в списке. Переименование обновляет и группы, которые его используют."
+
+msgid "The protocol this route uses."
+msgstr "Протокол этого маршрута."
+
+msgid "The server this route connects to."
+msgstr "Сервер, к которому подключается этот маршрут."
+
+msgid "The server port."
+msgstr "Порт сервера."
+
+msgid "The password for this route. For VMess this is the UUID."
+msgstr "Пароль этого маршрута. Для VMess это UUID."

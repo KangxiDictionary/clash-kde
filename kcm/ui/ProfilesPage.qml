@@ -130,115 +130,6 @@ Item {
     }
 
     QQC2.Dialog {
-        id: editorDialog
-        property string profileId: ""
-        title: tx.i18n("Edit configuration")
-        modal: true
-        standardButtons: QQC2.Dialog.Ok | QQC2.Dialog.Cancel
-        padding: Kirigami.Units.largeSpacing
-        implicitWidth: Kirigami.Units.gridUnit * 36
-        implicitHeight: Kirigami.Units.gridUnit * 28
-
-        onAccepted: kcm.client.setProfileBody(profileId, editorText.text)
-        onOpened: {
-            editorNote.text = "";
-            editorText.forceActiveFocus();
-        }
-
-        contentItem: Item {
-            ColumnLayout {
-                anchors.fill: parent
-                spacing: Kirigami.Units.smallSpacing
-
-            Kirigami.InlineMessage {
-                id: editorNote
-                Layout.fillWidth: true
-                visible: text.length > 0
-            }
-
-            RowLayout {
-                QQC2.Button {
-                    text: tx.i18n("Check")
-                    onClicked: {
-                        const result = kcm.client.checkProfileText(editorText.text);
-                        editorNote.text = result.length === 0 ? tx.i18n("This configuration can be read.") : result;
-                        editorNote.type = result.length === 0 ? Kirigami.MessageType.Positive : Kirigami.MessageType.Error;
-                    }
-                }
-                QQC2.Button {
-                    text: tx.i18n("Open in editor")
-                    onClicked: {
-                        if (!kcm.client.openBodyInEditor(editorText.text)) {
-                            editorNote.text = tx.i18n("No text editor was found.");
-                            editorNote.type = Kirigami.MessageType.Error;
-                        }
-                    }
-                }
-                Item {
-                    Layout.fillWidth: true
-                }
-            }
-
-            Flickable {
-                id: editorFlick
-                Layout.fillWidth: true
-                Layout.fillHeight: true
-                clip: true
-                contentWidth: width
-                contentHeight: editorText.height
-                boundsBehavior: Flickable.StopAtBounds
-                QQC2.ScrollBar.vertical: QQC2.ScrollBar {
-                    policy: QQC2.ScrollBar.AsNeeded
-                }
-
-                function revealCursor() {
-                    const rect = editorText.cursorRectangle;
-                    const margin = Kirigami.Units.smallSpacing;
-                    if (rect.y < contentY) {
-                        contentY = Math.max(0, rect.y - margin);
-                    } else if (rect.y + rect.height > contentY + height) {
-                        contentY = rect.y + rect.height - height + margin;
-                    }
-                }
-
-                QQC2.TextArea {
-                    id: editorText
-                    width: editorFlick.width
-                    height: Math.max(editorFlick.height, contentHeight)
-                    wrapMode: TextEdit.Wrap
-                    selectByMouse: true
-                    padding: Kirigami.Units.smallSpacing
-                    onCursorRectangleChanged: editorFlick.revealCursor()
-
-                    WheelHandler {
-                        onWheel: function(event) {
-                            const maxY = Math.max(0, editorFlick.contentHeight - editorFlick.height);
-                            editorFlick.contentY = Math.max(0, Math.min(maxY, editorFlick.contentY - event.angleDelta.y));
-                            event.accepted = true;
-                        }
-                    }
-
-                    HoverHandler {
-                        id: editorHover
-                    }
-
-                    QQC2.ToolTip.visible: editorHover.hovered
-                    QQC2.ToolTip.delay: 700
-                    QQC2.ToolTip.text: tx.i18n("A subscription update replaces the text written here.")
-                }
-            }
-            }
-        }
-
-        Connections {
-            target: kcm.client
-            function onEditorTextReady(body) {
-                editorText.text = body;
-            }
-        }
-    }
-
-    QQC2.Dialog {
         id: removeDialog
         property string profileId: ""
         title: tx.i18n("Remove this profile?")
@@ -289,6 +180,7 @@ Item {
             }
 
             QQC2.Button {
+                Kirigami.MnemonicData.enabled: false
                 text: tx.i18n("Import")
                 icon.name: "document-import"
                 enabled: !kcm.client.busy
@@ -296,6 +188,7 @@ Item {
             }
 
             QQC2.Button {
+                Kirigami.MnemonicData.enabled: false
                 text: tx.i18n("Add subscription")
                 icon.name: "list-add"
                 enabled: !kcm.client.busy
@@ -354,7 +247,7 @@ Item {
                             Layout.fillWidth: true
                         }
                         QQC2.Label {
-                            visible: modelData.url.length > 0
+                            visible: !kcm.client.compact && modelData.url.length > 0
                             text: modelData.url
                             opacity: 0.7
                             elide: Text.ElideMiddle
@@ -363,7 +256,7 @@ Item {
                         }
                         QQC2.Label {
                             readonly property string quota: quotaText(modelData)
-                            visible: quota.length > 0
+                            visible: !kcm.client.compact && quota.length > 0
                             text: quota
                             opacity: 0.7
                             font: Kirigami.Theme.smallFont
@@ -371,6 +264,7 @@ Item {
                         }
                         QQC2.Label {
                             text: tx.i18n("Last update: %1", formatUpdated(modelData.updated_unix))
+                            visible: !kcm.client.compact
                             opacity: 0.7
                             font: Kirigami.Theme.smallFont
                             Layout.fillWidth: true
@@ -378,6 +272,7 @@ Item {
                     }
 
                     QQC2.ToolButton {
+                        Kirigami.MnemonicData.enabled: false
                         id: moreButton
                         icon.name: "overflow-menu"
                         display: QQC2.AbstractButton.IconOnly
@@ -391,11 +286,13 @@ Item {
                         QQC2.Menu {
                             id: profileMenu
                             QQC2.MenuItem {
+                                Kirigami.MnemonicData.enabled: false
                                 text: tx.i18n("Update")
                                 enabled: modelData.url.length > 0
                                 onTriggered: kcm.client.updateProfile(modelData.id)
                             }
                             QQC2.MenuItem {
+                                Kirigami.MnemonicData.enabled: false
                                 text: tx.i18n("Edit details")
                                 onTriggered: {
                                     metaDialog.profileId = modelData.id;
@@ -405,14 +302,7 @@ Item {
                                 }
                             }
                             QQC2.MenuItem {
-                                text: tx.i18n("Edit configuration")
-                                onTriggered: {
-                                    editorDialog.profileId = modelData.id;
-                                    editorText.text = kcm.client.profileBody(modelData.id);
-                                    editorDialog.open();
-                                }
-                            }
-                            QQC2.MenuItem {
+                                Kirigami.MnemonicData.enabled: false
                                 text: tx.i18n("Remove")
                                 onTriggered: {
                                     removeDialog.profileId = modelData.id;

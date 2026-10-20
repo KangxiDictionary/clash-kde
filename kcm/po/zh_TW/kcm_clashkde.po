@@ -516,3 +516,54 @@ msgstr "伺服器"
 
 msgid "Route"
 msgstr "路線"
+
+msgid "Current"
+msgstr "目前"
+
+msgid "Available"
+msgstr "可用"
+
+msgid "Type"
+msgstr "類型"
+
+msgid "Port"
+msgstr "連接埠"
+
+msgid "Hold to show the password."
+msgstr "按住才顯示密碼。"
+
+msgid "Select a route to see its details."
+msgstr "選一條路線就能看到它的詳情。"
+
+msgid "Opens this profile in the editor. A subscription update replaces the whole file."
+msgstr "用編輯器開啟這份設定。更新訂閱會整份取代這個檔案。"
+
+msgid "Appearance"
+msgstr "外觀"
+
+msgid "Compact mode"
+msgstr "精簡模式"
+
+msgid "Shows only the name in the profile list and the route list."
+msgstr "設定列表和路線列表只顯示名稱。"
+
+msgid "System proxy does nothing while traffic capture is on."
+msgstr "流量截取開著時，系統代理不會作用。"
+
+msgid "This computer's capture stays on until it is turned off from the Other page."
+msgstr "這台電腦的截取會一直開著，要到其他頁才能關掉。"
+
+msgid "The name shown in the list. Renaming it updates the groups that use it."
+msgstr "列表裡顯示的名稱。改名後，用到它的策略組也會一起改。"
+
+msgid "The protocol this route uses."
+msgstr "這條路線使用的協定。"
+
+msgid "The server this route connects to."
+msgstr "這條路線要連上的伺服器。"
+
+msgid "The server port."
+msgstr "伺服器的連接埠。"
+
+msgid "The password for this route. For VMess this is the UUID."
+msgstr "這條路線的密碼。VMess 用的是 UUID。"

@@ -23,16 +23,64 @@ Kirigami.Page {
         anchors.fill: parent
         anchors.margins: Kirigami.Units.smallSpacing
 
-        Kirigami.InlineMessage {
+        Item {
+            id: hintBanner
             Layout.fillWidth: true
-            type: Kirigami.MessageType.Information
             visible: kcm.client.hint.length > 0
-            text: kcm.client.hint
-            showCloseButton: true
-            onVisibleChanged: {
-                if (!visible && kcm.client.hint.length > 0) {
-                    kcm.client.clearHint();
+            implicitHeight: visible ? hintMessage.implicitHeight : 0
+            property real elapsed: 0
+            property bool paused: false
+
+            Timer {
+                interval: 50
+                repeat: true
+                running: hintBanner.visible && !hintBanner.paused
+                onTriggered: {
+                    hintBanner.elapsed += 50;
+                    if (hintBanner.elapsed >= 5000) {
+                        kcm.client.clearHint();
+                    }
                 }
+            }
+
+            Connections {
+                target: kcm.client
+                function onHintChanged() {
+                    hintBanner.elapsed = 0;
+                }
+            }
+
+            HoverHandler {
+                onHoveredChanged: hintBanner.paused = hovered
+            }
+
+            Kirigami.InlineMessage {
+                id: hintMessage
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: parent.top
+                type: Kirigami.MessageType.Information
+                visible: hintBanner.visible
+                text: kcm.client.hint
+                showCloseButton: true
+                onVisibleChanged: {
+                    if (!visible && kcm.client.hint.length > 0) {
+                        kcm.client.clearHint();
+                    }
+                }
+            }
+
+            QQC2.ProgressBar {
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.bottom: parent.bottom
+                from: 0
+                to: 5000
+                value: Math.max(0, 5000 - hintBanner.elapsed)
+                padding: 0
+                implicitHeight: 4
+                height: 4
+                visible: hintBanner.visible
             }
         }
 
@@ -45,11 +93,11 @@ Kirigami.Page {
                         kcm.client.ensureProxies();
                     }
                 }
-                QQC2.TabButton { text: tx.i18n("Status") }
-                QQC2.TabButton { text: tx.i18n("Profiles") }
-                QQC2.TabButton { text: tx.i18n("Proxies") }
-                QQC2.TabButton { text: tx.i18n("Users") }
-                QQC2.TabButton { text: tx.i18n("Other") }
+                QQC2.TabButton { text: tx.i18n("Status"); Kirigami.MnemonicData.enabled: false }
+                QQC2.TabButton { text: tx.i18n("Profiles"); Kirigami.MnemonicData.enabled: false }
+                QQC2.TabButton { text: tx.i18n("Proxies"); Kirigami.MnemonicData.enabled: false }
+                QQC2.TabButton { text: tx.i18n("Users"); Kirigami.MnemonicData.enabled: false }
+                QQC2.TabButton { text: tx.i18n("Other"); Kirigami.MnemonicData.enabled: false }
             }
             QQC2.BusyIndicator {
                 running: kcm.client.busy

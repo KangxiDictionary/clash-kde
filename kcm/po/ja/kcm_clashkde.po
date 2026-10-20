@@ -516,3 +516,54 @@ msgstr "サーバー"
 
 msgid "Route"
 msgstr "ルート"
+
+msgid "Current"
+msgstr "現在"
+
+msgid "Available"
+msgstr "利用可能"
+
+msgid "Type"
+msgstr "種類"
+
+msgid "Port"
+msgstr "ポート"
+
+msgid "Hold to show the password."
+msgstr "押している間だけパスワードを表示します。"
+
+msgid "Select a route to see its details."
+msgstr "ルートを選ぶと詳細が表示されます。"
+
+msgid "Opens this profile in the editor. A subscription update replaces the whole file."
+msgstr "このプロファイルをエディターで開きます。購読を更新するとファイル全体が置き換わります。"
+
+msgid "Appearance"
+msgstr "外観"
+
+msgid "Compact mode"
+msgstr "コンパクト表示"
+
+msgid "Shows only the name in the profile list and the route list."
+msgstr "プロファイル一覧とルート一覧では名前だけを表示します。"
+
+msgid "System proxy does nothing while traffic capture is on."
+msgstr "トラフィック取り込みがオンの間、システムプロキシは働きません。"
+
+msgid "This computer's capture stays on until it is turned off from the Other page."
+msgstr "このコンピューターの取り込みは、「その他」のページでオフにするまで続きます。"
+
+msgid "The name shown in the list. Renaming it updates the groups that use it."
+msgstr "一覧に出る名前です。変えると、これを使うグループも更新されます。"
+
+msgid "The protocol this route uses."
+msgstr "このルートが使うプロトコルです。"
+
+msgid "The server this route connects to."
+msgstr "このルートが接続するサーバーです。"
+
+msgid "The server port."
+msgstr "サーバーのポートです。"
+
+msgid "The password for this route. For VMess this is the UUID."
+msgstr "このルートのパスワードです。VMess では UUID です。"

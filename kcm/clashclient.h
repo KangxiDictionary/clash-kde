@@ -61,6 +61,7 @@ class ClashClient : public QObject
     Q_PROPERTY(QVariantMap sortPrefs READ sortPrefs NOTIFY statusChanged)
     Q_PROPERTY(bool autoTestDelay READ autoTestDelay NOTIFY statusChanged)
     Q_PROPERTY(bool blurIp READ blurIp NOTIFY statusChanged)
+    Q_PROPERTY(bool compact READ compact NOTIFY statusChanged)
     Q_PROPERTY(bool allowLan READ allowLan NOTIFY statusChanged)
     Q_PROPERTY(QString lanUsername READ lanUsername NOTIFY statusChanged)
     Q_PROPERTY(QString lanPassword READ lanPassword NOTIFY statusChanged)
@@ -140,6 +141,7 @@ public:
     QVariantMap sortPrefs() const;
     bool autoTestDelay() const;
     bool blurIp() const;
+    bool compact() const;
     bool allowLan() const;
     QString lanUsername() const;
     QString lanPassword() const;
@@ -190,7 +192,10 @@ public:
     Q_INVOKABLE void setProfileMeta(const QString &id, const QString &name, const QString &url);
     Q_INVOKABLE void importProfile(const QString &name, const QString &fileUrl);
     Q_INVOKABLE void refreshExitRegion();
+    Q_INVOKABLE void setCompact(bool enabled);
     Q_INVOKABLE QVariantMap routeDetail(const QString &name);
+    Q_INVOKABLE void stageRoute(const QString &previous, const QString &name, const QString &kind, const QString &server, int port, const QString &secret);
+    Q_INVOKABLE QVariantMap stagedRoute(const QString &previous) const;
     Q_INVOKABLE bool addRoute(const QString &group, const QString &name, const QString &kind, const QString &server, int port, const QString &secret);
     Q_INVOKABLE void removeRoute(const QString &name);
     Q_INVOKABLE bool saveRoute(const QString &previous, const QString &name, const QString &kind, const QString &server, int port, const QString &secret);
@@ -294,6 +299,10 @@ private:
     QVariantMap m_sortPrefs;
     bool m_autoTestDelay = false;
     bool m_blurIp = false;
+    bool m_compact = false;
+    QString m_routeProfile;
+    QVariantMap m_routeEdits;
+    QVariantMap m_routeBaselines;
     bool m_allowLan = false;
     QString m_lanUsername;
     QString m_lanPassword;

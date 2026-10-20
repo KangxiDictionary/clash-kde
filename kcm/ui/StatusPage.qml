@@ -132,6 +132,7 @@ Item {
                 }
 
                 QQC2.Button {
+                    Kirigami.MnemonicData.enabled: false
                     text: tx.i18n("Restart")
                     icon.name: "view-refresh"
                     enabled: kcm.client.coreRunning && !kcm.client.busy
@@ -143,6 +144,7 @@ Item {
                 }
 
                 QQC2.Switch {
+                    Kirigami.MnemonicData.enabled: false
                     checked: kcm.client.draftCoreDesired
                     onToggled: {
                         if (checked !== kcm.client.draftCoreDesired) {
@@ -162,14 +164,27 @@ Item {
             spacing: Kirigami.Units.largeSpacing
 
             QQC2.Label {
-                text: tx.i18n("System proxy")
+                text: (kcm.client.tunEnabled && kcm.client.tunMachine) || kcm.client.draftTunEnabled ? tx.i18n("Traffic capture") : tx.i18n("System proxy")
+                Kirigami.MnemonicData.enabled: false
             }
 
             QQC2.Switch {
                 id: proxySwitch
-                checked: kcm.client.draftSystemProxyEnabled
-                enabled: checked || (kcm.client.draftCoreDesired && !kcm.client.draftTunEnabled && !kcm.client.tunMachine)
+                readonly property bool machineCapture: kcm.client.tunEnabled && kcm.client.tunMachine
+                readonly property bool personalCapture: kcm.client.draftTunEnabled && !machineCapture
+                checked: machineCapture || personalCapture ? true : kcm.client.draftSystemProxyEnabled
+                enabled: !machineCapture && (personalCapture || checked || (kcm.client.draftCoreDesired && !kcm.client.draftTunEnabled && !kcm.client.tunMachine))
+                Kirigami.MnemonicData.enabled: false
                 onToggled: {
+                    if (machineCapture) {
+                        return;
+                    }
+                    if (personalCapture) {
+                        if (!checked) {
+                            kcm.client.draftTunEnabled = false;
+                        }
+                        return;
+                    }
                     if (checked !== kcm.client.draftSystemProxyEnabled) {
                         kcm.client.draftSystemProxyEnabled = checked;
                     }
@@ -177,25 +192,26 @@ Item {
 
                 QQC2.ToolTip.visible: hovered
                 QQC2.ToolTip.delay: 700
-                QQC2.ToolTip.text: tx.i18n("This takes effect only while the core is running and TUN is off.")
-            }
-
-            Item {
-                Layout.fillWidth: true
-            }
-
-            QQC2.Label {
-                text: tx.i18n("Traffic capture")
-            }
-
-            QQC2.Label {
-                text: {
-                    if (!kcm.client.tunEnabled) {
-                        return tx.i18n("Off");
+                QQC2.ToolTip.text: {
+                    if (machineCapture) {
+                        return tx.i18n("This computer's capture stays on until it is turned off from the Other page.");
                     }
-                    return kcm.client.tunMachine ? tx.i18n("This computer") : tx.i18n("This account");
+                    if (personalCapture) {
+                        return tx.i18n("System proxy does nothing while traffic capture is on.");
+                    }
+                    return tx.i18n("This takes effect only while the core is running and TUN is off.");
                 }
+            }
+
+            QQC2.Label {
+                visible: proxySwitch.machineCapture || proxySwitch.personalCapture
+                text: proxySwitch.machineCapture
+                      ? tx.i18n("This computer's capture stays on until it is turned off from the Other page.")
+                      : tx.i18n("System proxy does nothing while traffic capture is on.")
+                wrapMode: Text.WordWrap
                 opacity: 0.75
+                Layout.fillWidth: true
+                Kirigami.MnemonicData.enabled: false
             }
 
             Item {
@@ -207,6 +223,7 @@ Item {
             }
 
             QQC2.ComboBox {
+                Kirigami.MnemonicData.enabled: false
                 model: [tx.i18n("Rule"), tx.i18n("Global"), tx.i18n("Direct")]
                 readonly property var modes: ["rule", "global", "direct"]
                 currentIndex: Math.max(0, modes.indexOf(kcm.client.draftMode))
@@ -322,6 +339,7 @@ Item {
                     }
                 }
                 QQC2.Button {
+                    Kirigami.MnemonicData.enabled: false
                     text: tx.i18n("Check region")
                     enabled: !kcm.client.busy
                     onClicked: kcm.client.refreshExitRegion()

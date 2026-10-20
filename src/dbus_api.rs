@@ -156,6 +156,11 @@ impl Manager {
             .map_err(failed)
     }
 
+    #[zbus(name = "SetCompact")]
+    async fn set_compact(&self, compact: bool) -> fdo::Result<()> {
+        self.app.set_compact(compact).await.map_err(failed)
+    }
+
     #[zbus(name = "SetLan")]
     async fn set_lan(&self, allow: bool, username: String, password: String) -> fdo::Result<()> {
         self.app

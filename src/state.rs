@@ -47,6 +47,8 @@ pub struct Settings {
     #[serde(default)]
     pub override_path: String,
     #[serde(default)]
+    pub compact: bool,
+    #[serde(default)]
     pub allow_lan: bool,
     #[serde(default)]
     pub lan_username: String,
@@ -108,6 +110,7 @@ impl Default for Settings {
             blur_ip: false,
             tun_device: String::new(),
             override_path: String::new(),
+            compact: false,
             allow_lan: false,
             lan_username: String::new(),
             lan_password: String::new(),

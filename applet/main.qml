@@ -630,16 +630,65 @@ PlasmoidItem {
                 width: flick.width
                 spacing: Kirigami.Units.smallSpacing
 
-            Kirigami.InlineMessage {
+            Item {
+                id: hintBanner
                 Layout.fillWidth: true
-                type: Kirigami.MessageType.Information
                 visible: popupRoot.copiedHint.length > 0
-                text: popupRoot.copiedHint
-                showCloseButton: true
-                onVisibleChanged: {
-                    if (!visible && popupRoot.copiedHint.length > 0) {
-                        popupRoot.copiedHint = "";
+                implicitHeight: visible ? hintMessage.implicitHeight : 0
+                property real elapsed: 0
+                property bool paused: false
+                property string hintText: popupRoot.copiedHint
+                onHintTextChanged: elapsed = 0
+
+                Timer {
+                    interval: 50
+                    repeat: true
+                    running: hintBanner.visible && !hintBanner.paused
+                    onTriggered: {
+                        hintBanner.elapsed += 50;
+                        if (hintBanner.elapsed >= 5000) {
+                            popupRoot.copiedHint = "";
+                        }
                     }
+                }
+
+                onVisibleChanged: {
+                    if (visible) {
+                        elapsed = 0;
+                    }
+                }
+
+                HoverHandler {
+                    onHoveredChanged: hintBanner.paused = hovered
+                }
+
+                Kirigami.InlineMessage {
+                    id: hintMessage
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.top: parent.top
+                    type: Kirigami.MessageType.Information
+                    visible: hintBanner.visible
+                    text: popupRoot.copiedHint
+                    showCloseButton: true
+                    onVisibleChanged: {
+                        if (!visible && popupRoot.copiedHint.length > 0) {
+                            popupRoot.copiedHint = "";
+                        }
+                    }
+                }
+
+                QQC2.ProgressBar {
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.bottom: parent.bottom
+                    from: 0
+                    to: 5000
+                    value: Math.max(0, 5000 - hintBanner.elapsed)
+                    padding: 0
+                    implicitHeight: 4
+                    height: 4
+                    visible: hintBanner.visible
                 }
             }
 
@@ -836,17 +885,6 @@ PlasmoidItem {
                 Layout.topMargin: Kirigami.Units.smallSpacing
             }
 
-            Kirigami.SearchField {
-                visible: session.profiles.length > 1
-                Layout.fillWidth: true
-                onTextChanged: {
-                    root.profileQuery = text;
-                    if (profileBox) {
-                        profileBox.syncFromSession();
-                    }
-                }
-            }
-
             PC3.ComboBox {
                 id: profileBox
                 visible: session.profiles.length > 0
@@ -901,18 +939,6 @@ PlasmoidItem {
                     const id = profileIds[index];
                     if (id && id !== session.activeProfile) {
                         session.setActiveProfile(id);
-                    }
-                }
-            }
-
-            Kirigami.SearchField {
-                visible: root.selectorGroups.length > 0
-                Layout.fillWidth: true
-                Layout.topMargin: Kirigami.Units.smallSpacing
-                onTextChanged: {
-                    popupRoot.routeQuery = text;
-                    if (routeMenu.count > 0) {
-                        popupRoot.applyRouteFilter(routeMenu);
                     }
                 }
             }
@@ -1082,6 +1108,23 @@ PlasmoidItem {
             // Popup.Item is clipped to the applet window. Popup.Window is the stock menu window.
             popupType: QQC2.Popup.Window
             cascade: true
+            topPadding: routeSearch.implicitHeight + Kirigami.Units.smallSpacing * 2
+
+            Kirigami.SearchField {
+                id: routeSearch
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: parent.top
+                anchors.margins: Kirigami.Units.smallSpacing
+                onTextChanged: {
+                    popupRoot.routeQuery = text;
+                    if (routeMenu.count > 0) {
+                        root.fitRouteMenu(routeMenu, Math.max(popupRoot.applyRouteFilter(routeMenu), 1));
+                    }
+                }
+            }
+
+            onAboutToHide: routeSearch.text = ""
         }
 
         Connections {

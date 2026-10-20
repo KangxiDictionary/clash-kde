@@ -21,13 +21,66 @@ Item {
     property bool detailsOpen: false
     property var detail: ({})
 
-    function refreshDetail() {
-        root.detail = root.picked.length === 0 ? {} : kcm.client.routeDetail(root.picked);
+    property bool filling: false
+    property bool revealSecret: false
+
+    ListModel {
+        id: shownModel
+    }
+
+    function showPicked() {
+        if (root.picked.length === 0) {
+            root.detail = {};
+            return;
+        }
+        root.filling = true;
+        const staged = kcm.client.stagedRoute(root.picked);
+        root.detail = staged && staged.name ? staged : kcm.client.routeDetail(root.picked);
         detailName.text = root.detail.name || "";
-        detailKind.currentIndex = Math.max(0, detailKind.indexOfValue(String(root.detail.kind || "http").toLowerCase()));
+        const kind = String(root.detail.kind || "http").toLowerCase();
+        let kindIndex = 0;
+        for (let i = 0; i < detailKind.count; ++i) {
+            if (String(detailKind.textAt(i)).toLowerCase() === kind) {
+                kindIndex = i;
+                break;
+            }
+        }
+        detailKind.currentIndex = kindIndex;
         detailServer.text = root.detail.server || "";
         detailPort.value = root.detail.port > 0 ? root.detail.port : 443;
         detailSecret.text = root.detail.secret || "";
+        root.filling = false;
+    }
+
+    function pushRoute() {
+        if (root.filling || root.detail.in_file !== true || root.picked.length === 0) {
+            return;
+        }
+        kcm.client.stageRoute(root.picked, detailName.text, detailKind.currentText, detailServer.text, detailPort.value, detailSecret.text);
+    }
+
+    function rebuildShown() {
+        const show = root.viewPref().show;
+        const currentTitle = tx.i18n("Current");
+        const availableTitle = tx.i18n("Available");
+        const rows = [];
+        for (let i = 0; i < nodeModel.count; ++i) {
+            const row = nodeModel.get(i);
+            if ((show || row.delay_ms !== 0) && root.nodeMatches(row.name)) {
+                const current = row.name === root.groupNow && root.groupNow.length > 0;
+                rows.push({
+                    name: row.name,
+                    delay_ms: row.delay_ms,
+                    section: current ? currentTitle : availableTitle,
+                    current: current
+                });
+            }
+        }
+        rows.sort((left, right) => left.current === right.current ? 0 : (left.current ? -1 : 1));
+        shownModel.clear();
+        for (let i = 0; i < rows.length; ++i) {
+            shownModel.append(rows[i]);
+        }
     }
 
     Tx {
@@ -185,6 +238,7 @@ Item {
                 nodeModel.move(best, i, 1);
             }
         }
+        root.rebuildShown();
     }
 
     function setNodeDelay(name, delay) {
@@ -293,6 +347,7 @@ Item {
         next[root.selectedGroup] = name;
         kcm.client.draftSelections = next;
         root.groupNow = name;
+        root.rebuildShown();
     }
 
     Connections {
@@ -304,9 +359,11 @@ Item {
             if (group !== root.selectedGroup) {
                 return;
             }
-            root.setNodeDelay(name, delayMs);
+                root.setNodeDelay(name, delayMs);
             if (root.viewPref().mode === "delay") {
                 root.resort();
+            } else {
+                root.rebuildShown();
             }
         }
         function onDraftChanged() {
@@ -321,6 +378,7 @@ Item {
             const group = root.currentGroup();
             if (group) {
                 root.groupNow = root.chosenName(group);
+                root.rebuildShown();
             }
         }
         function onStatusChanged() {
@@ -373,6 +431,7 @@ Item {
             }
 
             QQC2.ComboBox {
+                Kirigami.MnemonicData.enabled: false
                 id: groupBox
                 model: groupModel
                 textRole: "name"
@@ -390,12 +449,14 @@ Item {
             }
 
             QQC2.Button {
+                Kirigami.MnemonicData.enabled: false
                 text: tx.i18n("Test delays")
                 enabled: kcm.client.coreRunning && kcm.client.draftActiveProfile === kcm.client.activeProfile && !kcm.client.delayTesting && root.selectedGroup.length > 0
                 onClicked: kcm.client.testGroupDelay(root.selectedGroup)
             }
 
             QQC2.ToolButton {
+                Kirigami.MnemonicData.enabled: false
                 id: sortButton
                 icon.name: "view-sort"
                 display: QQC2.AbstractButton.IconOnly
@@ -408,6 +469,7 @@ Item {
                 QQC2.Menu {
                     id: sortMenu
                     QQC2.MenuItem {
+                        Kirigami.MnemonicData.enabled: false
                         text: tx.i18n("Profile order")
                         checkable: true
                         checked: root.viewPref().mode === "profile"
@@ -417,6 +479,7 @@ Item {
                         }
                     }
                     QQC2.MenuItem {
+                        Kirigami.MnemonicData.enabled: false
                         text: tx.i18n("Name")
                         checkable: true
                         checked: root.viewPref().mode === "name"
@@ -426,6 +489,7 @@ Item {
                         }
                     }
                     QQC2.MenuItem {
+                        Kirigami.MnemonicData.enabled: false
                         text: tx.i18n("Delay")
                         checkable: true
                         checked: root.viewPref().mode === "delay"
@@ -436,6 +500,7 @@ Item {
                     }
                     QQC2.MenuSeparator {}
                     QQC2.MenuItem {
+                        Kirigami.MnemonicData.enabled: false
                         text: tx.i18n("Show unreachable")
                         checkable: true
                         checked: root.viewPref().show
@@ -463,145 +528,234 @@ Item {
                 anchors.left: parent.left
                 anchors.right: parent.right
                 anchors.top: parent.top
-                onTextChanged: root.nodeQuery = text
+                Kirigami.MnemonicData.enabled: false
+                onTextChanged: {
+                    root.nodeQuery = text;
+                    root.rebuildShown();
+                }
                 Keys.onDownPressed: event => {
                     routeList.currentIndex = 0;
                     event.accepted = false;
                 }
-                KeyNavigation.down: routeScroll
+                KeyNavigation.down: routeList
             }
 
             QQC2.Label {
                 anchors.top: routeSearch.bottom
                 anchors.topMargin: Kirigami.Units.largeSpacing
                 anchors.left: parent.left
-                visible: root.nodeQuery.trim().length > 0 && !root.anyNodeShown
+                visible: root.nodeQuery.trim().length > 0 && shownModel.count === 0
                 text: tx.i18n("No matches")
                 opacity: 0.7
+                Kirigami.MnemonicData.enabled: false
             }
 
-            QQC2.ScrollView {
-                id: routeScroll
-                Kirigami.StyleHints.showFramedBackground: true
+            QQC2.SplitView {
                 anchors.top: routeSearch.bottom
                 anchors.topMargin: Kirigami.Units.smallSpacing
                 anchors.left: parent.left
-                anchors.bottom: buttonRow.top
-                anchors.bottomMargin: Kirigami.Units.smallSpacing
-                anchors.right: detailPane.left
-                anchors.rightMargin: root.detailsOpen ? Kirigami.Units.largeSpacing : 0
-                visible: root.anyNodeShown || root.nodeQuery.trim().length === 0
-
-                ListView {
-                    id: routeList
-                    clip: true
-                    focus: true
-                    model: nodeModel
-                    boundsBehavior: Flickable.StopAtBounds
-                    KeyNavigation.up: routeSearch
-
-                    delegate: QQC2.ItemDelegate {
-                        id: nodeDelegate
-                        required property string name
-                        required property var delay_ms
-                        width: ListView.view ? ListView.view.width : 0
-                        visible: (root.viewPref().show || delay_ms !== 0) && root.nodeMatches(name)
-                        height: visible ? implicitHeight : 0
-                        highlighted: root.groupNow === name
-                        onClicked: {
-                            root.picked = name;
-                            root.refreshDetail();
-                            root.chooseNode(name);
-                        }
-
-                        contentItem: Kirigami.IconTitleSubtitle {
-                            title: nodeDelegate.name
-                            subtitle: root.delayText(nodeDelegate.delay_ms)
-                            selected: nodeDelegate.highlighted
-                        }
-                    }
-                }
-            }
-
-            ColumnLayout {
-                id: detailPane
-                anchors.top: routeSearch.bottom
-                anchors.topMargin: Kirigami.Units.smallSpacing
                 anchors.right: parent.right
                 anchors.bottom: buttonRow.top
-                width: root.detailsOpen ? Kirigami.Units.gridUnit * 16 : 0
-                visible: root.detailsOpen
-                spacing: Kirigami.Units.smallSpacing
+                anchors.bottomMargin: Kirigami.Units.smallSpacing
+                orientation: Qt.Horizontal
 
-                QQC2.Label {
-                    text: tx.i18n("Route")
-                    Layout.fillWidth: true
-                }
+                QQC2.ScrollView {
+                    QQC2.SplitView.preferredWidth: Kirigami.Units.gridUnit * 16
+                    QQC2.SplitView.minimumWidth: Kirigami.Units.gridUnit * 10
+                    QQC2.SplitView.fillHeight: true
+                    Kirigami.StyleHints.showFramedBackground: true
 
-                QQC2.TextField {
-                    id: detailName
-                    Layout.fillWidth: true
-                    enabled: root.detail.in_file === true
-                    placeholderText: tx.i18n("Name")
-                }
+                    ListView {
+                        id: routeList
+                        clip: true
+                        focus: true
+                        model: shownModel
+                        boundsBehavior: Flickable.StopAtBounds
+                        KeyNavigation.up: routeSearch
+                        section.property: "section"
+                        section.criteria: ViewSection.FullString
+                        section.delegate: Kirigami.ListSectionHeader {
+                            required property string section
+                            width: ListView.view ? ListView.view.width : 0
+                            text: section
+                        }
 
-                QQC2.ComboBox {
-                    id: detailKind
-                    Layout.fillWidth: true
-                    enabled: root.detail.in_file === true
-                    model: ["http", "socks5", "ss", "vmess", "trojan"]
-                }
+                        delegate: QQC2.ItemDelegate {
+                            id: nodeDelegate
+                            required property string name
+                            required property var delay_ms
+                            width: ListView.view ? ListView.view.width : 0
+                            highlighted: root.groupNow === name
+                            Kirigami.MnemonicData.enabled: false
+                            onClicked: {
+                                root.picked = name;
+                                root.showPicked();
+                                root.chooseNode(name);
+                            }
 
-                QQC2.TextField {
-                    id: detailServer
-                    Layout.fillWidth: true
-                    enabled: root.detail.in_file === true
-                    placeholderText: tx.i18n("Server")
-                }
-
-                QQC2.SpinBox {
-                    id: detailPort
-                    Layout.fillWidth: true
-                    enabled: root.detail.in_file === true
-                    from: 1
-                    to: 65535
-                    editable: true
-                }
-
-                QQC2.TextField {
-                    id: detailSecret
-                    Layout.fillWidth: true
-                    enabled: root.detail.in_file === true
-                    echoMode: TextInput.Password
-                    placeholderText: tx.i18n("Password")
-                }
-
-                QQC2.Button {
-                    text: tx.i18n("Save")
-                    enabled: root.detail.in_file === true && root.picked.length > 0
-                    Layout.alignment: Qt.AlignRight
-                    onClicked: {
-                        if (kcm.client.saveRoute(root.picked, detailName.text, detailKind.currentText, detailServer.text, detailPort.value, detailSecret.text)) {
-                            root.picked = detailName.text;
-                            root.refreshDetail();
+                            contentItem: Kirigami.IconTitleSubtitle {
+                                title: nodeDelegate.name
+                                subtitle: kcm.client.compact ? "" : root.delayText(nodeDelegate.delay_ms)
+                                selected: nodeDelegate.highlighted
+                            }
                         }
                     }
                 }
-            }
 
-            Row {
-                id: detailButtonRow
-                anchors.left: parent.left
-                anchors.bottom: parent.bottom
-                spacing: Kirigami.Units.smallSpacing
+                Flickable {
+                    id: detailFlick
+                    QQC2.SplitView.fillWidth: true
+                    QQC2.SplitView.minimumWidth: Kirigami.Units.gridUnit * 14
+                    QQC2.SplitView.fillHeight: true
+                    contentWidth: width
+                    contentHeight: detailColumn.implicitHeight
+                    clip: true
 
-                QQC2.ToolButton {
-                    icon.name: root.detailsOpen ? "view-right-close" : "view-right-new"
-                    display: QQC2.AbstractButton.IconOnly
-                    text: QQC2.ToolTip.text
-                    onClicked: root.detailsOpen = !root.detailsOpen
-                    QQC2.ToolTip.text: root.detailsOpen ? tx.i18n("Hide details") : tx.i18n("Show details")
-                    QQC2.ToolTip.visible: hovered
+                    ColumnLayout {
+                        id: detailColumn
+                        width: detailFlick.width
+                        spacing: Kirigami.Units.largeSpacing
+
+                        QQC2.Label {
+                            visible: root.picked.length === 0
+                            text: tx.i18n("Select a route to see its details.")
+                            opacity: 0.7
+                            wrapMode: Text.WordWrap
+                            Layout.fillWidth: true
+                            Kirigami.MnemonicData.enabled: false
+                        }
+
+                        ColumnLayout {
+                            visible: root.picked.length > 0
+                            Layout.fillWidth: true
+                            spacing: Kirigami.Units.smallSpacing
+
+                            QQC2.Label {
+                                text: tx.i18n("Name")
+                                font.bold: true
+                                Kirigami.MnemonicData.enabled: false
+                            }
+                            QQC2.Label {
+                                text: tx.i18n("The name shown in the list. Renaming it updates the groups that use it.")
+                                wrapMode: Text.WordWrap
+                                opacity: 0.7
+                                font: Kirigami.Theme.smallFont
+                                Layout.fillWidth: true
+                                Kirigami.MnemonicData.enabled: false
+                            }
+                            QQC2.TextField {
+                                id: detailName
+                                Layout.fillWidth: true
+                                enabled: root.detail.in_file === true
+                                Kirigami.MnemonicData.enabled: false
+                                onTextChanged: root.pushRoute()
+                            }
+
+                            QQC2.Label {
+                                text: tx.i18n("Type")
+                                font.bold: true
+                                Kirigami.MnemonicData.enabled: false
+                            }
+                            QQC2.Label {
+                                text: tx.i18n("The protocol this route uses.")
+                                wrapMode: Text.WordWrap
+                                opacity: 0.7
+                                font: Kirigami.Theme.smallFont
+                                Layout.fillWidth: true
+                                Kirigami.MnemonicData.enabled: false
+                            }
+                            QQC2.ComboBox {
+                                id: detailKind
+                                Layout.fillWidth: true
+                                enabled: root.detail.in_file === true
+                                model: ["http", "socks5", "ss", "vmess", "trojan"]
+                                Kirigami.MnemonicData.enabled: false
+                                onActivated: root.pushRoute()
+                            }
+
+                            QQC2.Label {
+                                text: tx.i18n("Server")
+                                font.bold: true
+                                Kirigami.MnemonicData.enabled: false
+                            }
+                            QQC2.Label {
+                                text: tx.i18n("The server this route connects to.")
+                                wrapMode: Text.WordWrap
+                                opacity: 0.7
+                                font: Kirigami.Theme.smallFont
+                                Layout.fillWidth: true
+                                Kirigami.MnemonicData.enabled: false
+                            }
+                            QQC2.TextField {
+                                id: detailServer
+                                Layout.fillWidth: true
+                                enabled: root.detail.in_file === true
+                                Kirigami.MnemonicData.enabled: false
+                                onTextChanged: root.pushRoute()
+                            }
+
+                            QQC2.Label {
+                                text: tx.i18n("Port")
+                                font.bold: true
+                                Kirigami.MnemonicData.enabled: false
+                            }
+                            QQC2.Label {
+                                text: tx.i18n("The server port.")
+                                wrapMode: Text.WordWrap
+                                opacity: 0.7
+                                font: Kirigami.Theme.smallFont
+                                Layout.fillWidth: true
+                                Kirigami.MnemonicData.enabled: false
+                            }
+                            QQC2.SpinBox {
+                                id: detailPort
+                                Layout.fillWidth: true
+                                enabled: root.detail.in_file === true
+                                from: 1
+                                to: 65535
+                                editable: true
+                                Kirigami.MnemonicData.enabled: false
+                                onValueModified: root.pushRoute()
+                            }
+
+                            QQC2.Label {
+                                text: tx.i18n("Password")
+                                font.bold: true
+                                Kirigami.MnemonicData.enabled: false
+                            }
+                            QQC2.Label {
+                                text: tx.i18n("The password for this route. For VMess this is the UUID.")
+                                wrapMode: Text.WordWrap
+                                opacity: 0.7
+                                font: Kirigami.Theme.smallFont
+                                Layout.fillWidth: true
+                                Kirigami.MnemonicData.enabled: false
+                            }
+                            RowLayout {
+                                Layout.fillWidth: true
+                                QQC2.TextField {
+                                    id: detailSecret
+                                    Layout.fillWidth: true
+                                    enabled: root.detail.in_file === true
+                                    echoMode: root.revealSecret ? TextInput.Normal : TextInput.Password
+                                    Kirigami.MnemonicData.enabled: false
+                                    onTextChanged: root.pushRoute()
+                                }
+                                QQC2.ToolButton {
+                                    icon.name: "password-show-on"
+                                    display: QQC2.AbstractButton.IconOnly
+                                    enabled: root.detail.in_file === true
+                                    Kirigami.MnemonicData.enabled: false
+                                    onPressed: root.revealSecret = true
+                                    onReleased: root.revealSecret = false
+                                    onCanceled: root.revealSecret = false
+                                    QQC2.ToolTip.visible: hovered
+                                    QQC2.ToolTip.delay: 700
+                                    QQC2.ToolTip.text: tx.i18n("Hold to show the password.")
+                                }
+                            }
+                        }
+                    }
                 }
             }
 
@@ -612,10 +766,26 @@ Item {
                 spacing: Kirigami.Units.smallSpacing
 
                 QQC2.ToolButton {
+                    icon.name: "document-edit"
+                    display: QQC2.AbstractButton.IconOnly
+                    text: QQC2.ToolTip.text
+                    enabled: kcm.client.draftActiveProfile.length > 0
+                    Kirigami.MnemonicData.enabled: false
+                    onClicked: {
+                        editorDialog.profileId = kcm.client.draftActiveProfile;
+                        editorText.text = kcm.client.profileBody(kcm.client.draftActiveProfile);
+                        editorDialog.open();
+                    }
+                    QQC2.ToolTip.text: tx.i18n("Opens this profile in the editor. A subscription update replaces the whole file.")
+                    QQC2.ToolTip.visible: hovered
+                }
+
+                QQC2.ToolButton {
                     icon.name: "list-add"
                     display: QQC2.AbstractButton.IconOnly
                     text: QQC2.ToolTip.text
                     enabled: root.selectedGroup.length > 0
+                    Kirigami.MnemonicData.enabled: false
                     onClicked: addDialog.open()
                     QQC2.ToolTip.text: tx.i18n("Adds a route to the current profile, which a subscription update replaces.")
                     QQC2.ToolTip.visible: hovered
@@ -626,6 +796,7 @@ Item {
                     display: QQC2.AbstractButton.IconOnly
                     text: QQC2.ToolTip.text
                     enabled: root.detail.in_file === true
+                    Kirigami.MnemonicData.enabled: false
                     onClicked: removeDialog.open()
                     QQC2.ToolTip.text: tx.i18n("Removes the selected route from the current profile, which a subscription update replaces.")
                     QQC2.ToolTip.visible: hovered
@@ -663,6 +834,7 @@ Item {
                 placeholderText: tx.i18n("Name")
             }
             QQC2.ComboBox {
+                Kirigami.MnemonicData.enabled: false
                 id: addKind
                 Layout.fillWidth: true
                 model: ["http", "socks5", "ss", "vmess", "trojan"]
@@ -691,7 +863,118 @@ Item {
         onAccepted: {
             if (kcm.client.addRoute(root.selectedGroup, addName.text, addKind.currentText, addServer.text, addPort.value, addSecret.text)) {
                 root.picked = addName.text;
-                root.refreshDetail();
+                root.showPicked();
+            }
+        }
+    }
+
+    QQC2.Dialog {
+        id: editorDialog
+        property string profileId: ""
+        title: tx.i18n("Edit configuration")
+        modal: true
+        standardButtons: QQC2.Dialog.Ok | QQC2.Dialog.Cancel
+        padding: Kirigami.Units.largeSpacing
+        implicitWidth: Kirigami.Units.gridUnit * 36
+        implicitHeight: Kirigami.Units.gridUnit * 28
+
+        onAccepted: kcm.client.setProfileBody(profileId, editorText.text)
+        onOpened: {
+            editorNote.text = "";
+            editorText.forceActiveFocus();
+        }
+
+        contentItem: Item {
+            ColumnLayout {
+                anchors.fill: parent
+                spacing: Kirigami.Units.smallSpacing
+
+                Kirigami.InlineMessage {
+                    id: editorNote
+                    Layout.fillWidth: true
+                    visible: text.length > 0
+                }
+
+                RowLayout {
+                    QQC2.Button {
+                        text: tx.i18n("Check")
+                        Kirigami.MnemonicData.enabled: false
+                        onClicked: {
+                            const result = kcm.client.checkProfileText(editorText.text);
+                            editorNote.text = result.length === 0 ? tx.i18n("This configuration can be read.") : result;
+                            editorNote.type = result.length === 0 ? Kirigami.MessageType.Positive : Kirigami.MessageType.Error;
+                        }
+                    }
+                    QQC2.Button {
+                        text: tx.i18n("Open in editor")
+                        Kirigami.MnemonicData.enabled: false
+                        onClicked: {
+                            if (!kcm.client.openBodyInEditor(editorText.text)) {
+                                editorNote.text = tx.i18n("No text editor was found.");
+                                editorNote.type = Kirigami.MessageType.Error;
+                            }
+                        }
+                    }
+                    Item {
+                        Layout.fillWidth: true
+                    }
+                }
+
+                Flickable {
+                    id: editorFlick
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    clip: true
+                    contentWidth: width
+                    contentHeight: editorText.height
+                    boundsBehavior: Flickable.StopAtBounds
+                    QQC2.ScrollBar.vertical: QQC2.ScrollBar {
+                        policy: QQC2.ScrollBar.AsNeeded
+                    }
+
+                    function revealCursor() {
+                        const rect = editorText.cursorRectangle;
+                        const margin = Kirigami.Units.smallSpacing;
+                        if (rect.y < contentY) {
+                            contentY = Math.max(0, rect.y - margin);
+                        } else if (rect.y + rect.height > contentY + height) {
+                            contentY = rect.y + rect.height - height + margin;
+                        }
+                    }
+
+                    QQC2.TextArea {
+                        id: editorText
+                        width: editorFlick.width
+                        height: Math.max(editorFlick.height, contentHeight)
+                        wrapMode: TextEdit.Wrap
+                        selectByMouse: true
+                        padding: Kirigami.Units.smallSpacing
+                        onCursorRectangleChanged: editorFlick.revealCursor()
+
+                        WheelHandler {
+                            onWheel: function(event) {
+                                const maxY = Math.max(0, editorFlick.contentHeight - editorFlick.height);
+                                editorFlick.contentY = Math.max(0, Math.min(maxY, editorFlick.contentY - event.angleDelta.y));
+                                event.accepted = true;
+                            }
+                        }
+
+                        HoverHandler {
+                            id: editorHover
+                        }
+
+                        QQC2.ToolTip.visible: editorHover.hovered
+                        QQC2.ToolTip.delay: 700
+                        QQC2.ToolTip.text: tx.i18n("A subscription update replaces the text written here.")
+                    }
+                }
+            }
+        }
+
+        Connections {
+            target: kcm.client
+            function onEditorTextReady(body) {
+                editorText.text = body;
             }
         }
     }

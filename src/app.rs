@@ -119,6 +119,7 @@ struct Status {
     sort_prefs: BTreeMap<String, crate::state::SortPref>,
     auto_test_delay: bool,
     blur_ip: bool,
+    compact: bool,
     tun_device: String,
     override_default: String,
     allow_lan: bool,
@@ -600,6 +601,19 @@ impl App {
             inner.settings.sort_global = sort_global;
             inner.settings.auto_test_delay = auto_test_delay;
             inner.settings.blur_ip = blur_ip;
+            inner
+                .settings
+                .save(&self.paths)
+                .map_err(|error| error.to_string())?;
+        }
+        self.emit(Event::Status);
+        Ok(())
+    }
+
+    pub async fn set_compact(&self, compact: bool) -> Result<(), String> {
+        {
+            let mut inner = self.inner.lock().await;
+            inner.settings.compact = compact;
             inner
                 .settings
                 .save(&self.paths)
@@ -1163,6 +1177,7 @@ impl App {
             sort_prefs: inner.settings.sort_prefs.clone(),
             auto_test_delay: inner.settings.auto_test_delay,
             blur_ip: inner.settings.blur_ip,
+            compact: inner.settings.compact,
             tun_device: inner.settings.tun_device.clone(),
             override_default: self.paths.override_file().display().to_string(),
             allow_lan: inner.settings.allow_lan,

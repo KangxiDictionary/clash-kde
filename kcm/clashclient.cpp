@@ -159,7 +159,7 @@ bool ClashClient::draftCoreDesired() const { return m_draftCoreDesired; }
 bool ClashClient::draftSystemProxyEnabled() const { return m_draftSystemProxyEnabled; }
 bool ClashClient::draftTunEnabled() const { return m_draftTunEnabled; }
 QString ClashClient::draftMode() const { return m_draftMode; }
-bool ClashClient::settingsDirty() const { return m_draftDirty; }
+bool ClashClient::settingsDirty() const { return m_draftDirty || !m_routeEdits.isEmpty(); }
 
 void ClashClient::setDraftMixedPort(int port)
 {
@@ -249,6 +249,7 @@ bool ClashClient::showUnreachable() const { return m_showUnreachable; }
 QVariantMap ClashClient::sortPrefs() const { return m_sortPrefs; }
 bool ClashClient::autoTestDelay() const { return m_autoTestDelay; }
 bool ClashClient::blurIp() const { return m_blurIp; }
+bool ClashClient::compact() const { return m_compact; }
 bool ClashClient::allowLan() const { return m_allowLan; }
 QString ClashClient::lanUsername() const { return m_lanUsername; }
 QString ClashClient::lanPassword() const { return m_lanPassword; }
@@ -703,6 +704,66 @@ QVariantMap ClashClient::routeDetail(const QString &name)
     return document.object().toVariantMap();
 }
 
+void ClashClient::setCompact(bool enabled)
+{
+    if (m_compact == enabled) {
+        return;
+    }
+    const QDBusReply<void> reply = m_iface->call(QStringLiteral("SetCompact"), enabled);
+    if (!reply.isValid()) {
+        reportError(reply.error().message());
+        return;
+    }
+    m_compact = enabled;
+    Q_EMIT statusChanged();
+}
+
+QVariantMap ClashClient::stagedRoute(const QString &previous) const
+{
+    return m_routeEdits.value(previous).toMap();
+}
+
+void ClashClient::stageRoute(const QString &previous, const QString &name, const QString &kind, const QString &server, int port, const QString &secret)
+{
+    if (previous.isEmpty()) {
+        return;
+    }
+    if (m_routeProfile.isEmpty() || m_routeEdits.isEmpty()) {
+        m_routeProfile = m_draftActiveProfile;
+    }
+    if (!m_routeBaselines.contains(previous)) {
+        const QDBusReply<QString> reply = m_iface->call(QStringLiteral("RouteDetail"), m_routeProfile, previous);
+        if (!reply.isValid()) {
+            return;
+        }
+        const QJsonDocument document = QJsonDocument::fromJson(reply.value().toUtf8());
+        m_routeBaselines.insert(previous, document.object().toVariantMap());
+    }
+    const QVariantMap saved = m_routeBaselines.value(previous).toMap();
+    const bool same = saved.value(QStringLiteral("in_file")).toBool()
+        && saved.value(QStringLiteral("name")).toString() == name
+        && saved.value(QStringLiteral("kind")).toString() == kind
+        && saved.value(QStringLiteral("server")).toString() == server
+        && saved.value(QStringLiteral("port")).toInt() == port
+        && saved.value(QStringLiteral("secret")).toString() == secret;
+    if (same) {
+        m_routeEdits.remove(previous);
+    } else {
+        QVariantMap edit;
+        edit.insert(QStringLiteral("name"), name);
+        edit.insert(QStringLiteral("kind"), kind);
+        edit.insert(QStringLiteral("server"), server);
+        edit.insert(QStringLiteral("port"), port);
+        edit.insert(QStringLiteral("secret"), secret);
+        edit.insert(QStringLiteral("in_file"), true);
+        m_routeEdits.insert(previous, edit);
+    }
+    if (m_routeEdits.isEmpty()) {
+        m_routeProfile.clear();
+    }
+    Q_EMIT draftChanged();
+}
+
 bool ClashClient::addRoute(const QString &group, const QString &name, const QString &kind, const QString &server, int port, const QString &secret)
 {
     if (port < 1 || port > 65535) {
@@ -727,6 +788,12 @@ bool ClashClient::addRoute(const QString &group, const QString &name, const QStr
 
 void ClashClient::removeRoute(const QString &name)
 {
+    m_routeEdits.remove(name);
+    m_routeBaselines.remove(name);
+    if (m_routeEdits.isEmpty()) {
+        m_routeProfile.clear();
+    }
+    Q_EMIT draftChanged();
     const QDBusReply<void> reply = m_iface->call(QStringLiteral("RemoveRoute"), m_draftActiveProfile, name);
     if (!reply.isValid()) {
         reportError(reply.error().message());
@@ -849,6 +916,9 @@ void ClashClient::revertDraft()
 {
     m_draftDirty = false;
     m_preferReset = false;
+    m_routeEdits.clear();
+    m_routeBaselines.clear();
+    m_routeProfile.clear();
     copyLiveToDraft();
     Q_EMIT draftChanged();
 }
@@ -897,6 +967,33 @@ bool ClashClient::commitSettings()
     if (!lanEmpty && (lanUser.isEmpty() || lanPassword.isEmpty() || lanUser.contains(QLatin1Char(':')) || lanPassword.contains(QLatin1Char(':')))) {
         reportError(QStringLiteral("局域网账号和密码要一起填写，且不能包含冒号"));
         return false;
+    }
+    const QString routeProfile = m_routeProfile;
+    const QVariantMap routeEdits = m_routeEdits;
+    for (auto it = routeEdits.cbegin(); it != routeEdits.cend(); ++it) {
+        const QVariantMap edit = it.value().toMap();
+        const int port = edit.value(QStringLiteral("port")).toInt();
+        if (port < 1 || port > 65535) {
+            reportError(QStringLiteral("端口无效"));
+            return false;
+        }
+        const QDBusReply<void> reply = m_iface->call(QStringLiteral("UpdateRoute"),
+                                                     routeProfile,
+                                                     it.key(),
+                                                     edit.value(QStringLiteral("name")).toString(),
+                                                     edit.value(QStringLiteral("kind")).toString(),
+                                                     edit.value(QStringLiteral("server")).toString(),
+                                                     static_cast<quint16>(port),
+                                                     edit.value(QStringLiteral("secret")).toString());
+        if (!reply.isValid()) {
+            return failed(reply.error());
+        }
+        m_routeEdits.remove(it.key());
+        m_routeBaselines.remove(it.key());
+    }
+    if (m_routeEdits.isEmpty()) {
+        m_routeProfile.clear();
+        m_routeBaselines.clear();
     }
     if (m_preferReset && draftIsDefaults()) {
         if (!m_tunDevice.isEmpty()) {
@@ -1197,6 +1294,7 @@ void ClashClient::applyStatus(const QVariantMap &status)
     const QVariantMap sortPrefs = status.value(QStringLiteral("sort_prefs")).toMap();
     const bool autoTestDelay = status.value(QStringLiteral("auto_test_delay")).toBool();
     const bool blurIp = status.value(QStringLiteral("blur_ip")).toBool();
+    const bool compact = status.value(QStringLiteral("compact")).toBool();
     const bool allowLan = status.value(QStringLiteral("allow_lan")).toBool();
     const QString lanUsername = status.value(QStringLiteral("lan_username")).toString();
     const QString lanPassword = status.value(QStringLiteral("lan_password")).toString();
@@ -1214,7 +1312,7 @@ void ClashClient::applyStatus(const QVariantMap &status)
         && m_uploadBps == uploadBps && m_downloadBps == downloadBps && m_exitRegion == exitRegion
         && m_activeProfile == activeProfile && m_selections == selections && m_sortGlobal == sortGlobal
         && m_sortMode == sortMode && m_showUnreachable == showUnreachable && m_sortPrefs == sortPrefs
-        && m_autoTestDelay == autoTestDelay && m_blurIp == blurIp && m_allowLan == allowLan
+        && m_autoTestDelay == autoTestDelay && m_blurIp == blurIp && m_compact == compact && m_allowLan == allowLan
         && m_lanUsername == lanUsername && m_lanPassword == lanPassword && m_lanAllowed == lanAllowed
         && m_message == message) {
         return;
@@ -1246,6 +1344,7 @@ void ClashClient::applyStatus(const QVariantMap &status)
     m_sortPrefs = sortPrefs;
     m_autoTestDelay = autoTestDelay;
     m_blurIp = blurIp;
+    m_compact = compact;
     m_allowLan = allowLan;
     m_lanUsername = lanUsername;
     m_lanPassword = lanPassword;
