@@ -25,7 +25,15 @@ Item {
         }
         const ranked = [];
         for (let i = 0; i < all.length; ++i) {
-            const weight = fuzzy.score(query, all[i].name);
+            const profile = all[i];
+            const updated = formatUpdated(profile.updated_unix);
+            const weight = fuzzy.best(query, [
+                profile.name,
+                profile.url,
+                quotaText(profile),
+                updated,
+                tx.i18n("Last update: %1", updated)
+            ]);
             if (weight >= 0) {
                 ranked.push({
                     item: all[i],
@@ -50,15 +58,15 @@ Item {
 
     function formatBytes(bytes) {
         if (bytes < 1024) {
-            return tx.i18n("%1 B", bytes);
+            return tx.i18n("%1 B", tx.formatNumber(bytes));
         }
         if (bytes < 1024 * 1024) {
-            return tx.i18n("%1 KB", (bytes / 1024).toFixed(1));
+            return tx.i18n("%1 KB", tx.formatNumber(bytes / 1024, 1));
         }
         if (bytes < 1024 * 1024 * 1024) {
-            return tx.i18n("%1 MB", (bytes / 1024 / 1024).toFixed(1));
+            return tx.i18n("%1 MB", tx.formatNumber(bytes / 1024 / 1024, 1));
         }
-        return tx.i18n("%1 GB", (bytes / 1024 / 1024 / 1024).toFixed(2));
+        return tx.i18n("%1 GB", tx.formatNumber(bytes / 1024 / 1024 / 1024, 2));
     }
 
     function quotaText(profile) {

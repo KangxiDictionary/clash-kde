@@ -60,14 +60,22 @@ PlasmoidItem {
         return (typeof value === "string" && value.length > 0) ? value : fallback;
     }
 
+    function formatNumber(value, decimals) {
+        const loc = Qt.locale();
+        if (decimals === undefined || decimals === 0) {
+            return loc.toString(Math.round(value));
+        }
+        return loc.toString(value, "f", decimals);
+    }
+
     function formatRate(bps) {
         if (bps < 1024) {
-            return i18n("%1 B/s", Math.round(bps));
+            return i18n("%1 B/s", root.formatNumber(bps));
         }
         if (bps < 1024 * 1024) {
-            return i18n("%1 KB/s", (bps / 1024).toFixed(1));
+            return i18n("%1 KB/s", root.formatNumber(bps / 1024, 1));
         }
-        return i18n("%1 MB/s", (bps / 1024 / 1024).toFixed(2));
+        return i18n("%1 MB/s", root.formatNumber(bps / 1024 / 1024, 2));
     }
 
     readonly property bool systemProxyUsable: session.coreRunning && !session.tunEnabled
@@ -1075,7 +1083,7 @@ PlasmoidItem {
 
                 PC3.Label {
                     visible: nodeItem.delayMs >= 0
-                    text: nodeItem.delayMs === 0 ? i18n("Timeout") : i18n("%1 ms", nodeItem.delayMs)
+                    text: nodeItem.delayMs === 0 ? i18n("Timeout") : i18n("%1 ms", root.formatNumber(nodeItem.delayMs))
                     color: root.delayColor(nodeItem.delayMs)
                     horizontalAlignment: Text.AlignRight
                     verticalAlignment: Text.AlignVCenter

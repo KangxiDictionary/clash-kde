@@ -1,3 +1,11 @@
+clash-kde (1.0.2) unstable; urgency=medium
+
+  * A route can be edited beside the list, and the lists sort and search in place.
+  * This account can open its mixed port to the LAN, and copying an address is a right-click.
+  * Numbers and dates follow the desktop format. Compact mode applies with the rest of the draft.
+
+ -- KangxiDictionary <108598928+KangxiDictionary@users.noreply.github.com>  Tue, 20 Oct 2026 10:00:00 +0800
+
 clash-kde (1.0.1) unstable; urgency=medium
 
   * Closing the system proxy also turns off the GNOME proxy.

@@ -167,8 +167,8 @@ void ClashClient::setDraftMixedPort(int port)
         return;
     }
     m_draftMixedPort = port;
-    m_draftDirty = true;
     m_preferReset = false;
+    m_draftDirty = !draftMatchesLive();
     Q_EMIT draftChanged();
 }
 
@@ -178,8 +178,8 @@ void ClashClient::setDraftControllerPort(int port)
         return;
     }
     m_draftControllerPort = port;
-    m_draftDirty = true;
     m_preferReset = false;
+    m_draftDirty = !draftMatchesLive();
     Q_EMIT draftChanged();
 }
 
@@ -189,8 +189,8 @@ void ClashClient::setDraftMihomoPath(const QString &path)
         return;
     }
     m_draftMihomoPath = path;
-    m_draftDirty = true;
     m_preferReset = false;
+    m_draftDirty = !draftMatchesLive();
     Q_EMIT draftChanged();
 }
 
@@ -200,8 +200,8 @@ void ClashClient::setDraftCoreDesired(bool desired)
         return;
     }
     m_draftCoreDesired = desired;
-    m_draftDirty = true;
     m_preferReset = false;
+    m_draftDirty = !draftMatchesLive();
     Q_EMIT draftChanged();
 }
 
@@ -211,8 +211,8 @@ void ClashClient::setDraftSystemProxyEnabled(bool enabled)
         return;
     }
     m_draftSystemProxyEnabled = enabled;
-    m_draftDirty = true;
     m_preferReset = false;
+    m_draftDirty = !draftMatchesLive();
     Q_EMIT draftChanged();
 }
 
@@ -222,8 +222,8 @@ void ClashClient::setDraftTunEnabled(bool enabled)
         return;
     }
     m_draftTunEnabled = enabled;
-    m_draftDirty = true;
     m_preferReset = false;
+    m_draftDirty = !draftMatchesLive();
     Q_EMIT draftChanged();
 }
 
@@ -233,8 +233,8 @@ void ClashClient::setDraftMode(const QString &mode)
         return;
     }
     m_draftMode = mode;
-    m_draftDirty = true;
     m_preferReset = false;
+    m_draftDirty = !draftMatchesLive();
     Q_EMIT draftChanged();
 }
 
@@ -314,8 +314,8 @@ void ClashClient::setDraftActiveProfile(const QString &id)
         return;
     }
     m_draftActiveProfile = id;
-    m_draftDirty = true;
     m_preferReset = false;
+    m_draftDirty = !draftMatchesLive();
     Q_EMIT draftChanged();
 }
 
@@ -325,8 +325,8 @@ void ClashClient::setDraftSelections(const QVariantMap &selections)
         return;
     }
     m_draftSelections = selections;
-    m_draftDirty = true;
     m_preferReset = false;
+    m_draftDirty = !draftMatchesLive();
     Q_EMIT draftChanged();
 }
 
@@ -336,8 +336,8 @@ void ClashClient::setDraftSortGlobal(bool global)
         return;
     }
     m_draftSortGlobal = global;
-    m_draftDirty = true;
     m_preferReset = false;
+    m_draftDirty = !draftMatchesLive();
     Q_EMIT draftChanged();
 }
 
@@ -347,8 +347,8 @@ void ClashClient::setDraftAutoTestDelay(bool enabled)
         return;
     }
     m_draftAutoTestDelay = enabled;
-    m_draftDirty = true;
     m_preferReset = false;
+    m_draftDirty = !draftMatchesLive();
     Q_EMIT draftChanged();
 }
 
@@ -358,8 +358,21 @@ void ClashClient::setDraftBlurIp(bool enabled)
         return;
     }
     m_draftBlurIp = enabled;
-    m_draftDirty = true;
     m_preferReset = false;
+    m_draftDirty = !draftMatchesLive();
+    Q_EMIT draftChanged();
+}
+
+bool ClashClient::draftCompact() const { return m_draftCompact; }
+
+void ClashClient::setDraftCompact(bool enabled)
+{
+    if (m_draftCompact == enabled) {
+        return;
+    }
+    m_draftCompact = enabled;
+    m_preferReset = false;
+    m_draftDirty = !draftMatchesLive();
     Q_EMIT draftChanged();
 }
 
@@ -372,8 +385,8 @@ void ClashClient::setDraftTunDevice(const QString &name)
         return;
     }
     m_draftTunDevice = name;
-    m_draftDirty = true;
     m_preferReset = false;
+    m_draftDirty = !draftMatchesLive();
     Q_EMIT draftChanged();
 }
 
@@ -383,8 +396,8 @@ void ClashClient::setDraftOverridePath(const QString &path)
         return;
     }
     m_draftOverridePath = path;
-    m_draftDirty = true;
     m_preferReset = false;
+    m_draftDirty = !draftMatchesLive();
     Q_EMIT draftChanged();
 }
 
@@ -884,6 +897,7 @@ void ClashClient::copyLiveToDraft()
     m_draftSortGlobal = m_sortGlobal;
     m_draftAutoTestDelay = m_autoTestDelay;
     m_draftBlurIp = m_blurIp;
+    m_draftCompact = m_compact;
     m_draftTunDevice = m_tunDevice;
     m_draftOverridePath = m_overridePath;
     m_draftAllowLan = m_allowLan;
@@ -905,6 +919,7 @@ bool ClashClient::draftMatchesLive() const
         && m_draftSortGlobal == m_sortGlobal
         && m_draftAutoTestDelay == m_autoTestDelay
         && m_draftBlurIp == m_blurIp
+        && m_draftCompact == m_compact
         && m_draftTunDevice.trimmed() == m_tunDevice
         && canonicalOverride(m_draftOverridePath, m_overrideDefault) == canonicalOverride(m_overridePath, m_overrideDefault)
         && m_draftAllowLan == m_allowLan
@@ -935,6 +950,7 @@ void ClashClient::applyDefaultsToDraft()
     m_draftSortGlobal = false;
     m_draftAutoTestDelay = false;
     m_draftBlurIp = false;
+    m_draftCompact = false;
     m_draftTunDevice.clear();
     m_draftOverridePath = m_overrideDefault;
     m_draftAllowLan = false;
@@ -949,7 +965,7 @@ bool ClashClient::draftIsDefaults() const
 {
     return m_draftMixedPort == 7890 && m_draftControllerPort == 9090 && m_draftMihomoPath == QStringLiteral("mihomo")
         && !m_draftCoreDesired && !m_draftSystemProxyEnabled && !m_draftTunEnabled && m_draftMode == QStringLiteral("rule")
-        && !m_draftSortGlobal && !m_draftAutoTestDelay && !m_draftBlurIp
+        && !m_draftSortGlobal && !m_draftAutoTestDelay && !m_draftBlurIp && !m_draftCompact
         && m_draftTunDevice.trimmed().isEmpty()
         && canonicalOverride(m_draftOverridePath, m_overrideDefault) == m_overrideDefault
         && !m_draftAllowLan && m_draftLanUsername.isEmpty() && m_draftLanPassword.isEmpty();
@@ -1085,6 +1101,12 @@ bool ClashClient::commitSettings()
         const QDBusReply<void> reply = m_iface->call(QStringLiteral("SetChoices"),
                                                      m_draftActiveProfile,
                                                      QString::fromUtf8(QJsonDocument(object).toJson(QJsonDocument::Compact)));
+        if (!reply.isValid()) {
+            return failed(reply.error());
+        }
+    }
+    if (m_draftCompact != m_compact) {
+        const QDBusReply<void> reply = m_iface->call(QStringLiteral("SetCompact"), m_draftCompact);
         if (!reply.isValid()) {
             return failed(reply.error());
         }

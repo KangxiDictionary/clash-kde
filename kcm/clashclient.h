@@ -53,6 +53,7 @@ class ClashClient : public QObject
     Q_PROPERTY(bool draftSortGlobal READ draftSortGlobal WRITE setDraftSortGlobal NOTIFY draftChanged)
     Q_PROPERTY(bool draftAutoTestDelay READ draftAutoTestDelay WRITE setDraftAutoTestDelay NOTIFY draftChanged)
     Q_PROPERTY(bool draftBlurIp READ draftBlurIp WRITE setDraftBlurIp NOTIFY draftChanged)
+    Q_PROPERTY(bool draftCompact READ draftCompact WRITE setDraftCompact NOTIFY draftChanged)
     Q_PROPERTY(QString draftTunDevice READ draftTunDevice WRITE setDraftTunDevice NOTIFY draftChanged)
     Q_PROPERTY(QString draftOverridePath READ draftOverridePath WRITE setDraftOverridePath NOTIFY draftChanged)
     Q_PROPERTY(bool sortGlobal READ sortGlobal NOTIFY statusChanged)
@@ -131,6 +132,8 @@ public:
     void setDraftAutoTestDelay(bool enabled);
     bool draftBlurIp() const;
     void setDraftBlurIp(bool enabled);
+    bool draftCompact() const;
+    void setDraftCompact(bool enabled);
     QString draftTunDevice() const;
     void setDraftTunDevice(const QString &name);
     QString draftOverridePath() const;
@@ -288,6 +291,7 @@ private:
     bool m_draftSortGlobal = false;
     bool m_draftAutoTestDelay = false;
     bool m_draftBlurIp = false;
+    bool m_draftCompact = false;
     QString m_draftTunDevice;
     QString m_draftOverridePath;
     QString m_tunDevice;

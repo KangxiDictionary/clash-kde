@@ -23,6 +23,9 @@ Item {
 
     property bool filling: false
     property bool revealSecret: false
+    property bool chosenActive: false
+    property string chosenMode: "profile"
+    property bool chosenShow: true
 
     ListModel {
         id: shownModel
@@ -60,26 +63,38 @@ Item {
     }
 
     function rebuildShown() {
-        const show = root.viewPref().show;
-        const currentTitle = tx.i18n("Current");
-        const availableTitle = tx.i18n("Available");
+        const pref = root.viewPref();
+        const titles = [tx.i18n("Current"), tx.i18n("Available"), tx.i18n("Timeout")];
         const rows = [];
         for (let i = 0; i < nodeModel.count; ++i) {
             const row = nodeModel.get(i);
-            if ((show || row.delay_ms !== 0) && root.nodeMatches(row.name)) {
-                const current = row.name === root.groupNow && root.groupNow.length > 0;
-                rows.push({
+            if ((!pref.show && row.delay_ms === 0) || !root.nodeMatches(row)) {
+                continue;
+            }
+            rows.push({
+                name: row.name,
+                delay_ms: row.delay_ms,
+                order: row.order
+            });
+        }
+        rows.sort((left, right) => root.compareNodes(left, right, pref.mode));
+        const buckets = [[], [], []];
+        for (let i = 0; i < rows.length; ++i) {
+            const row = rows[i];
+            const current = row.name === root.groupNow && root.groupNow.length > 0;
+            const section = current ? 0 : (row.delay_ms === 0 ? 2 : 1);
+            buckets[section].push(row);
+        }
+        shownModel.clear();
+        for (let section = 0; section < buckets.length; ++section) {
+            for (let i = 0; i < buckets[section].length; ++i) {
+                const row = buckets[section][i];
+                shownModel.append({
                     name: row.name,
                     delay_ms: row.delay_ms,
-                    section: current ? currentTitle : availableTitle,
-                    current: current
+                    section: titles[section]
                 });
             }
-        }
-        rows.sort((left, right) => left.current === right.current ? 0 : (left.current ? -1 : 1));
-        shownModel.clear();
-        for (let i = 0; i < rows.length; ++i) {
-            shownModel.append(rows[i]);
         }
     }
 
@@ -91,8 +106,8 @@ Item {
         id: fuzzy
     }
 
-    function nodeMatches(name) {
-        return fuzzy.score(root.nodeQuery, name) >= 0;
+    function nodeMatches(row) {
+        return fuzzy.best(root.nodeQuery, [row.name, root.delayText(row.delay_ms)]) >= 0;
     }
 
     readonly property bool anyNodeShown: {
@@ -104,7 +119,7 @@ Item {
         }
         for (let i = 0; i < nodeModel.count; ++i) {
             const row = nodeModel.get(i);
-            if ((showUnreachable || row.delay_ms !== 0) && fuzzy.score(query, row.name) >= 0) {
+            if ((showUnreachable || row.delay_ms !== 0) && root.nodeMatches(row)) {
                 return true;
             }
         }
@@ -126,7 +141,7 @@ Item {
         if (ms === 0) {
             return tx.i18n("Timeout");
         }
-        return tx.i18n("%1 ms", ms);
+        return tx.i18n("%1 ms", tx.formatNumber(ms));
     }
 
     function delayColor(ms) {
@@ -155,7 +170,7 @@ Item {
         return out.length > 0 ? out : groups;
     }
 
-    function viewPref() {
+    function savedPref() {
         if (kcm.client.draftSortGlobal) {
             return {
                 mode: kcm.client.sortMode || "profile",
@@ -175,9 +190,22 @@ Item {
         };
     }
 
+    function viewPref() {
+        if (root.chosenActive) {
+            return {
+                mode: root.chosenMode,
+                show: root.chosenShow
+            };
+        }
+        return root.savedPref();
+    }
+
     function rememberSort(mode, show) {
+        root.chosenMode = mode;
+        root.chosenShow = show;
+        root.chosenActive = true;
         kcm.client.setViewPref(kcm.client.draftActiveProfile, root.selectedGroup, mode, show, kcm.client.draftSortGlobal);
-        root.resort();
+        root.rebuildShown();
     }
 
     function chosenName(group) {
@@ -203,11 +231,11 @@ Item {
         return groups.length > 0 ? groups[0] : null;
     }
 
-    function compareNodes(left, right) {
-        if (root.viewPref().mode === "name") {
-            return left.name.localeCompare(right.name);
+    function compareNodes(left, right, mode) {
+        if (mode === "name") {
+            return String(left.name).localeCompare(String(right.name));
         }
-        if (root.viewPref().mode === "delay") {
+        if (mode === "delay") {
             function rank(ms) {
                 if (ms < 0) {
                     return 1e15;
@@ -221,23 +249,12 @@ Item {
             if (difference !== 0) {
                 return difference;
             }
-            return left.name.localeCompare(right.name);
+            return String(left.name).localeCompare(String(right.name));
         }
         return left.order - right.order;
     }
 
     function resort() {
-        for (let i = 0; i < nodeModel.count; ++i) {
-            let best = i;
-            for (let j = i + 1; j < nodeModel.count; ++j) {
-                if (compareNodes(nodeModel.get(j), nodeModel.get(best)) < 0) {
-                    best = j;
-                }
-            }
-            if (best !== i) {
-                nodeModel.move(best, i, 1);
-            }
-        }
         root.rebuildShown();
     }
 
@@ -279,6 +296,7 @@ Item {
         }
         const signature = groups.map(group => group.name).join("\n");
         if (signature !== root.groupSignature) {
+            root.chosenActive = false;
             root.groupSignature = signature;
             const keep = root.selectedGroup;
             groupModel.clear();
@@ -360,11 +378,7 @@ Item {
                 return;
             }
                 root.setNodeDelay(name, delayMs);
-            if (root.viewPref().mode === "delay") {
-                root.resort();
-            } else {
-                root.rebuildShown();
-            }
+            root.rebuildShown();
         }
         function onDraftChanged() {
             if (root.loadedProfile !== kcm.client.draftActiveProfile || root.loadedMode !== kcm.client.draftMode) {
@@ -382,6 +396,12 @@ Item {
             }
         }
         function onStatusChanged() {
+            if (root.chosenActive) {
+                const saved = root.savedPref();
+                if (saved.mode === root.chosenMode && saved.show === root.chosenShow) {
+                    root.chosenActive = false;
+                }
+            }
             const key = (kcm.client.coreRunning ? "1" : "0") + "\n" + kcm.client.activeProfile;
             const turnedOn = kcm.client.autoTestDelay && !root.sawAutoTest;
             root.sawAutoTest = kcm.client.autoTestDelay;

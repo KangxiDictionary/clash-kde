@@ -27,4 +27,15 @@ QtObject {
         }
         return score;
     }
+
+    function best(query, fields) {
+        let best = -1;
+        for (let i = 0; i < fields.length; ++i) {
+            const weight = score(query, fields[i]);
+            if (weight > best) {
+                best = weight;
+            }
+        }
+        return best;
+    }
 }

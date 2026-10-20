@@ -39,12 +39,12 @@ Item {
 
     function formatRate(bps) {
         if (bps < 1024) {
-            return tx.i18n("%1 B/s", bps);
+            return tx.i18n("%1 B/s", tx.formatNumber(bps));
         }
         if (bps < 1024 * 1024) {
-            return tx.i18n("%1 KB/s", (bps / 1024).toFixed(1));
+            return tx.i18n("%1 KB/s", tx.formatNumber(bps / 1024, 1));
         }
-        return tx.i18n("%1 MB/s", (bps / 1024 / 1024).toFixed(2));
+        return tx.i18n("%1 MB/s", tx.formatNumber(bps / 1024 / 1024, 2));
     }
 
     ColumnLayout {
@@ -273,7 +273,7 @@ Item {
 
                 TextMetrics {
                     id: rateWidth
-                    text: tx.i18n("%1 MB/s", "999.9")
+                    text: tx.i18n("%1 MB/s", tx.formatNumber(999.9, 1))
                 }
             }
 

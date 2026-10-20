@@ -78,11 +78,13 @@ Flickable {
         spacing: 0
 
         FormCard.FormHeader {
+            maximumWidth: Infinity
             title: tx.i18n("About")
             Layout.fillWidth: true
         }
 
         FormCard.FormCard {
+            maximumWidth: Infinity
             Layout.fillWidth: true
 
             FormCard.FormTextDelegate {
@@ -95,7 +97,7 @@ Flickable {
 
             FormCard.FormTextDelegate {
                 text: tx.i18n("Version")
-                description: "1.0.1"
+                description: "1.0.2"
                 Kirigami.MnemonicData.enabled: false
             }
 
@@ -118,20 +120,23 @@ Flickable {
         }
 
         FormCard.FormHeader {
+            maximumWidth: Infinity
             title: tx.i18n("Appearance")
             Layout.fillWidth: true
         }
 
         FormCard.FormCard {
+            maximumWidth: Infinity
             Layout.fillWidth: true
 
             FormCard.FormSwitchDelegate {
                 text: tx.i18n("Compact mode")
-                checked: kcm.client.compact
+                checked: kcm.client.draftCompact
                 Kirigami.MnemonicData.enabled: false
-                onClicked: {
-                    kcm.client.setCompact(!kcm.client.compact);
-                    checked = Qt.binding(() => kcm.client.compact);
+                onToggled: {
+                    if (checked !== kcm.client.draftCompact) {
+                        kcm.client.draftCompact = checked;
+                    }
                 }
 
                 QQC2.ToolTip.visible: hovered
@@ -149,11 +154,13 @@ Flickable {
         }
 
         FormCard.FormHeader {
+            maximumWidth: Infinity
             title: tx.i18n("Accounts")
             Layout.fillWidth: true
         }
 
         FormCard.FormCard {
+            maximumWidth: Infinity
             Layout.fillWidth: true
             visible: !kcm.client.accountsUnlocked
 
@@ -193,11 +200,13 @@ Flickable {
             }
 
             FormCard.FormHeader {
+                maximumWidth: Infinity
                 title: tx.i18n("This computer")
                 Layout.fillWidth: true
             }
 
             FormCard.FormCard {
+                maximumWidth: Infinity
                 Layout.fillWidth: true
 
                 FormCard.FormSwitchDelegate {
@@ -231,11 +240,13 @@ Flickable {
             }
 
             FormCard.FormHeader {
+                maximumWidth: Infinity
                 title: tx.i18n("Signed-in accounts")
                 Layout.fillWidth: true
             }
 
             FormCard.FormCard {
+                maximumWidth: Infinity
                 Layout.fillWidth: true
                 visible: root.otherAccounts.length > 0
 
@@ -264,6 +275,7 @@ Flickable {
             }
 
             FormCard.FormSectionText {
+                Layout.maximumWidth: Infinity
                 visible: root.otherAccounts.length === 0
                 text: tx.i18n("No other signed-in accounts.")
                 Layout.fillWidth: true
@@ -276,11 +288,13 @@ Flickable {
             spacing: 0
 
             FormCard.FormHeader {
+                maximumWidth: Infinity
                 title: root.detailAccount ? root.detailAccount.name : ""
                 Layout.fillWidth: true
             }
 
             FormCard.FormCard {
+                maximumWidth: Infinity
                 Layout.fillWidth: true
 
                 FormCard.FormButtonDelegate {

@@ -25,6 +25,26 @@ Flickable {
         return tx.i18n("Off");
     }
 
+    function proxyIcon(state) {
+        if (state === "ours") {
+            return "checkmark";
+        }
+        if (state === "other") {
+            return "dialog-warning";
+        }
+        return "dialog-cancel";
+    }
+
+    function proxyColor(state) {
+        if (state === "ours") {
+            return Kirigami.Theme.positiveTextColor;
+        }
+        if (state === "other") {
+            return Kirigami.Theme.neutralTextColor;
+        }
+        return Kirigami.Theme.disabledTextColor;
+    }
+
     ColumnLayout {
         id: body
         width: root.width
@@ -43,29 +63,49 @@ Flickable {
             spacing: 0
 
             FormCard.FormHeader {
+                maximumWidth: Infinity
                 title: tx.i18n("This account")
                 Layout.fillWidth: true
             }
 
             FormCard.FormCard {
+                maximumWidth: Infinity
                 Layout.fillWidth: true
 
-                ColumnLayout {
+                RowLayout {
                     Layout.fillWidth: true
                     Layout.margins: Kirigami.Units.largeSpacing
-                    spacing: Kirigami.Units.smallSpacing
+                    spacing: Kirigami.Units.largeSpacing
 
-                    QQC2.Label {
-                        text: tx.i18n("KDE proxy")
-                        font.bold: true
-                        Kirigami.MnemonicData.enabled: false
-                    }
-                    QQC2.Label {
-                        text: root.proxyText(kcm.client.kdeProxy)
-                        opacity: 0.75
-                        wrapMode: Text.WordWrap
+                    RowLayout {
                         Layout.fillWidth: true
-                        Kirigami.MnemonicData.enabled: false
+                        spacing: Kirigami.Units.largeSpacing
+
+                        Kirigami.Icon {
+                            source: root.proxyIcon(kcm.client.kdeProxy)
+                            isMask: true
+                            color: root.proxyColor(kcm.client.kdeProxy)
+                            implicitWidth: Kirigami.Units.iconSizes.smallMedium
+                            implicitHeight: Kirigami.Units.iconSizes.smallMedium
+                        }
+
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            spacing: 0
+
+                            QQC2.Label {
+                                text: tx.i18n("KDE proxy")
+                                opacity: 0.65
+                                font: Kirigami.Theme.smallFont
+                                Kirigami.MnemonicData.enabled: false
+                            }
+                            QQC2.Label {
+                                text: root.proxyText(kcm.client.kdeProxy)
+                                wrapMode: Text.WordWrap
+                                Layout.fillWidth: true
+                                Kirigami.MnemonicData.enabled: false
+                            }
+                        }
 
                         HoverHandler { id: kdeHover }
                         QQC2.ToolTip.visible: kdeHover.hovered
@@ -73,17 +113,39 @@ Flickable {
                         QQC2.ToolTip.text: tx.i18n("Shows whether KDE is telling programs to use a proxy.")
                     }
 
-                    QQC2.Label {
-                        text: tx.i18n("GNOME proxy")
-                        font.bold: true
-                        Kirigami.MnemonicData.enabled: false
+                    QQC2.ToolSeparator {
+                        Layout.fillHeight: true
                     }
-                    QQC2.Label {
-                        text: root.proxyText(kcm.client.gnomeProxy)
-                        opacity: 0.75
-                        wrapMode: Text.WordWrap
+
+                    RowLayout {
                         Layout.fillWidth: true
-                        Kirigami.MnemonicData.enabled: false
+                        spacing: Kirigami.Units.largeSpacing
+
+                        Kirigami.Icon {
+                            source: root.proxyIcon(kcm.client.gnomeProxy)
+                            isMask: true
+                            color: root.proxyColor(kcm.client.gnomeProxy)
+                            implicitWidth: Kirigami.Units.iconSizes.smallMedium
+                            implicitHeight: Kirigami.Units.iconSizes.smallMedium
+                        }
+
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            spacing: 0
+
+                            QQC2.Label {
+                                text: tx.i18n("GNOME proxy")
+                                opacity: 0.65
+                                font: Kirigami.Theme.smallFont
+                                Kirigami.MnemonicData.enabled: false
+                            }
+                            QQC2.Label {
+                                text: root.proxyText(kcm.client.gnomeProxy)
+                                wrapMode: Text.WordWrap
+                                Layout.fillWidth: true
+                                Kirigami.MnemonicData.enabled: false
+                            }
+                        }
 
                         HoverHandler { id: gnomeHover }
                         QQC2.ToolTip.visible: gnomeHover.hovered
@@ -110,11 +172,13 @@ Flickable {
             }
 
             FormCard.FormHeader {
+                maximumWidth: Infinity
                 title: tx.i18n("Connection")
                 Layout.fillWidth: true
             }
 
             FormCard.FormCard {
+                maximumWidth: Infinity
                 Layout.fillWidth: true
 
                 FormCard.FormSwitchDelegate {
