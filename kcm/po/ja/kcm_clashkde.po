@@ -7,8 +7,8 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=1; plural=0;\n"
 
-msgid "There is a Mihomo widget for the panel."
-msgstr "パネル用の Mihomo ウィジェットがあります。"
+msgid "This program includes a Mihomo widget you can add to the panel."
+msgstr "このプログラムには、パネルに追加できる Mihomo ウィジェットがあります。"
 
 msgid "Other programs can use this address as it is."
 msgstr "他のアプリも、このアドレスをそのまま使えます。"
@@ -567,3 +567,9 @@ msgstr "サーバーのポートです。"
 
 msgid "The password for this route. For VMess this is the UUID."
 msgstr "このルートのパスワードです。VMess では UUID です。"
+
+msgid "Show the panel widget note"
+msgstr "パネルウィジェットの案内を表示する"
+
+msgid "Shows a note on the Status page that this program includes a panel widget."
+msgstr "状態ページに、このプログラムがパネルウィジェットを用意していると表示します。"

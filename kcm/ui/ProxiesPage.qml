@@ -37,6 +37,7 @@ Item {
             return;
         }
         root.filling = true;
+        root.revealSecret = false;
         const staged = kcm.client.stagedRoute(root.picked);
         root.detail = staged && staged.name ? staged : kcm.client.routeDetail(root.picked);
         detailName.text = root.detail.name || "";
@@ -100,6 +101,13 @@ Item {
 
     Tx {
         id: tx
+    }
+
+    Connections {
+        target: kcm.client
+        function onRouteDraftDiscarded() {
+            root.showPicked();
+        }
     }
 
     Fuzzy {

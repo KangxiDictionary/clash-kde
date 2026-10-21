@@ -250,6 +250,7 @@ QVariantMap ClashClient::sortPrefs() const { return m_sortPrefs; }
 bool ClashClient::autoTestDelay() const { return m_autoTestDelay; }
 bool ClashClient::blurIp() const { return m_blurIp; }
 bool ClashClient::compact() const { return m_compact; }
+bool ClashClient::showWidgetHint() const { return m_showWidgetHint; }
 bool ClashClient::allowLan() const { return m_allowLan; }
 QString ClashClient::lanUsername() const { return m_lanUsername; }
 QString ClashClient::lanPassword() const { return m_lanPassword; }
@@ -371,6 +372,19 @@ void ClashClient::setDraftCompact(bool enabled)
         return;
     }
     m_draftCompact = enabled;
+    m_preferReset = false;
+    m_draftDirty = !draftMatchesLive();
+    Q_EMIT draftChanged();
+}
+
+bool ClashClient::draftShowWidgetHint() const { return m_draftShowWidgetHint; }
+
+void ClashClient::setDraftShowWidgetHint(bool enabled)
+{
+    if (m_draftShowWidgetHint == enabled) {
+        return;
+    }
+    m_draftShowWidgetHint = enabled;
     m_preferReset = false;
     m_draftDirty = !draftMatchesLive();
     Q_EMIT draftChanged();
@@ -762,6 +776,7 @@ void ClashClient::stageRoute(const QString &previous, const QString &name, const
     if (same) {
         m_routeEdits.remove(previous);
     } else {
+        m_preferReset = false;
         QVariantMap edit;
         edit.insert(QStringLiteral("name"), name);
         edit.insert(QStringLiteral("kind"), kind);
@@ -898,6 +913,7 @@ void ClashClient::copyLiveToDraft()
     m_draftAutoTestDelay = m_autoTestDelay;
     m_draftBlurIp = m_blurIp;
     m_draftCompact = m_compact;
+    m_draftShowWidgetHint = m_showWidgetHint;
     m_draftTunDevice = m_tunDevice;
     m_draftOverridePath = m_overridePath;
     m_draftAllowLan = m_allowLan;
@@ -920,6 +936,7 @@ bool ClashClient::draftMatchesLive() const
         && m_draftAutoTestDelay == m_autoTestDelay
         && m_draftBlurIp == m_blurIp
         && m_draftCompact == m_compact
+        && m_draftShowWidgetHint == m_showWidgetHint
         && m_draftTunDevice.trimmed() == m_tunDevice
         && canonicalOverride(m_draftOverridePath, m_overrideDefault) == canonicalOverride(m_overridePath, m_overrideDefault)
         && m_draftAllowLan == m_allowLan
@@ -936,6 +953,7 @@ void ClashClient::revertDraft()
     m_routeProfile.clear();
     copyLiveToDraft();
     Q_EMIT draftChanged();
+    Q_EMIT routeDraftDiscarded();
 }
 
 void ClashClient::applyDefaultsToDraft()
@@ -951,14 +969,21 @@ void ClashClient::applyDefaultsToDraft()
     m_draftAutoTestDelay = false;
     m_draftBlurIp = false;
     m_draftCompact = false;
+    m_draftShowWidgetHint = true;
     m_draftTunDevice.clear();
     m_draftOverridePath = m_overrideDefault;
     m_draftAllowLan = false;
     m_draftLanUsername.clear();
     m_draftLanPassword.clear();
+    m_draftActiveProfile = m_activeProfile;
+    m_draftSelections = m_selections;
+    m_routeEdits.clear();
+    m_routeBaselines.clear();
+    m_routeProfile.clear();
     m_draftDirty = !draftMatchesLive();
     m_preferReset = true;
     Q_EMIT draftChanged();
+    Q_EMIT routeDraftDiscarded();
 }
 
 bool ClashClient::draftIsDefaults() const
@@ -966,9 +991,11 @@ bool ClashClient::draftIsDefaults() const
     return m_draftMixedPort == 7890 && m_draftControllerPort == 9090 && m_draftMihomoPath == QStringLiteral("mihomo")
         && !m_draftCoreDesired && !m_draftSystemProxyEnabled && !m_draftTunEnabled && m_draftMode == QStringLiteral("rule")
         && !m_draftSortGlobal && !m_draftAutoTestDelay && !m_draftBlurIp && !m_draftCompact
+        && m_draftShowWidgetHint
         && m_draftTunDevice.trimmed().isEmpty()
         && canonicalOverride(m_draftOverridePath, m_overrideDefault) == m_overrideDefault
-        && !m_draftAllowLan && m_draftLanUsername.isEmpty() && m_draftLanPassword.isEmpty();
+        && !m_draftAllowLan && m_draftLanUsername.isEmpty() && m_draftLanPassword.isEmpty()
+        && m_routeEdits.isEmpty();
 }
 
 bool ClashClient::commitSettings()
@@ -983,6 +1010,25 @@ bool ClashClient::commitSettings()
     if (!lanEmpty && (lanUser.isEmpty() || lanPassword.isEmpty() || lanUser.contains(QLatin1Char(':')) || lanPassword.contains(QLatin1Char(':')))) {
         reportError(QStringLiteral("局域网账号和密码要一起填写，且不能包含冒号"));
         return false;
+    }
+    if (m_preferReset && draftIsDefaults()) {
+        m_routeEdits.clear();
+        m_routeBaselines.clear();
+        m_routeProfile.clear();
+        if (!m_tunDevice.isEmpty()) {
+            const QDBusReply<void> auth = m_admin->call(QStringLiteral("AuthorizeTun"));
+            if (!auth.isValid()) {
+                return failed(auth.error());
+            }
+        }
+        const QDBusReply<void> reply = m_iface->call(QStringLiteral("ResetPreferences"));
+        if (!reply.isValid()) {
+            return failed(reply.error());
+        }
+        m_draftDirty = false;
+        m_preferReset = false;
+        refreshStatus();
+        return true;
     }
     const QString routeProfile = m_routeProfile;
     const QVariantMap routeEdits = m_routeEdits;
@@ -1010,22 +1056,6 @@ bool ClashClient::commitSettings()
     if (m_routeEdits.isEmpty()) {
         m_routeProfile.clear();
         m_routeBaselines.clear();
-    }
-    if (m_preferReset && draftIsDefaults()) {
-        if (!m_tunDevice.isEmpty()) {
-            const QDBusReply<void> auth = m_admin->call(QStringLiteral("AuthorizeTun"));
-            if (!auth.isValid()) {
-                return failed(auth.error());
-            }
-        }
-        const QDBusReply<void> reply = m_iface->call(QStringLiteral("ResetPreferences"));
-        if (!reply.isValid()) {
-            return failed(reply.error());
-        }
-        m_draftDirty = false;
-        m_preferReset = false;
-        refreshStatus();
-        return true;
     }
     const QString draftDevice = m_draftTunDevice.trimmed();
     const QString draftOverride = m_draftOverridePath.trimmed();
@@ -1111,8 +1141,8 @@ bool ClashClient::commitSettings()
             return failed(reply.error());
         }
     }
-    if (m_draftSortGlobal != m_sortGlobal || m_draftAutoTestDelay != m_autoTestDelay || m_draftBlurIp != m_blurIp) {
-        const QDBusReply<void> reply = m_iface->call(QStringLiteral("SetBehavior"), m_draftSortGlobal, m_draftAutoTestDelay, m_draftBlurIp);
+    if (m_draftSortGlobal != m_sortGlobal || m_draftAutoTestDelay != m_autoTestDelay || m_draftBlurIp != m_blurIp || m_draftShowWidgetHint != m_showWidgetHint) {
+        const QDBusReply<void> reply = m_iface->call(QStringLiteral("SetBehavior"), m_draftSortGlobal, m_draftAutoTestDelay, m_draftBlurIp, m_draftShowWidgetHint);
         if (!reply.isValid()) {
             return failed(reply.error());
         }
@@ -1317,6 +1347,7 @@ void ClashClient::applyStatus(const QVariantMap &status)
     const bool autoTestDelay = status.value(QStringLiteral("auto_test_delay")).toBool();
     const bool blurIp = status.value(QStringLiteral("blur_ip")).toBool();
     const bool compact = status.value(QStringLiteral("compact")).toBool();
+    const bool showWidgetHint = !status.contains(QStringLiteral("show_widget_hint")) || status.value(QStringLiteral("show_widget_hint")).toBool();
     const bool allowLan = status.value(QStringLiteral("allow_lan")).toBool();
     const QString lanUsername = status.value(QStringLiteral("lan_username")).toString();
     const QString lanPassword = status.value(QStringLiteral("lan_password")).toString();
@@ -1334,7 +1365,8 @@ void ClashClient::applyStatus(const QVariantMap &status)
         && m_uploadBps == uploadBps && m_downloadBps == downloadBps && m_exitRegion == exitRegion
         && m_activeProfile == activeProfile && m_selections == selections && m_sortGlobal == sortGlobal
         && m_sortMode == sortMode && m_showUnreachable == showUnreachable && m_sortPrefs == sortPrefs
-        && m_autoTestDelay == autoTestDelay && m_blurIp == blurIp && m_compact == compact && m_allowLan == allowLan
+        && m_autoTestDelay == autoTestDelay && m_blurIp == blurIp && m_compact == compact
+        && m_showWidgetHint == showWidgetHint && m_allowLan == allowLan
         && m_lanUsername == lanUsername && m_lanPassword == lanPassword && m_lanAllowed == lanAllowed
         && m_message == message) {
         return;
@@ -1367,6 +1399,7 @@ void ClashClient::applyStatus(const QVariantMap &status)
     m_autoTestDelay = autoTestDelay;
     m_blurIp = blurIp;
     m_compact = compact;
+    m_showWidgetHint = showWidgetHint;
     m_allowLan = allowLan;
     m_lanUsername = lanUsername;
     m_lanPassword = lanPassword;

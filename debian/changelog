@@ -1,3 +1,11 @@
+clash-kde (1.0.3) unstable; urgency=medium
+
+  * The Status page can hide its note about the included panel widget.
+  * Default discards unsaved route, profile, and selection edits.
+  * The widget route menu no longer collapses while delays are updating.
+
+ -- KangxiDictionary <108598928+KangxiDictionary@users.noreply.github.com>  Wed, 21 Oct 2026 13:40:00 +0800
+
 clash-kde (1.0.2) unstable; urgency=medium
 
   * A route can be edited beside the list, and the lists sort and search in place.

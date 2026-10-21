@@ -97,7 +97,7 @@ Flickable {
 
             FormCard.FormTextDelegate {
                 text: tx.i18n("Version")
-                description: "1.0.2"
+                description: "1.0.3"
                 Kirigami.MnemonicData.enabled: false
             }
 
@@ -142,6 +142,23 @@ Flickable {
                 QQC2.ToolTip.visible: hovered
                 QQC2.ToolTip.delay: 700
                 QQC2.ToolTip.text: tx.i18n("Shows only the name in the profile list and the route list.")
+            }
+
+            FormCard.FormDelegateSeparator {}
+
+            FormCard.FormSwitchDelegate {
+                text: tx.i18n("Show the panel widget note")
+                checked: kcm.client.draftShowWidgetHint
+                Kirigami.MnemonicData.enabled: false
+                onToggled: {
+                    if (checked !== kcm.client.draftShowWidgetHint) {
+                        kcm.client.draftShowWidgetHint = checked;
+                    }
+                }
+
+                QQC2.ToolTip.visible: hovered
+                QQC2.ToolTip.delay: 700
+                QQC2.ToolTip.text: tx.i18n("Shows a note on the Status page that this program includes a panel widget.")
             }
         }
 

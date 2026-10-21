@@ -54,6 +54,7 @@ class ClashClient : public QObject
     Q_PROPERTY(bool draftAutoTestDelay READ draftAutoTestDelay WRITE setDraftAutoTestDelay NOTIFY draftChanged)
     Q_PROPERTY(bool draftBlurIp READ draftBlurIp WRITE setDraftBlurIp NOTIFY draftChanged)
     Q_PROPERTY(bool draftCompact READ draftCompact WRITE setDraftCompact NOTIFY draftChanged)
+    Q_PROPERTY(bool draftShowWidgetHint READ draftShowWidgetHint WRITE setDraftShowWidgetHint NOTIFY draftChanged)
     Q_PROPERTY(QString draftTunDevice READ draftTunDevice WRITE setDraftTunDevice NOTIFY draftChanged)
     Q_PROPERTY(QString draftOverridePath READ draftOverridePath WRITE setDraftOverridePath NOTIFY draftChanged)
     Q_PROPERTY(bool sortGlobal READ sortGlobal NOTIFY statusChanged)
@@ -63,6 +64,7 @@ class ClashClient : public QObject
     Q_PROPERTY(bool autoTestDelay READ autoTestDelay NOTIFY statusChanged)
     Q_PROPERTY(bool blurIp READ blurIp NOTIFY statusChanged)
     Q_PROPERTY(bool compact READ compact NOTIFY statusChanged)
+    Q_PROPERTY(bool showWidgetHint READ showWidgetHint NOTIFY statusChanged)
     Q_PROPERTY(bool allowLan READ allowLan NOTIFY statusChanged)
     Q_PROPERTY(QString lanUsername READ lanUsername NOTIFY statusChanged)
     Q_PROPERTY(QString lanPassword READ lanPassword NOTIFY statusChanged)
@@ -134,6 +136,8 @@ public:
     void setDraftBlurIp(bool enabled);
     bool draftCompact() const;
     void setDraftCompact(bool enabled);
+    bool draftShowWidgetHint() const;
+    void setDraftShowWidgetHint(bool enabled);
     QString draftTunDevice() const;
     void setDraftTunDevice(const QString &name);
     QString draftOverridePath() const;
@@ -145,6 +149,7 @@ public:
     bool autoTestDelay() const;
     bool blurIp() const;
     bool compact() const;
+    bool showWidgetHint() const;
     bool allowLan() const;
     QString lanUsername() const;
     QString lanPassword() const;
@@ -221,6 +226,7 @@ Q_SIGNALS:
     void delayTestingChanged();
     void delayUpdated(const QString &group, const QString &name, qlonglong delayMs);
     void draftChanged();
+    void routeDraftDiscarded();
     void hintChanged();
     void errorOccurred(const QString &message);
     void editorTextReady(const QString &body);
@@ -292,6 +298,7 @@ private:
     bool m_draftAutoTestDelay = false;
     bool m_draftBlurIp = false;
     bool m_draftCompact = false;
+    bool m_draftShowWidgetHint = true;
     QString m_draftTunDevice;
     QString m_draftOverridePath;
     QString m_tunDevice;
@@ -304,6 +311,7 @@ private:
     bool m_autoTestDelay = false;
     bool m_blurIp = false;
     bool m_compact = false;
+    bool m_showWidgetHint = true;
     QString m_routeProfile;
     QVariantMap m_routeEdits;
     QVariantMap m_routeBaselines;

@@ -48,6 +48,8 @@ pub struct Settings {
     pub override_path: String,
     #[serde(default)]
     pub compact: bool,
+    #[serde(default = "default_show_widget_hint")]
+    pub show_widget_hint: bool,
     #[serde(default)]
     pub allow_lan: bool,
     #[serde(default)]
@@ -69,6 +71,10 @@ fn default_sort_mode() -> String {
 }
 
 fn default_show_unreachable() -> bool {
+    true
+}
+
+fn default_show_widget_hint() -> bool {
     true
 }
 
@@ -111,6 +117,7 @@ impl Default for Settings {
             tun_device: String::new(),
             override_path: String::new(),
             compact: false,
+            show_widget_hint: true,
             allow_lan: false,
             lan_username: String::new(),
             lan_password: String::new(),

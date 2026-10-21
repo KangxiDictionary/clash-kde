@@ -7,8 +7,8 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);\n"
 
-msgid "There is a Mihomo widget for the panel."
-msgstr "Для панели есть виджет Mihomo."
+msgid "This program includes a Mihomo widget you can add to the panel."
+msgstr "В этой программе есть виджет Mihomo, который можно добавить на панель."
 
 msgid "Other programs can use this address as it is."
 msgstr "Другие программы могут использовать этот адрес как есть."
@@ -567,3 +567,9 @@ msgstr "Порт сервера."
 
 msgid "The password for this route. For VMess this is the UUID."
 msgstr "Пароль этого маршрута. Для VMess это UUID."
+
+msgid "Show the panel widget note"
+msgstr "Показывать заметку о виджете панели"
+
+msgid "Shows a note on the Status page that this program includes a panel widget."
+msgstr "На странице состояния сообщает, что в программе есть виджет для панели."

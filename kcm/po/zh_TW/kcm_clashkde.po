@@ -7,8 +7,8 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=1; plural=0;\n"
 
-msgid "There is a Mihomo widget for the panel."
-msgstr "面板上有一個 Mihomo 小工具。"
+msgid "This program includes a Mihomo widget you can add to the panel."
+msgstr "本程式帶有一個 Mihomo 小工具，可以自己加到面板上。"
 
 msgid "Other programs can use this address as it is."
 msgstr "其他程式可以直接用這個位址。"
@@ -567,3 +567,9 @@ msgstr "伺服器的連接埠。"
 
 msgid "The password for this route. For VMess this is the UUID."
 msgstr "這條路線的密碼。VMess 用的是 UUID。"
+
+msgid "Show the panel widget note"
+msgstr "顯示面板小工具說明"
+
+msgid "Shows a note on the Status page that this program includes a panel widget."
+msgstr "在狀態頁說明本程式帶有一個面板小工具。"

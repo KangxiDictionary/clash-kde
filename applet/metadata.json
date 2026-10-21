@@ -22,7 +22,7 @@
         "License": "GPL-3.0-or-later",
         "Name": "Mihomo",
         "Name[zh_CN]": "Mihomo",
-        "Version": "1.0.2",
+        "Version": "1.0.3",
         "Website": "https://github.com/KangxiDictionary/clash-kde"
     },
     "KPackageStructure": "Plasma/Applet",

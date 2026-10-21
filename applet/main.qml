@@ -29,32 +29,6 @@ PlasmoidItem {
 
     readonly property var modes: ["rule", "global", "direct"]
 
-    function fuzzyScore(query, text) {
-        const needle = String(query).trim().toLowerCase();
-        if (needle.length === 0) {
-            return 0;
-        }
-        const hay = String(text).toLowerCase();
-        let score = 0;
-        let at = 0;
-        let streak = 0;
-        for (let i = 0; i < needle.length; ++i) {
-            const found = hay.indexOf(needle[i], at);
-            if (found < 0) {
-                return -1;
-            }
-            streak = found === at ? streak + 1 : 1;
-            score += 8 + streak * 6 - (found - at);
-            at = found + 1;
-        }
-        if (hay.startsWith(needle)) {
-            score += 20;
-        }
-        return score;
-    }
-
-    property string profileQuery: ""
-
     function configured(key, fallback) {
         const value = Plasmoid.configuration[key];
         return (typeof value === "string" && value.length > 0) ? value : fallback;
@@ -348,46 +322,6 @@ PlasmoidItem {
         }
         readonly property real popupHeight: Math.min(Math.max(contentHeight, Kirigami.Units.gridUnit * 8), popupLimit)
 
-        property string routeQuery: ""
-
-        function nodeShown(item) {
-            const allowed = root.showUnreachable || item.delayMs !== 0;
-            if (!allowed) {
-                return false;
-            }
-            return root.fuzzyScore(routeQuery, item.nodeName) >= 0;
-        }
-
-        function applyRouteFilter(menu) {
-            let visible = 0;
-            for (let i = 0; i < menu.count; ++i) {
-                const sub = menu.menuAt(i);
-                if (sub) {
-                    const inner = popupRoot.applyRouteFilter(sub);
-                    const show = inner > 0 || popupRoot.routeQuery.trim().length === 0;
-                    sub.visible = show;
-                    if (show) {
-                        visible += 1;
-                    }
-                    continue;
-                }
-                const item = menu.itemAt(i);
-                if (!item || !item.nodeName) {
-                    continue;
-                }
-                const show = popupRoot.nodeShown(item);
-                item.visible = show;
-                item.height = show ? Math.max(item.implicitHeight, Kirigami.Units.gridUnit) : 0;
-                if (show) {
-                    visible += 1;
-                }
-            }
-            if (menu.opened) {
-                root.fitRouteMenu(menu, Math.max(visible, 1));
-            }
-            return visible;
-        }
-
         property string copiedHint: ""
 
         function closeRouteMenu() {
@@ -437,7 +371,7 @@ PlasmoidItem {
                 const group = groups[0];
                 const groupName = String(group.name);
                 appendNodes(routeMenu, groupName, String(group.now || ""), root.nodesFor(group));
-                root.fitRouteMenu(routeMenu, Math.max(popupRoot.applyRouteFilter(routeMenu), 1));
+                root.fitRouteMenu(routeMenu, routeMenu.count);
                 maybeAutoTest(groupName);
                 return;
             }
@@ -454,7 +388,7 @@ PlasmoidItem {
                 appendNodes(sub, groupName, String(group.now || ""), root.nodesFor(group));
                 routeMenu.insertMenu(routeMenu.count, sub);
             }
-            root.fitRouteMenu(routeMenu, Math.max(popupRoot.applyRouteFilter(routeMenu), 1));
+            root.fitRouteMenu(routeMenu, routeMenu.count);
         }
 
         function maybeAutoTest(groupName) {
@@ -507,70 +441,65 @@ PlasmoidItem {
             return ms;
         }
 
+        // Taking a row out empties the menu for a moment. Its width is the widest
+        // row, so it collapses, and the row under the pointer leaves with it.
         function reorderDelayMenu(menu) {
-            const nodes = [];
-            let index = 0;
-            while (index < menu.count) {
-                const sub = menu.menuAt(index);
+            let hidden = false;
+            for (let i = 0; i < menu.count; ++i) {
+                const sub = menu.menuAt(i);
                 if (sub) {
                     popupRoot.reorderDelayMenu(sub);
-                    let any = false;
-                    for (let n = 0; n < sub.count; ++n) {
-                        const child = sub.itemAt(n);
-                        if (child && child.nodeName && child.visible !== false) {
-                            any = true;
-                            break;
-                        }
-                    }
-                    sub.visible = any || popupRoot.routeQuery.trim().length === 0;
-                    index += 1;
-                    continue;
                 }
-                const item = menu.itemAt(index);
-                if (!item || !item.nodeName) {
-                    index += 1;
-                    continue;
-                }
-                if (root.routeSort !== "delay") {
-                    const show = popupRoot.nodeShown(item);
-                    item.visible = show;
-                    item.height = show ? Math.max(item.implicitHeight, Kirigami.Units.gridUnit) : 0;
-                    index += 1;
-                    continue;
-                }
-                const taken = menu.takeItem(index);
-                if (!taken) {
-                    index += 1;
-                    continue;
-                }
-                nodes.push(taken);
             }
             if (root.routeSort === "delay") {
-                nodes.sort((left, right) => {
+                const sorted = [];
+                for (let i = 0; i < menu.count; ++i) {
+                    const item = menu.itemAt(i);
+                    if (item && item.nodeName) {
+                        sorted.push(item);
+                    }
+                }
+                sorted.sort((left, right) => {
                     const difference = rankDelay(left.delayMs) - rankDelay(right.delayMs);
                     if (difference !== 0) {
                         return difference;
                     }
                     return String(left.nodeName).localeCompare(String(right.nodeName));
                 });
-                for (let n = 0; n < nodes.length; ++n) {
-                    const item = nodes[n];
-                    const show = popupRoot.nodeShown(item);
-                    item.visible = show;
-                    item.height = show ? Math.max(item.implicitHeight, Kirigami.Units.gridUnit) : 0;
-                    menu.insertItem(n, item);
+                for (let target = 0; target < sorted.length; ++target) {
+                    const want = sorted[target];
+                    let from = -1;
+                    for (let i = 0; i < menu.count; ++i) {
+                        if (menu.itemAt(i) === want) {
+                            from = i;
+                            break;
+                        }
+                    }
+                    if (from >= 0 && from !== target) {
+                        menu.moveItem(from, target);
+                    }
                 }
             }
-            if (!menu.opened) {
+            for (let i = 0; i < menu.count; ++i) {
+                const item = menu.itemAt(i);
+                if (!item || !item.nodeName) {
+                    continue;
+                }
+                const show = root.showUnreachable || item.delayMs !== 0;
+                if (item.visible === show && (show || item.height === 0)) {
+                    continue;
+                }
+                item.visible = show;
+                item.height = show ? Math.max(item.implicitHeight, Kirigami.Units.gridUnit) : 0;
+                hidden = true;
+            }
+            if (!hidden || !menu.opened) {
                 return;
             }
             let visible = 0;
             for (let i = 0; i < menu.count; ++i) {
-                const sub = menu.menuAt(i);
-                if (sub) {
-                    if (sub.visible !== false) {
-                        visible += 1;
-                    }
+                if (menu.menuAt(i)) {
+                    visible += 1;
                     continue;
                 }
                 const item = menu.itemAt(i);
@@ -908,13 +837,8 @@ PlasmoidItem {
                     const nextNames = [];
                     const nextIds = [];
                     for (let i = 0; i < session.profiles.length; ++i) {
-                        const profile = session.profiles[i];
-                        const current = profile.id === session.activeProfile;
-                        if (!current && root.fuzzyScore(root.profileQuery, profile.name) < 0) {
-                            continue;
-                        }
-                        nextNames.push(profile.name);
-                        nextIds.push(profile.id);
+                        nextNames.push(session.profiles[i].name);
+                        nextIds.push(session.profiles[i].id);
                     }
                     if (nextNames.join("\n") !== profileNames.join("\n")) {
                         profileNames = nextNames;
@@ -1102,37 +1026,37 @@ PlasmoidItem {
             PC3.Menu {
                 id: groupMenu
                 property string groupName: ""
+                property real heldWidth: 0
                 popupType: QQC2.Popup.Window
                 cascade: true
+                width: Math.max(implicitWidth, heldWidth)
+                onImplicitWidthChanged: {
+                    if (implicitWidth > heldWidth) {
+                        heldWidth = implicitWidth;
+                    }
+                }
                 onAboutToShow: {
                     root.fitRouteMenu(groupMenu, count);
                     popupRoot.maybeAutoTest(groupName);
                 }
+                onAboutToHide: heldWidth = 0
             }
         }
 
         PC3.Menu {
             id: routeMenu
             // Popup.Item is clipped to the applet window. Popup.Window is the stock menu window.
+            property real heldWidth: 0
             popupType: QQC2.Popup.Window
             cascade: true
-            topPadding: routeSearch.implicitHeight + Kirigami.Units.smallSpacing * 2
-
-            Kirigami.SearchField {
-                id: routeSearch
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.top: parent.top
-                anchors.margins: Kirigami.Units.smallSpacing
-                onTextChanged: {
-                    popupRoot.routeQuery = text;
-                    if (routeMenu.count > 0) {
-                        root.fitRouteMenu(routeMenu, Math.max(popupRoot.applyRouteFilter(routeMenu), 1));
-                    }
+            // Width follows the widest row, and a row leaving for a moment must not shrink it.
+            width: Math.max(implicitWidth, heldWidth)
+            onImplicitWidthChanged: {
+                if (implicitWidth > heldWidth) {
+                    heldWidth = implicitWidth;
                 }
             }
-
-            onAboutToHide: routeSearch.text = ""
+            onAboutToHide: heldWidth = 0
         }
 
         Connections {

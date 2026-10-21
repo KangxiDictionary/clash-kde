@@ -7,8 +7,8 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-msgid "There is a Mihomo widget for the panel."
-msgstr "Il existe un widget Mihomo pour le tableau de bord."
+msgid "This program includes a Mihomo widget you can add to the panel."
+msgstr "Ce programme fournit un widget Mihomo que vous pouvez ajouter au tableau de bord."
 
 msgid "Other programs can use this address as it is."
 msgstr "D'autres programmes peuvent utiliser cette adresse telle quelle."
@@ -567,3 +567,9 @@ msgstr "Le port du serveur."
 
 msgid "The password for this route. For VMess this is the UUID."
 msgstr "Le mot de passe de cette route. Pour VMess, c'est l'UUID."
+
+msgid "Show the panel widget note"
+msgstr "Afficher la note sur le widget"
+
+msgid "Shows a note on the Status page that this program includes a panel widget."
+msgstr "Indique sur la page État que ce programme fournit un widget de tableau de bord."

@@ -274,8 +274,8 @@ msgstr "许可证"
 msgid "Website"
 msgstr "网站"
 
-msgid "There is a Mihomo widget for the panel."
-msgstr "面板上有一个 Mihomo 小组件。"
+msgid "This program includes a Mihomo widget you can add to the panel."
+msgstr "本程序带有一个 Mihomo 小组件，可以自己加到面板上。"
 
 
 msgid "TUN"
@@ -568,3 +568,9 @@ msgstr "服务器的端口。"
 
 msgid "The password for this route. For VMess this is the UUID."
 msgstr "这条路线的密码。VMess 用的是 UUID。"
+
+msgid "Show the panel widget note"
+msgstr "显示面板小组件说明"
+
+msgid "Shows a note on the Status page that this program includes a panel widget."
+msgstr "在状态页说明本程序带有一个面板小组件。"

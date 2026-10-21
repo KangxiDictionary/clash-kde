@@ -1,5 +1,5 @@
 Name:           clash-kde
-Version:        1.0.2
+Version:        1.0.3
 Release:        1%{?dist}
 Summary:        KDE settings page and panel widget for a per-user mihomo proxy
 License:        GPL-3.0-or-later
@@ -105,6 +105,11 @@ fi
 %{_datadir}/locale/*/LC_MESSAGES/plasma_applet_org.kde.plasma.clashkde.mo
 
 %changelog
+* Wed Oct 21 2026 KangxiDictionary <108598928+KangxiDictionary@users.noreply.github.com> - 1.0.3-1
+- The Status page can hide its note about the included panel widget.
+- Default discards unsaved route, profile, and selection edits.
+- The widget route menu no longer collapses while delays are updating.
+
 * Tue Oct 20 2026 KangxiDictionary <108598928+KangxiDictionary@users.noreply.github.com> - 1.0.2-1
 - A route can be edited beside the list, and the lists sort and search in place.
 - This account can open its mixed port to the LAN, and copying an address is a right-click.

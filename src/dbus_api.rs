@@ -149,9 +149,10 @@ impl Manager {
         sort_global: bool,
         auto_test_delay: bool,
         blur_ip: bool,
+        show_widget_hint: bool,
     ) -> fdo::Result<()> {
         self.app
-            .set_behavior(sort_global, auto_test_delay, blur_ip)
+            .set_behavior(sort_global, auto_test_delay, blur_ip, show_widget_hint)
             .await
             .map_err(failed)
     }

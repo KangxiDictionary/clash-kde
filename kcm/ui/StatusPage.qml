@@ -356,11 +356,13 @@ Item {
         }
 
         QQC2.Label {
+            visible: kcm.client.showWidgetHint
             Layout.fillWidth: true
             wrapMode: Text.WordWrap
             opacity: 0.65
             font: Kirigami.Theme.smallFont
-            text: tx.i18n("There is a Mihomo widget for the panel.")
+            text: tx.i18n("This program includes a Mihomo widget you can add to the panel.")
+            Kirigami.MnemonicData.enabled: false
         }
     }
 

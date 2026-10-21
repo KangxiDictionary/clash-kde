@@ -120,6 +120,7 @@ struct Status {
     auto_test_delay: bool,
     blur_ip: bool,
     compact: bool,
+    show_widget_hint: bool,
     tun_device: String,
     override_default: String,
     allow_lan: bool,
@@ -595,12 +596,14 @@ impl App {
         sort_global: bool,
         auto_test_delay: bool,
         blur_ip: bool,
+        show_widget_hint: bool,
     ) -> Result<(), String> {
         {
             let mut inner = self.inner.lock().await;
             inner.settings.sort_global = sort_global;
             inner.settings.auto_test_delay = auto_test_delay;
             inner.settings.blur_ip = blur_ip;
+            inner.settings.show_widget_hint = show_widget_hint;
             inner
                 .settings
                 .save(&self.paths)
@@ -1178,6 +1181,7 @@ impl App {
             auto_test_delay: inner.settings.auto_test_delay,
             blur_ip: inner.settings.blur_ip,
             compact: inner.settings.compact,
+            show_widget_hint: inner.settings.show_widget_hint,
             tun_device: inner.settings.tun_device.clone(),
             override_default: self.paths.override_file().display().to_string(),
             allow_lan: inner.settings.allow_lan,
