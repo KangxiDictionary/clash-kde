@@ -40,7 +40,7 @@ sudo apt install ../clash-kde_*.deb
 On Fedora 41 and newer:
 
 ```sh
-git archive --format=tar.gz --prefix=clash-kde-1.0.3/ -o ~/rpmbuild/SOURCES/clash-kde-1.0.3.tar.gz HEAD
+git archive --format=tar.gz --prefix=clash-kde-1.0.2/ -o ~/rpmbuild/SOURCES/clash-kde-1.0.2.tar.gz HEAD
 sudo dnf builddep distro/rpm/clash-kde.spec
 rpmbuild -bb distro/rpm/clash-kde.spec
 ```

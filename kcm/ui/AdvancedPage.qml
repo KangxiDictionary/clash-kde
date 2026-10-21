@@ -97,7 +97,7 @@ Flickable {
 
             FormCard.FormTextDelegate {
                 text: tx.i18n("Version")
-                description: "1.0.3"
+                description: "1.0.2"
                 Kirigami.MnemonicData.enabled: false
             }
 
