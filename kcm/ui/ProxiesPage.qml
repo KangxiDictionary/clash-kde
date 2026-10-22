@@ -26,6 +26,10 @@ Item {
     property bool chosenActive: false
     property string chosenMode: "profile"
     property bool chosenShow: true
+    property bool shownOrderDirty: false
+    property bool applyingShown: false
+    property bool scrollSettling: false
+    property int shownSlot: 0
     property string page: "routes"
 
     onPageChanged: {
@@ -37,6 +41,27 @@ Item {
 
     ListModel {
         id: shownModel
+    }
+
+    ListModel {
+        id: shownModelAlt
+    }
+
+    function activeShown() {
+        return root.shownSlot === 0 ? shownModel : shownModelAlt;
+    }
+
+    Timer {
+        id: scrollIdle
+        interval: 160
+        onTriggered: {
+            if (routeList.moving || routeList.dragging || routeList.flicking || root.applyingShown) {
+                scrollIdle.restart();
+                return;
+            }
+            root.scrollSettling = false;
+            root.settleShownOrder();
+        }
     }
 
     function profileSubscribed() {
@@ -119,7 +144,7 @@ Item {
         root.refreshItemChanged();
     }
 
-    function rebuildShown() {
+    function collectShownRows() {
         const pref = root.viewPref();
         const titles = [tx.i18n("Current"), tx.i18n("Available"), tx.i18n("Timeout")];
         const rows = [];
@@ -142,17 +167,116 @@ Item {
             const section = current ? 0 : (row.delay_ms === 0 ? 2 : 1);
             buckets[section].push(row);
         }
-        shownModel.clear();
+        const shown = [];
         for (let section = 0; section < buckets.length; ++section) {
             for (let i = 0; i < buckets[section].length; ++i) {
                 const row = buckets[section][i];
-                shownModel.append({
+                shown.push({
                     name: row.name,
                     delay_ms: row.delay_ms,
                     section: titles[section]
                 });
             }
         }
+        return shown;
+    }
+
+    function orderMatches(rows) {
+        const model = root.activeShown();
+        if (model.count !== rows.length) {
+            return false;
+        }
+        for (let i = 0; i < rows.length; ++i) {
+            const current = model.get(i);
+            if (!current || current.name !== rows[i].name || current.section !== rows[i].section) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    function writeDelays(rows) {
+        const model = root.activeShown();
+        const delayOf = {};
+        for (let i = 0; i < rows.length; ++i) {
+            delayOf[rows[i].name] = rows[i].delay_ms;
+        }
+        for (let i = 0; i < model.count; ++i) {
+            const current = model.get(i);
+            if (!current || !Object.prototype.hasOwnProperty.call(delayOf, current.name)) {
+                continue;
+            }
+            if (current.delay_ms !== delayOf[current.name]) {
+                model.setProperty(i, "delay_ms", delayOf[current.name]);
+            }
+        }
+    }
+
+    function scrollBusy() {
+        return root.scrollSettling || routeList.moving || routeList.dragging || routeList.flicking || root.applyingShown;
+    }
+
+    function restoreScroll(savedY, attempt) {
+        root.applyingShown = true;
+        if (routeList.count > 0 && routeList.contentHeight <= 0 && attempt < 5) {
+            root.applyingShown = false;
+            Qt.callLater(function() {
+                root.restoreScroll(savedY, attempt + 1);
+            });
+            return;
+        }
+        const maxY = Math.max(0, routeList.contentHeight - routeList.height);
+        routeList.contentY = Math.min(Math.max(0, savedY), maxY);
+        root.applyingShown = false;
+    }
+
+    // Fill the list that is not on screen, then swap. Clearing the visible one drops every row.
+    function replaceShown(rows) {
+        const next = root.shownSlot === 0 ? shownModelAlt : shownModel;
+        next.clear();
+        for (let i = 0; i < rows.length; ++i) {
+            const row = rows[i];
+            next.append({
+                name: row.name,
+                delay_ms: row.delay_ms,
+                section: row.section
+            });
+        }
+        const savedY = routeList.contentY;
+        root.applyingShown = true;
+        routeList.model = next;
+        root.shownSlot = root.shownSlot === 0 ? 1 : 0;
+        root.applyingShown = false;
+        root.restoreScroll(savedY, 0);
+    }
+
+    function rebuildShown() {
+        const rows = root.collectShownRows();
+        if (root.orderMatches(rows)) {
+            root.writeDelays(rows);
+            root.shownOrderDirty = false;
+            return;
+        }
+        root.writeDelays(rows);
+        if (root.scrollBusy()) {
+            root.shownOrderDirty = true;
+            return;
+        }
+        root.shownOrderDirty = false;
+        root.replaceShown(rows);
+    }
+
+    function settleShownOrder() {
+        if (!root.shownOrderDirty || root.scrollBusy()) {
+            return;
+        }
+        root.shownOrderDirty = false;
+        const rows = root.collectShownRows();
+        if (root.orderMatches(rows)) {
+            root.writeDelays(rows);
+            return;
+        }
+        root.replaceShown(rows);
     }
 
     Tx {
@@ -228,7 +352,12 @@ Item {
             return Kirigami.Theme.negativeTextColor;
         }
         const t = Math.max(0, Math.min(1, (ms - 80) / 520));
-        return Qt.hsla(0.33 * (1 - t), 0.72, Kirigami.Theme.textColor.hslLightness, 1);
+        let backgroundLight = Kirigami.Theme.backgroundColor.hslLightness;
+        if (backgroundLight > 1) {
+            backgroundLight /= 255;
+        }
+        const lightness = backgroundLight > 0.6 ? 0.38 : 0.52;
+        return Qt.hsla((1 - t) / 3, 0.8, lightness, 1);
     }
 
     function sourceGroups() {
@@ -697,7 +826,7 @@ Item {
                 anchors.top: routeSearch.bottom
                 anchors.topMargin: Kirigami.Units.largeSpacing
                 anchors.left: parent.left
-                visible: root.nodeQuery.trim().length > 0 && shownModel.count === 0
+                visible: root.nodeQuery.trim().length > 0 && routeList.count === 0
                 text: tx.i18n("No matches")
                 opacity: 0.7
                 Kirigami.MnemonicData.enabled: false
@@ -728,7 +857,15 @@ Item {
                         clip: true
                         focus: true
                         model: shownModel
+                        highlightFollowsCurrentItem: false
                         boundsBehavior: Flickable.StopAtBounds
+                        onContentYChanged: {
+                            if (root.applyingShown) {
+                                return;
+                            }
+                            root.scrollSettling = true;
+                            scrollIdle.restart();
+                        }
                         KeyNavigation.up: routeSearch
                         section.property: "section"
                         section.criteria: ViewSection.FullString
@@ -755,6 +892,7 @@ Item {
                             contentItem: Kirigami.IconTitleSubtitle {
                                 title: nodeDelegate.name
                                 subtitle: kcm.client.compact ? "" : root.delayText(nodeDelegate.delay_ms)
+                                subtitleColor: root.delayColor(nodeDelegate.delay_ms)
                                 selected: nodeDelegate.highlighted
                             }
                         }

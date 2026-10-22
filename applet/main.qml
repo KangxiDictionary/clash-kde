@@ -77,7 +77,12 @@ PlasmoidItem {
             return Kirigami.Theme.negativeTextColor;
         }
         const t = Math.max(0, Math.min(1, (ms - 80) / 520));
-        return Qt.hsla(0.33 * (1 - t), 0.72, Kirigami.Theme.textColor.hslLightness, 1);
+        let backgroundLight = Kirigami.Theme.backgroundColor.hslLightness;
+        if (backgroundLight > 1) {
+            backgroundLight /= 255;
+        }
+        const lightness = backgroundLight > 0.6 ? 0.38 : 0.52;
+        return Qt.hsla((1 - t) / 3, 0.8, lightness, 1);
     }
 
     readonly property string routeSort: configured("routeSort", "profile")
