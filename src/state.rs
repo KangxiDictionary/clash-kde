@@ -50,6 +50,8 @@ pub struct Settings {
     pub compact: bool,
     #[serde(default = "default_show_widget_hint")]
     pub show_widget_hint: bool,
+    #[serde(default = "default_speed_test_mib")]
+    pub speed_test_mib: u32,
     #[serde(default)]
     pub allow_lan: bool,
     #[serde(default)]
@@ -76,6 +78,10 @@ fn default_show_unreachable() -> bool {
 
 fn default_show_widget_hint() -> bool {
     true
+}
+
+fn default_speed_test_mib() -> u32 {
+    20
 }
 
 fn default_mode() -> String {
@@ -118,6 +124,7 @@ impl Default for Settings {
             override_path: String::new(),
             compact: false,
             show_widget_hint: true,
+            speed_test_mib: default_speed_test_mib(),
             allow_lan: false,
             lan_username: String::new(),
             lan_password: String::new(),
@@ -148,6 +155,9 @@ impl Settings {
         if settings.controller_port == 0 {
             settings.controller_port = default_controller_port();
         }
+        if !(1..=100).contains(&settings.speed_test_mib) {
+            settings.speed_test_mib = default_speed_test_mib();
+        }
         settings.tun_device = normalize_tun_device(&settings.tun_device).unwrap_or_default();
         settings.override_path =
             normalize_override_path(paths, &settings.override_path).unwrap_or_default();
@@ -159,6 +169,35 @@ impl Settings {
         let text = toml::to_string_pretty(self).expect("settings serialize");
         write_private(&paths.settings_file(), text.as_bytes())
     }
+}
+
+pub fn notes_file(paths: &Paths) -> PathBuf {
+    paths.config_dir.join("notes.json")
+}
+
+pub fn load_notes(paths: &Paths) -> BTreeMap<String, String> {
+    let Ok(text) = fs::read_to_string(notes_file(paths)) else {
+        return BTreeMap::new();
+    };
+    serde_json::from_str(&text).unwrap_or_default()
+}
+
+pub fn save_notes(paths: &Paths, notes: &BTreeMap<String, String>) -> Result<(), String> {
+    let clean: BTreeMap<String, String> = notes
+        .iter()
+        .filter_map(|(key, value)| {
+            let key = key.trim();
+            let value = value.trim();
+            if key.is_empty() || value.is_empty() {
+                None
+            } else {
+                Some((key.to_string(), value.to_string()))
+            }
+        })
+        .collect();
+    fs::create_dir_all(&paths.config_dir).map_err(|error| error.to_string())?;
+    let text = serde_json::to_string_pretty(&clean).expect("notes serialize");
+    write_private(&notes_file(paths), text.as_bytes()).map_err(|error| error.to_string())
 }
 
 pub fn write_private(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
@@ -305,5 +344,30 @@ mod tests {
         let error = normalize_override_path(&paths, dir.to_str().unwrap()).unwrap_err();
         assert!(error.contains("文件夹"));
         let _ = fs::remove_dir(&dir);
+    }
+
+    #[test]
+    fn speed_test_size_defaults_to_20_and_out_of_range_values_are_clamped() {
+        let missing: Settings = toml::from_str("core_desired = false\n").unwrap();
+        assert_eq!(missing.speed_test_mib, 20);
+        let dir = std::env::temp_dir().join(format!(
+            "clash-kde-settings-{}-{}",
+            std::process::id(),
+            "size"
+        ));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        let paths = Paths {
+            config_dir: dir.clone(),
+            data_dir: dir.join("data"),
+            kioslaverc: dir.join("kioslaverc"),
+        };
+        fs::write(paths.settings_file(), "speed_test_mib = 0\n").unwrap();
+        assert_eq!(Settings::load(&paths).unwrap().speed_test_mib, 20);
+        fs::write(paths.settings_file(), "speed_test_mib = 250\n").unwrap();
+        assert_eq!(Settings::load(&paths).unwrap().speed_test_mib, 20);
+        fs::write(paths.settings_file(), "speed_test_mib = 40\n").unwrap();
+        assert_eq!(Settings::load(&paths).unwrap().speed_test_mib, 40);
+        let _ = fs::remove_dir_all(&dir);
     }
 }

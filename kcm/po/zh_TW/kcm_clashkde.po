@@ -256,8 +256,8 @@ msgstr "本地覆蓋"
 msgid "Point KDE applications at this core while it is running"
 msgstr "核心執行時，讓 KDE 應用程式使用它"
 
-msgid "Proxies"
-msgstr "代理"
+msgid "Nodes"
+msgstr "節點"
 
 msgid "Remove"
 msgstr "移除"
@@ -573,3 +573,212 @@ msgstr "顯示面板小工具說明"
 
 msgid "Shows a note on the Status page that this program includes a panel widget."
 msgstr "在狀態頁說明本程式帶有一個面板小工具。"
+
+msgid "Connections"
+msgstr "連線"
+
+msgid "Close all"
+msgstr "全部關閉"
+
+msgid "Closes every connection going through the core."
+msgstr "關掉所有經過核心的連線。"
+
+msgid "No connections"
+msgstr "沒有連線"
+
+msgid "Unknown process"
+msgstr "未知行程"
+
+msgid "Closes this connection."
+msgstr "關掉這條連線。"
+
+msgid "Close all connections?"
+msgstr "關閉全部連線？"
+
+msgid "Proxy providers"
+msgstr "代理集合"
+
+msgid "%1 nodes"
+msgstr "%1 個節點"
+
+msgid "Update now"
+msgstr "立即更新"
+
+msgid "Start the core first."
+msgstr "先啟動核心。"
+
+msgid "Routes"
+msgstr "路線"
+
+msgid "Groups and the route each one is using."
+msgstr "策略群組，以及每個群組正在用的路線。"
+
+msgid "Rules"
+msgstr "規則"
+
+msgid "Rules you add, the profile rules, and rule sets."
+msgstr "自己新增的規則、設定裡的規則，以及規則集。"
+
+msgid "Domain"
+msgstr "網域"
+
+msgid "Domain suffix"
+msgstr "網域後綴"
+
+msgid "Domain keyword"
+msgstr "網域關鍵字"
+
+msgid "IP range"
+msgstr "IP 區段"
+
+msgid "Process name"
+msgstr "行程名稱"
+
+msgid "Destination port"
+msgstr "目標連接埠"
+
+msgid "Final match"
+msgstr "兜底比對"
+
+msgid "Your rules"
+msgstr "我的規則"
+
+msgid "Profile rules"
+msgstr "設定裡的規則"
+
+msgid "Rule sets"
+msgstr "規則集"
+
+msgid "Add a rule"
+msgstr "新增規則"
+
+msgid "Adds a rule now, before the profile rules. A subscription update does not remove it."
+msgstr "馬上新增一條規則，排在設定規則前面。訂閱更新不會刪掉它。"
+
+msgid "Removes the selected rule now."
+msgstr "馬上移除選取的規則。"
+
+msgid "Edit in a spreadsheet"
+msgstr "用表格編輯"
+
+msgid "Opens these rules in a spreadsheet. Press Apply after they are read back."
+msgstr "用表格開啟這些規則。讀回來之後還要按套用。"
+
+msgid "No spreadsheet program was found."
+msgstr "沒有找到表格程式。"
+
+msgid "%1 rules"
+msgstr "%1 條規則"
+
+msgid "Select a rule to see its details."
+msgstr "選擇一條規則查看詳情。"
+
+msgid "Editing this profile rule saves your own copy, which a subscription update does not remove."
+msgstr "在這裡修改會另存成你自己的規則，訂閱更新不會清掉它。"
+
+msgid "This rule set comes with the profile. It can be updated, not edited here."
+msgstr "這個規則集來自設定。這裡只能更新，不能編輯。"
+
+msgid "The kind of match this rule uses."
+msgstr "這條規則依什麼來比對。"
+
+msgid "Match"
+msgstr "比對內容"
+
+msgid "What this rule compares against. A final match leaves this empty."
+msgstr "規則用來比較的內容。兜底比對這裡留空。"
+
+msgid "Target"
+msgstr "目標"
+
+msgid "The group, DIRECT, or REJECT that handles a match."
+msgstr "命中後走的策略群組、DIRECT 或 REJECT。"
+
+msgid "Enabled"
+msgstr "啟用"
+
+msgid "A disabled rule stays in the list and is left out of the running config."
+msgstr "停用的規則還留在清單裡，但不會寫進正在執行的設定。"
+
+msgid "Remove this rule?"
+msgstr "移除這條規則？"
+
+msgid "Save over this CSV file, then press Done. A separate spreadsheet file is not read back, and LibreOffice does not edit the YAML."
+msgstr "請覆蓋儲存這個 CSV，然後按完成。另存成別的表格檔不會被讀回，LibreOffice 也不負責編輯 YAML。"
+
+msgid "Done"
+msgstr "完成"
+
+msgid "Cancel"
+msgstr "取消"
+
+msgid "Speed test"
+msgstr "速度測試"
+
+msgid "Downloads %1 MB from Cloudflare through the proxy and directly at the same time. Results are for reference only."
+msgstr "同時經由代理和直接連線，從 Cloudflare 各下載 %1 MB。結果僅供參考。"
+
+msgid "Start test"
+msgstr "開始測速"
+
+msgid "Latency"
+msgstr "延遲"
+
+msgid "Selects this profile. Press Apply to use it."
+msgstr "選中這個設定。按套用後才會用它。"
+
+msgid "Edits the name and the subscription link."
+msgstr "編輯名稱和訂閱連結。"
+
+msgctxt "@title"
+msgid "Download Rate"
+msgstr "下載速度"
+
+msgctxt "@title"
+msgid "Upload Rate"
+msgstr "上傳速度"
+
+msgid "Proxy"
+msgstr "代理"
+
+msgid "Restore"
+msgstr "還原"
+
+msgid "Reset"
+msgstr "重設"
+
+msgid "Comment"
+msgstr "註解"
+
+msgid "A note kept by this program, separate from the profile."
+msgstr "由本程式單獨保存的註解，不寫入設定檔。"
+
+msgid "This profile has no subscription, so this item cannot be restored."
+msgstr "這個設定沒有訂閱，因此不能還原這一項。"
+
+msgid "This item is not in the subscription."
+msgstr "這一項不在訂閱裡。"
+
+msgid "Download size"
+msgstr "下載大小"
+
+msgid "How much each speed test downloads through the proxy and directly."
+msgstr "每次測速經由代理和直接連線各下載這麼多。"
+
+msgid "No proxy providers"
+msgstr "沒有代理集合"
+
+msgid "Updates this profile from its subscription."
+msgstr "從訂閱更新這個設定檔。"
+
+msgid "Removes this profile."
+msgstr "移除這個設定檔。"
+
+msgid "Sorts and filters this list."
+msgstr "排序並篩選這個清單。"
+
+msgid "Updates this proxy provider."
+msgstr "更新這個代理集合。"
+
+msgid "Updates this rule set."
+msgstr "更新這個規則集。"

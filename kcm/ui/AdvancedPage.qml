@@ -97,7 +97,7 @@ Flickable {
 
             FormCard.FormTextDelegate {
                 text: tx.i18n("Version")
-                description: "1.0.2"
+                description: "1.0.3"
                 Kirigami.MnemonicData.enabled: false
             }
 
@@ -159,6 +159,65 @@ Flickable {
                 QQC2.ToolTip.visible: hovered
                 QQC2.ToolTip.delay: 700
                 QQC2.ToolTip.text: tx.i18n("Shows a note on the Status page that this program includes a panel widget.")
+            }
+
+            FormCard.FormDelegateSeparator {}
+
+            FormCard.FormSwitchDelegate {
+                text: tx.i18n("Blur the IP")
+                checked: kcm.client.draftBlurIp
+                Kirigami.MnemonicData.enabled: false
+                onToggled: {
+                    if (checked !== kcm.client.draftBlurIp) {
+                        kcm.client.draftBlurIp = checked;
+                    }
+                }
+
+                QQC2.ToolTip.visible: hovered
+                QQC2.ToolTip.delay: 700
+                QQC2.ToolTip.text: tx.i18n("Hides the latter half of the exit address; right-click copies the full address, and three quick clicks show it.")
+            }
+        }
+
+        FormCard.FormHeader {
+            maximumWidth: Infinity
+            title: tx.i18n("Speed test")
+            Layout.fillWidth: true
+        }
+
+        FormCard.FormCard {
+            maximumWidth: Infinity
+            Layout.fillWidth: true
+
+            FormCard.FormSpinBoxDelegate {
+                id: speedSizeBox
+                label: tx.i18n("Download size")
+                from: 1
+                to: 100
+                textFromValue: function(value, locale) {
+                    return tx.i18n("%1 MB", tx.formatNumber(value));
+                }
+                onValueModified: {
+                    if (value !== kcm.client.draftSpeedTestMib) {
+                        kcm.client.draftSpeedTestMib = value;
+                    }
+                }
+                Kirigami.MnemonicData.enabled: false
+
+                QQC2.ToolTip.visible: hovered
+                QQC2.ToolTip.delay: 700
+                QQC2.ToolTip.text: tx.i18n("How much each speed test downloads through the proxy and directly.")
+
+                Component.onCompleted: speedSizeBox.value = kcm.client.draftSpeedTestMib
+
+                Connections {
+                    target: kcm.client
+                    function onDraftChanged() {
+                        if (!speedSizeBox.fieldActiveFocus && speedSizeBox.value !== kcm.client.draftSpeedTestMib) {
+                            speedSizeBox.value = kcm.client.draftSpeedTestMib;
+                        }
+                    }
+                }
             }
         }
 
@@ -368,7 +427,7 @@ Flickable {
                         if (rawExit.length === 0) {
                             return "—";
                         }
-                        const formatted = kcm.client.presentExit(rawExit, kcm.client.blurIp && !revealAddress);
+                        const formatted = kcm.client.presentExit(rawExit, false);
                         return formatted.length > 0 ? formatted : "—";
                     }
 

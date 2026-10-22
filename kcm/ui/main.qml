@@ -95,7 +95,7 @@ Kirigami.Page {
                 }
                 QQC2.TabButton { text: tx.i18n("Status"); Kirigami.MnemonicData.enabled: false }
                 QQC2.TabButton { text: tx.i18n("Profiles"); Kirigami.MnemonicData.enabled: false }
-                QQC2.TabButton { text: tx.i18n("Proxies"); Kirigami.MnemonicData.enabled: false }
+                QQC2.TabButton { text: tx.i18n("Nodes"); Kirigami.MnemonicData.enabled: false }
                 QQC2.TabButton { text: tx.i18n("Users"); Kirigami.MnemonicData.enabled: false }
                 QQC2.TabButton { text: tx.i18n("Other"); Kirigami.MnemonicData.enabled: false }
             }

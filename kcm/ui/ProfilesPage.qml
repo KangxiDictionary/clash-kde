@@ -17,6 +17,21 @@ Item {
         id: fuzzy
     }
 
+    Connections {
+        target: kcm.client
+        function onProfilesChanged() {
+            if (root.visible) {
+                kcm.client.refreshProxyProviders();
+            }
+        }
+    }
+
+    onVisibleChanged: {
+        if (visible) {
+            kcm.client.refreshProxyProviders();
+        }
+    }
+
     readonly property var shownProfiles: {
         const query = root.profileQuery;
         const all = kcm.client.profiles;
@@ -208,116 +223,271 @@ Item {
             Layout.fillWidth: true
         }
 
-        Kirigami.SearchField {
-            Layout.fillWidth: true
-            visible: kcm.client.profiles.length > 0
-            onTextChanged: root.profileQuery = text
-        }
-
-        QQC2.Label {
-            visible: kcm.client.profiles.length === 0
-            text: tx.i18n("No profiles yet")
-            opacity: 0.7
-            Layout.fillWidth: true
-        }
-
-        QQC2.Label {
-            visible: kcm.client.profiles.length > 0 && root.shownProfiles.length === 0
-            text: tx.i18n("No matches")
-            opacity: 0.7
-            Layout.fillWidth: true
-        }
-
-        ListView {
+        RowLayout {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            clip: true
-            model: root.shownProfiles
+            spacing: Kirigami.Units.largeSpacing
 
-            delegate: QQC2.RadioDelegate {
-                id: profileDelegate
-                width: ListView.view.width
-                required property var modelData
-                checked: modelData.id === kcm.client.draftActiveProfile
-                onClicked: kcm.client.draftActiveProfile = modelData.id
+            ColumnLayout {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                Layout.preferredWidth: Kirigami.Units.gridUnit * 22
+                Layout.minimumWidth: Kirigami.Units.gridUnit * 14
+                Layout.horizontalStretchFactor: 1
+                spacing: Kirigami.Units.largeSpacing
 
-                contentItem: RowLayout {
-                    spacing: Kirigami.Units.largeSpacing
+                Kirigami.SearchField {
+                    id: profileSearch
+                    Layout.fillWidth: true
+                    visible: kcm.client.profiles.length > 0
+                    onTextChanged: root.profileQuery = text
+                }
 
-                    ColumnLayout {
-                        Layout.fillWidth: true
-                        spacing: 0
+                QQC2.Label {
+                    visible: kcm.client.profiles.length === 0
+                    text: tx.i18n("No profiles yet")
+                    opacity: 0.7
+                    Layout.fillWidth: true
+                }
 
-                        QQC2.Label {
-                            text: modelData.name
-                            font.bold: true
-                            elide: Text.ElideRight
-                            Layout.fillWidth: true
+                QQC2.Label {
+                    visible: kcm.client.profiles.length > 0 && root.shownProfiles.length === 0
+                    text: tx.i18n("No matches")
+                    opacity: 0.7
+                    Layout.fillWidth: true
+                }
+
+                QQC2.ScrollView {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    visible: root.shownProfiles.length > 0
+                    Kirigami.StyleHints.showFramedBackground: true
+
+                    ListView {
+                clip: true
+                reuseItems: true
+                model: root.shownProfiles
+                boundsBehavior: Flickable.StopAtBounds
+
+                delegate: QQC2.ItemDelegate {
+                    id: profileDelegate
+                    required property var modelData
+                    width: ListView.view ? ListView.view.width : 0
+                    highlighted: modelData.id === kcm.client.draftActiveProfile
+                    Kirigami.MnemonicData.enabled: false
+                    onClicked: kcm.client.draftActiveProfile = modelData.id
+
+                    contentItem: RowLayout {
+                        spacing: Kirigami.Units.largeSpacing
+
+                        QQC2.RadioButton {
+                            checked: profileDelegate.highlighted
+                            Kirigami.MnemonicData.enabled: false
+                            onClicked: kcm.client.draftActiveProfile = profileDelegate.modelData.id
                         }
-                        QQC2.Label {
-                            visible: !kcm.client.compact && modelData.url.length > 0
-                            text: modelData.url
-                            opacity: 0.7
-                            elide: Text.ElideMiddle
-                            font: Kirigami.Theme.smallFont
+
+                        ColumnLayout {
                             Layout.fillWidth: true
+                            spacing: 0
+
+                            QQC2.Label {
+                                text: profileDelegate.modelData.name
+                                font.bold: true
+                                elide: Text.ElideRight
+                                Layout.fillWidth: true
+                                Kirigami.MnemonicData.enabled: false
+                            }
+                            QQC2.Label {
+                                visible: !kcm.client.compact && profileDelegate.modelData.url.length > 0
+                                text: profileDelegate.modelData.url
+                                opacity: 0.7
+                                elide: Text.ElideMiddle
+                                font: Kirigami.Theme.smallFont
+                                Layout.fillWidth: true
+                                Kirigami.MnemonicData.enabled: false
+                            }
+                            QQC2.Label {
+                                readonly property string quota: quotaText(profileDelegate.modelData)
+                                visible: !kcm.client.compact && quota.length > 0
+                                text: quota
+                                opacity: 0.7
+                                font: Kirigami.Theme.smallFont
+                                Layout.fillWidth: true
+                                Kirigami.MnemonicData.enabled: false
+                            }
+                            QQC2.Label {
+                                text: tx.i18n("Last update: %1", formatUpdated(profileDelegate.modelData.updated_unix))
+                                visible: !kcm.client.compact
+                                opacity: 0.7
+                                font: Kirigami.Theme.smallFont
+                                Layout.fillWidth: true
+                                Kirigami.MnemonicData.enabled: false
+                            }
                         }
-                        QQC2.Label {
-                            readonly property string quota: quotaText(modelData)
-                            visible: !kcm.client.compact && quota.length > 0
-                            text: quota
-                            opacity: 0.7
-                            font: Kirigami.Theme.smallFont
-                            Layout.fillWidth: true
+
+                        QQC2.ToolButton {
+                            icon.name: "document-edit"
+                            display: QQC2.AbstractButton.IconOnly
+                            enabled: !kcm.client.busy
+                            Kirigami.MnemonicData.enabled: false
+                            onClicked: {
+                                metaDialog.profileId = profileDelegate.modelData.id;
+                                metaName.text = profileDelegate.modelData.name;
+                                metaUrl.text = profileDelegate.modelData.url;
+                                metaDialog.open();
+                            }
+                            QQC2.ToolTip.text: tx.i18n("Edits the name and the subscription link.")
+                            QQC2.ToolTip.visible: hovered
                         }
-                        QQC2.Label {
-                            text: tx.i18n("Last update: %1", formatUpdated(modelData.updated_unix))
-                            visible: !kcm.client.compact
-                            opacity: 0.7
-                            font: Kirigami.Theme.smallFont
-                            Layout.fillWidth: true
+
+                        QQC2.ToolButton {
+                            icon.name: "view-refresh"
+                            display: QQC2.AbstractButton.IconOnly
+                            enabled: !kcm.client.busy && profileDelegate.modelData.url.length > 0
+                            Kirigami.MnemonicData.enabled: false
+                            onClicked: kcm.client.updateProfile(profileDelegate.modelData.id)
+                            QQC2.ToolTip.text: tx.i18n("Updates this profile from its subscription.")
+                            QQC2.ToolTip.visible: hovered
+                        }
+
+                        QQC2.ToolButton {
+                            icon.name: "list-remove"
+                            display: QQC2.AbstractButton.IconOnly
+                            enabled: !kcm.client.busy
+                            Kirigami.MnemonicData.enabled: false
+                            onClicked: {
+                                removeDialog.profileId = profileDelegate.modelData.id;
+                                removeDialog.open();
+                            }
+                            QQC2.ToolTip.text: tx.i18n("Removes this profile.")
+                            QQC2.ToolTip.visible: hovered
+                        }
+                    }
+                }
+                    }
+                }
+            }
+
+            ColumnLayout {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                Layout.preferredWidth: Kirigami.Units.gridUnit * 22
+                Layout.minimumWidth: Kirigami.Units.gridUnit * 14
+                Layout.horizontalStretchFactor: 1
+                spacing: Kirigami.Units.largeSpacing
+
+                Item {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: profileSearch.implicitHeight
+                    visible: profileSearch.visible
+
+                    Kirigami.Heading {
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: tx.i18n("Proxy providers")
+                        level: 3
+                        elide: Text.ElideRight
+                    }
+                }
+
+                Kirigami.Heading {
+                    visible: !profileSearch.visible
+                    text: tx.i18n("Proxy providers")
+                    level: 3
+                    Layout.fillWidth: true
+                }
+
+                Item {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+
+                    QQC2.ScrollView {
+                        anchors.fill: parent
+                        Kirigami.StyleHints.showFramedBackground: true
+
+                        ListView {
+                            clip: true
+                            reuseItems: true
+                            model: kcm.client.proxyProviders
+                            boundsBehavior: Flickable.StopAtBounds
+
+                        delegate: QQC2.ItemDelegate {
+                            id: providerDelegate
+                            required property var modelData
+                            width: ListView.view ? ListView.view.width : 0
+                            Kirigami.MnemonicData.enabled: false
+
+                            readonly property string updated: {
+                                const text = String(modelData.updated_at || "");
+                                if (text.length === 0) {
+                                    return tx.i18n("Not updated yet");
+                                }
+                                const date = new Date(text);
+                                if (isNaN(date.getTime()) || date.getFullYear() < 1970) {
+                                    return tx.i18n("Not updated yet");
+                                }
+                                return date.toLocaleString(Qt.locale(), Locale.ShortFormat);
+                            }
+
+                            contentItem: RowLayout {
+                                spacing: Kirigami.Units.largeSpacing
+
+                                ColumnLayout {
+                                    Layout.fillWidth: true
+                                    spacing: 0
+
+                                    QQC2.Label {
+                                        text: providerDelegate.modelData.name
+                                        font.bold: true
+                                        elide: Text.ElideRight
+                                        Layout.fillWidth: true
+                                        Kirigami.MnemonicData.enabled: false
+                                    }
+                                    QQC2.Label {
+                                        visible: !kcm.client.compact
+                                        text: tx.i18n("Last update: %1", providerDelegate.updated)
+                                        opacity: 0.7
+                                        font: Kirigami.Theme.smallFont
+                                        Layout.fillWidth: true
+                                        Kirigami.MnemonicData.enabled: false
+                                    }
+                                    QQC2.Label {
+                                        visible: !kcm.client.compact && providerDelegate.modelData.count >= 0
+                                        text: tx.i18n("%1 nodes", tx.formatNumber(providerDelegate.modelData.count))
+                                        opacity: 0.7
+                                        font: Kirigami.Theme.smallFont
+                                        Layout.fillWidth: true
+                                        Kirigami.MnemonicData.enabled: false
+                                    }
+                                }
+
+                                QQC2.ToolButton {
+                                    icon.name: "view-refresh"
+                                    display: QQC2.AbstractButton.IconOnly
+                                    enabled: kcm.client.coreRunning && !kcm.client.busy
+                                    Kirigami.MnemonicData.enabled: false
+                                    onClicked: kcm.client.updateProxyProvider(providerDelegate.modelData.name)
+
+                                    QQC2.ToolTip.visible: hovered
+                                    QQC2.ToolTip.delay: 700
+                                    QQC2.ToolTip.text: kcm.client.coreRunning ? tx.i18n("Updates this proxy provider.") : tx.i18n("Start the core first.")
+                                }
+                            }
+                        }
                         }
                     }
 
-                    QQC2.ToolButton {
+                    QQC2.Label {
+                        anchors.left: parent.left
+                        anchors.top: parent.top
+                        anchors.right: parent.right
+                        anchors.margins: Kirigami.Units.largeSpacing
+                        visible: kcm.client.proxyProviders.length === 0
+                        text: tx.i18n("No proxy providers")
+                        wrapMode: Text.WordWrap
+                        opacity: 0.7
                         Kirigami.MnemonicData.enabled: false
-                        id: moreButton
-                        icon.name: "overflow-menu"
-                        display: QQC2.AbstractButton.IconOnly
-                        enabled: !kcm.client.busy
-                        onClicked: profileMenu.popup(moreButton, 0, height)
-
-                        QQC2.ToolTip.visible: hovered
-                        QQC2.ToolTip.delay: 700
-                        QQC2.ToolTip.text: tx.i18n("More actions")
-
-                        QQC2.Menu {
-                            id: profileMenu
-                            QQC2.MenuItem {
-                                Kirigami.MnemonicData.enabled: false
-                                text: tx.i18n("Update")
-                                enabled: modelData.url.length > 0
-                                onTriggered: kcm.client.updateProfile(modelData.id)
-                            }
-                            QQC2.MenuItem {
-                                Kirigami.MnemonicData.enabled: false
-                                text: tx.i18n("Edit details")
-                                onTriggered: {
-                                    metaDialog.profileId = modelData.id;
-                                    metaName.text = modelData.name;
-                                    metaUrl.text = modelData.url;
-                                    metaDialog.open();
-                                }
-                            }
-                            QQC2.MenuItem {
-                                Kirigami.MnemonicData.enabled: false
-                                text: tx.i18n("Remove")
-                                onTriggered: {
-                                    removeDialog.profileId = modelData.id;
-                                    removeDialog.open();
-                                }
-                            }
-                        }
                     }
                 }
             }

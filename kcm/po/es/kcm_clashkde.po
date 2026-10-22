@@ -256,8 +256,8 @@ msgstr "Archivo de sustitución"
 msgid "Point KDE applications at this core while it is running"
 msgstr "Mientras el núcleo esté en marcha, dirigir las aplicaciones de KDE hacia él"
 
-msgid "Proxies"
-msgstr "Proxies"
+msgid "Nodes"
+msgstr "Nodos"
 
 msgid "Remove"
 msgstr "Quitar"
@@ -573,3 +573,212 @@ msgstr "Mostrar la nota del widget del panel"
 
 msgid "Shows a note on the Status page that this program includes a panel widget."
 msgstr "Muestra en la página de estado que este programa incluye un widget para el panel."
+
+msgid "Connections"
+msgstr "Conexiones"
+
+msgid "Close all"
+msgstr "Cerrar todas"
+
+msgid "Closes every connection going through the core."
+msgstr "Cierra cada conexión que pasa por el núcleo."
+
+msgid "No connections"
+msgstr "No hay conexiones"
+
+msgid "Unknown process"
+msgstr "Proceso desconocido"
+
+msgid "Closes this connection."
+msgstr "Cierra esta conexión."
+
+msgid "Close all connections?"
+msgstr "¿Cerrar todas las conexiones?"
+
+msgid "Proxy providers"
+msgstr "Proveedores de proxy"
+
+msgid "%1 nodes"
+msgstr "%1 nodos"
+
+msgid "Update now"
+msgstr "Actualizar ahora"
+
+msgid "Start the core first."
+msgstr "Arranque primero el núcleo."
+
+msgid "Routes"
+msgstr "Rutas"
+
+msgid "Groups and the route each one is using."
+msgstr "Los grupos y la ruta que usa cada uno."
+
+msgid "Rules"
+msgstr "Reglas"
+
+msgid "Rules you add, the profile rules, and rule sets."
+msgstr "Las reglas que añade, las del perfil y los conjuntos de reglas."
+
+msgid "Domain"
+msgstr "Dominio"
+
+msgid "Domain suffix"
+msgstr "Sufijo de dominio"
+
+msgid "Domain keyword"
+msgstr "Palabra clave de dominio"
+
+msgid "IP range"
+msgstr "Rango IP"
+
+msgid "Process name"
+msgstr "Nombre del proceso"
+
+msgid "Destination port"
+msgstr "Puerto de destino"
+
+msgid "Final match"
+msgstr "Coincidencia final"
+
+msgid "Your rules"
+msgstr "Mis reglas"
+
+msgid "Profile rules"
+msgstr "Reglas del perfil"
+
+msgid "Rule sets"
+msgstr "Conjuntos de reglas"
+
+msgid "Add a rule"
+msgstr "Añadir una regla"
+
+msgid "Adds a rule now, before the profile rules. A subscription update does not remove it."
+msgstr "Añade una regla ahora, delante de las del perfil. Una actualización de la suscripción no la quita."
+
+msgid "Removes the selected rule now."
+msgstr "Quita ahora la regla seleccionada."
+
+msgid "Edit in a spreadsheet"
+msgstr "Editar en una hoja de cálculo"
+
+msgid "Opens these rules in a spreadsheet. Press Apply after they are read back."
+msgstr "Abre estas reglas en una hoja de cálculo. Pulse Aplicar después de volver a leerlas."
+
+msgid "No spreadsheet program was found."
+msgstr "No se encontró un programa de hojas de cálculo."
+
+msgid "%1 rules"
+msgstr "%1 reglas"
+
+msgid "Select a rule to see its details."
+msgstr "Seleccione una regla para ver los detalles."
+
+msgid "Editing this profile rule saves your own copy, which a subscription update does not remove."
+msgstr "Editarla aquí guarda tu propia copia, que una actualización de la suscripción no quita."
+
+msgid "This rule set comes with the profile. It can be updated, not edited here."
+msgstr "Este conjunto de reglas viene con el perfil. Aquí se puede actualizar, no editar."
+
+msgid "The kind of match this rule uses."
+msgstr "El tipo de coincidencia que usa esta regla."
+
+msgid "Match"
+msgstr "Coincidencia"
+
+msgid "What this rule compares against. A final match leaves this empty."
+msgstr "Con qué compara esta regla. Una coincidencia final deja esto vacío."
+
+msgid "Target"
+msgstr "Destino"
+
+msgid "The group, DIRECT, or REJECT that handles a match."
+msgstr "El grupo, DIRECT o REJECT que atiende una coincidencia."
+
+msgid "Enabled"
+msgstr "Activada"
+
+msgid "A disabled rule stays in the list and is left out of the running config."
+msgstr "Una regla desactivada sigue en la lista y no entra en la configuración en ejecución."
+
+msgid "Remove this rule?"
+msgstr "¿Quitar esta regla?"
+
+msgid "Save over this CSV file, then press Done. A separate spreadsheet file is not read back, and LibreOffice does not edit the YAML."
+msgstr "Guarde sobre este archivo CSV y luego pulse Hecho. Otro archivo de hoja de cálculo no se vuelve a leer, y LibreOffice no edita el YAML."
+
+msgid "Done"
+msgstr "Hecho"
+
+msgid "Cancel"
+msgstr "Cancelar"
+
+msgid "Speed test"
+msgstr "Prueba de velocidad"
+
+msgid "Downloads %1 MB from Cloudflare through the proxy and directly at the same time. Results are for reference only."
+msgstr "Descarga %1 MB desde Cloudflare a través del proxy y directamente al mismo tiempo. Los resultados son solo orientativos."
+
+msgid "Start test"
+msgstr "Iniciar prueba"
+
+msgid "Latency"
+msgstr "Latencia"
+
+msgid "Selects this profile. Press Apply to use it."
+msgstr "Elige este perfil. Se usa al pulsar Aplicar."
+
+msgid "Edits the name and the subscription link."
+msgstr "Edita el nombre y el enlace de la suscripción."
+
+msgctxt "@title"
+msgid "Download Rate"
+msgstr "Velocidad de descarga"
+
+msgctxt "@title"
+msgid "Upload Rate"
+msgstr "Velocidad de envío"
+
+msgid "Proxy"
+msgstr "Proxy"
+
+msgid "Restore"
+msgstr "Restaurar"
+
+msgid "Reset"
+msgstr "Restablecer"
+
+msgid "Comment"
+msgstr "Comentario"
+
+msgid "A note kept by this program, separate from the profile."
+msgstr "Una nota que este programa guarda aparte del perfil."
+
+msgid "This profile has no subscription, so this item cannot be restored."
+msgstr "Este perfil no tiene suscripción, así que este elemento no se puede restaurar."
+
+msgid "This item is not in the subscription."
+msgstr "Este elemento no está en la suscripción."
+
+msgid "Download size"
+msgstr "Tamaño de la descarga"
+
+msgid "How much each speed test downloads through the proxy and directly."
+msgstr "Cuánto descarga cada prueba a través del proxy y directamente."
+
+msgid "No proxy providers"
+msgstr "No hay proveedores de proxy"
+
+msgid "Updates this profile from its subscription."
+msgstr "Actualiza este perfil desde la suscripción."
+
+msgid "Removes this profile."
+msgstr "Elimina este perfil."
+
+msgid "Sorts and filters this list."
+msgstr "Ordena y filtra esta lista."
+
+msgid "Updates this proxy provider."
+msgstr "Actualiza este proveedor de proxy."
+
+msgid "Updates this rule set."
+msgstr "Actualiza este conjunto de reglas."

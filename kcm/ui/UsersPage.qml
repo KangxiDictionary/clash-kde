@@ -198,22 +198,6 @@ Flickable {
                 FormCard.FormDelegateSeparator {}
 
                 FormCard.FormSwitchDelegate {
-                    text: tx.i18n("Blur the IP")
-                    checked: kcm.client.draftBlurIp
-                    onToggled: {
-                        if (checked !== kcm.client.draftBlurIp) {
-                            kcm.client.draftBlurIp = checked;
-                        }
-                    }
-
-                    QQC2.ToolTip.visible: hovered
-                    QQC2.ToolTip.delay: 700
-                    QQC2.ToolTip.text: tx.i18n("Hides the latter half of the exit address; right-click copies the full address, and three quick clicks show it.")
-                }
-
-                FormCard.FormDelegateSeparator {}
-
-                FormCard.FormSwitchDelegate {
                     text: tx.i18n("Allow LAN")
                     checked: kcm.client.draftAllowLan
                     enabled: kcm.client.lanAllowed

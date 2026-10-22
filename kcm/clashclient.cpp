@@ -24,6 +24,11 @@
 #include <QFileInfo>
 #include <QGuiApplication>
 #include <QUrl>
+#include <QDateTime>
+#include <QNetworkAccessManager>
+#include <QNetworkProxy>
+#include <QNetworkReply>
+#include <QNetworkRequest>
 #include <unistd.h>
 
 namespace {
@@ -35,6 +40,37 @@ QVariantList jsonArray(const QString &text)
         items.append(value.toObject().toVariantMap());
     }
     return items;
+}
+
+QVariantMap ruleMap(const QString &type, const QString &payload, const QString &target, bool enabled)
+{
+    QVariantMap map;
+    map.insert(QStringLiteral("type"), type);
+    map.insert(QStringLiteral("payload"), type == QLatin1String("MATCH") ? QString() : payload);
+    map.insert(QStringLiteral("target"), target);
+    map.insert(QStringLiteral("enabled"), enabled);
+    return map;
+}
+
+bool sameRule(const QVariantMap &left, const QVariantMap &right)
+{
+    return left.value(QStringLiteral("type")).toString() == right.value(QStringLiteral("type")).toString()
+        && left.value(QStringLiteral("payload")).toString() == right.value(QStringLiteral("payload")).toString()
+        && left.value(QStringLiteral("target")).toString() == right.value(QStringLiteral("target")).toString()
+        && left.value(QStringLiteral("enabled")).toBool() == right.value(QStringLiteral("enabled")).toBool();
+}
+
+bool sameRules(const QVariantList &left, const QVariantList &right)
+{
+    if (left.size() != right.size()) {
+        return false;
+    }
+    for (int index = 0; index < left.size(); ++index) {
+        if (!sameRule(left.at(index).toMap(), right.at(index).toMap())) {
+            return false;
+        }
+    }
+    return true;
 }
 
 bool tunDeviceAcceptable(const QString &name)
@@ -159,7 +195,7 @@ bool ClashClient::draftCoreDesired() const { return m_draftCoreDesired; }
 bool ClashClient::draftSystemProxyEnabled() const { return m_draftSystemProxyEnabled; }
 bool ClashClient::draftTunEnabled() const { return m_draftTunEnabled; }
 QString ClashClient::draftMode() const { return m_draftMode; }
-bool ClashClient::settingsDirty() const { return m_draftDirty || !m_routeEdits.isEmpty(); }
+bool ClashClient::settingsDirty() const { return m_draftDirty || !m_routeEdits.isEmpty() || ruleDirty() || !m_noteEdits.isEmpty(); }
 
 void ClashClient::setDraftMixedPort(int port)
 {
@@ -390,6 +426,23 @@ void ClashClient::setDraftShowWidgetHint(bool enabled)
     Q_EMIT draftChanged();
 }
 
+int ClashClient::draftSpeedTestMib() const
+{
+    return m_draftSpeedTestMib;
+}
+
+void ClashClient::setDraftSpeedTestMib(int mib)
+{
+    mib = qBound(1, mib, 100);
+    if (m_draftSpeedTestMib == mib) {
+        return;
+    }
+    m_draftSpeedTestMib = mib;
+    m_preferReset = false;
+    m_draftDirty = !draftMatchesLive();
+    Q_EMIT draftChanged();
+}
+
 QString ClashClient::draftTunDevice() const { return m_draftTunDevice; }
 QString ClashClient::draftOverridePath() const { return m_draftOverridePath; }
 
@@ -488,6 +541,37 @@ QString ClashClient::presentAddress(const QString &raw, bool blur) const
 {
     return formatExitAddress(raw, blur);
 }
+
+QString ClashClient::presentHost(const QString &host, bool blur) const
+{
+    return ::presentHost(host, blur);
+}
+
+QVariantList ClashClient::connections() const { return m_connections; }
+
+QVariantList ClashClient::proxyProviders() const { return m_proxyProviders; }
+
+QVariantList ClashClient::ownRules() const
+{
+    if (m_ruleImporting) {
+        return m_ruleImport;
+    }
+    QVariantList shown = m_savedRules;
+    for (auto it = m_ruleEdits.cbegin(); it != m_ruleEdits.cend(); ++it) {
+        bool ok = false;
+        const int index = it.key().toInt(&ok);
+        if (ok && index >= 0 && index < shown.size()) {
+            shown[index] = it.value();
+        }
+    }
+    return shown;
+}
+
+QVariantList ClashClient::profileRules() const { return m_profileRules; }
+
+QVariantList ClashClient::ruleProviders() const { return m_ruleProviders; }
+
+QVariantList ClashClient::ruleTargets() const { return m_ruleTargets; }
 
 QString ClashClient::addressOf(const QString &raw) const
 {
@@ -792,6 +876,118 @@ void ClashClient::stageRoute(const QString &previous, const QString &name, const
     Q_EMIT draftChanged();
 }
 
+QString ClashClient::noteFor(const QString &key) const
+{
+    if (m_noteEdits.contains(key)) {
+        return m_noteEdits.value(key).toString();
+    }
+    return m_savedNotes.value(key).toString();
+}
+
+void ClashClient::stageNote(const QString &key, const QString &text)
+{
+    if (key.isEmpty()) {
+        return;
+    }
+    const QString saved = m_savedNotes.value(key).toString();
+    if (text == saved) {
+        m_noteEdits.remove(key);
+    } else {
+        m_preferReset = false;
+        m_noteEdits.insert(key, text);
+    }
+    Q_EMIT draftChanged();
+    Q_EMIT notesChanged();
+}
+
+void ClashClient::pullNotes()
+{
+    const QDBusReply<QString> reply = m_iface->call(QStringLiteral("GetNotes"));
+    if (!reply.isValid()) {
+        return;
+    }
+    const QJsonObject object = QJsonDocument::fromJson(reply.value().toUtf8()).object();
+    const QVariantMap next = object.toVariantMap();
+    if (next == m_savedNotes) {
+        return;
+    }
+    m_savedNotes = next;
+    Q_EMIT notesChanged();
+}
+
+QString dbusHint(const QDBusError &error)
+{
+    QString text = error.message();
+    const QString prefix = QStringLiteral("org.freedesktop.DBus.Error.Failed: ");
+    if (text.startsWith(prefix)) {
+        text = text.mid(prefix.size());
+    }
+    return text;
+}
+
+bool ClashClient::restoreRoute(const QString &name)
+{
+    const QDBusReply<void> reply = m_iface->call(QStringLiteral("RestoreRoute"), m_draftActiveProfile, name);
+    if (!reply.isValid()) {
+        showHint(dbusHint(reply.error()));
+        return false;
+    }
+    m_routeEdits.remove(name);
+    m_routeBaselines.remove(name);
+    if (m_routeEdits.isEmpty()) {
+        m_routeProfile.clear();
+    }
+    Q_EMIT draftChanged();
+    refreshProxies();
+    return true;
+}
+
+bool ClashClient::restoreProfileRule(int index)
+{
+    if (index < 0) {
+        return false;
+    }
+    const QDBusReply<void> reply = m_iface->call(QStringLiteral("RestoreProfileRule"), m_draftActiveProfile, static_cast<quint32>(index));
+    if (!reply.isValid()) {
+        showHint(dbusHint(reply.error()));
+        return false;
+    }
+    pullRules();
+    return true;
+}
+
+void ClashClient::shiftOwnRuleNotes(int removed)
+{
+    const QString prefix = QStringLiteral("rule\nown\n");
+    auto shift = [prefix, removed](QVariantMap &map) {
+        QVariantMap next;
+        for (auto it = map.cbegin(); it != map.cend(); ++it) {
+            if (!it.key().startsWith(prefix)) {
+                next.insert(it.key(), it.value());
+                continue;
+            }
+            bool ok = false;
+            int index = it.key().mid(prefix.size()).toInt(&ok);
+            if (!ok || index == removed) {
+                continue;
+            }
+            if (index > removed) {
+                index -= 1;
+            }
+            next.insert(prefix + QString::number(index), it.value());
+        }
+        map = next;
+    };
+    const QVariantMap before = m_savedNotes;
+    shift(m_savedNotes);
+    shift(m_noteEdits);
+    if (m_savedNotes != before) {
+        const QString body = QString::fromUtf8(QJsonDocument(QJsonObject::fromVariantMap(m_savedNotes)).toJson(QJsonDocument::Compact));
+        m_iface->call(QStringLiteral("SetNotes"), body);
+    }
+    Q_EMIT notesChanged();
+}
+
 bool ClashClient::addRoute(const QString &group, const QString &name, const QString &kind, const QString &server, int port, const QString &secret)
 {
     if (port < 1 || port > 65535) {
@@ -875,10 +1071,884 @@ void ClashClient::setAccountLan(qulonglong uid, bool enabled)
     reloadAccounts();
 }
 
+bool ClashClient::ruleDirty() const
+{
+    if (m_ruleImporting) {
+        return !sameRules(m_ruleImport, m_savedRules);
+    }
+    return !m_ruleEdits.isEmpty();
+}
+
+QString ClashClient::rulesJson() const
+{
+    QJsonArray array;
+    const QVariantList rules = ownRules();
+    for (const QVariant &item : rules) {
+        const QVariantMap map = item.toMap();
+        QJsonObject object;
+        object.insert(QStringLiteral("type"), map.value(QStringLiteral("type")).toString());
+        object.insert(QStringLiteral("payload"), map.value(QStringLiteral("payload")).toString());
+        object.insert(QStringLiteral("target"), map.value(QStringLiteral("target")).toString());
+        object.insert(QStringLiteral("enabled"), map.value(QStringLiteral("enabled")).toBool());
+        array.append(object);
+    }
+    return QString::fromUtf8(QJsonDocument(array).toJson(QJsonDocument::Compact));
+}
+
+void ClashClient::clearRuleDraft()
+{
+    m_ruleEdits.clear();
+    m_ruleImport.clear();
+    m_ruleImporting = false;
+}
+
+void ClashClient::pullRules()
+{
+    const QDBusReply<QString> reply = m_iface->call(QStringLiteral("GetRuleView"));
+    if (!reply.isValid()) {
+        reportError(reply.error().message());
+        return;
+    }
+    applyRuleView(QJsonDocument::fromJson(reply.value().toUtf8()).object().toVariantMap());
+}
+
+void ClashClient::applyRuleView(const QVariantMap &view)
+{
+    m_savedRules = view.value(QStringLiteral("own")).toList();
+    QVariantList profile = view.value(QStringLiteral("profile")).toList();
+    const QVariantList changed = view.value(QStringLiteral("changed")).toList();
+    for (int i = 0; i < profile.size(); ++i) {
+        QVariantMap row = profile.at(i).toMap();
+        row.insert(QStringLiteral("changed"), i < changed.size() && changed.at(i).toBool());
+        profile[i] = row;
+    }
+    m_profileRules = profile;
+    m_ruleProviders = view.value(QStringLiteral("providers")).toList();
+    m_ruleTargets = view.value(QStringLiteral("targets")).toList();
+    Q_EMIT rulesChanged();
+}
+
+void ClashClient::discardSheetFile()
+{
+    if (m_sheetPath.isEmpty()) {
+        return;
+    }
+    QFile::remove(m_sheetPath);
+    m_sheetPath.clear();
+}
+
+void ClashClient::refreshConnections()
+{
+    if (!m_coreRunning) {
+        if (!m_connections.isEmpty()) {
+            m_connections.clear();
+            Q_EMIT connectionsChanged();
+        }
+        return;
+    }
+    if (m_connectionsPending) {
+        return;
+    }
+    m_connectionsPending = true;
+    auto *watcher = new QDBusPendingCallWatcher(m_iface->asyncCall(QStringLiteral("GetConnections")), this);
+    connect(watcher, &QDBusPendingCallWatcher::finished, this, [this](QDBusPendingCallWatcher *call) {
+        call->deleteLater();
+        m_connectionsPending = false;
+        const QDBusPendingReply<QString> reply = *call;
+        if (!reply.isValid()) {
+            return;
+        }
+        const QVariantList next = jsonArray(reply.value());
+        if (next == m_connections) {
+            return;
+        }
+        m_connections = next;
+        Q_EMIT connectionsChanged();
+    });
+}
+
+void ClashClient::closeConnection(const QString &id)
+{
+    auto *watcher = new QDBusPendingCallWatcher(m_iface->asyncCall(QStringLiteral("CloseConnection"), id), this);
+    connect(watcher, &QDBusPendingCallWatcher::finished, this, [this](QDBusPendingCallWatcher *call) {
+        call->deleteLater();
+        const QDBusPendingReply<> reply = *call;
+        if (!reply.isValid()) {
+            reportError(reply.error().message());
+            return;
+        }
+        refreshConnections();
+    });
+}
+
+void ClashClient::closeAllConnections()
+{
+    auto *watcher = new QDBusPendingCallWatcher(m_iface->asyncCall(QStringLiteral("CloseAllConnections")), this);
+    connect(watcher, &QDBusPendingCallWatcher::finished, this, [this](QDBusPendingCallWatcher *call) {
+        call->deleteLater();
+        const QDBusPendingReply<> reply = *call;
+        if (!reply.isValid()) {
+            reportError(reply.error().message());
+            return;
+        }
+        refreshConnections();
+    });
+}
+
+namespace {
+constexpr qint64 kProbeBytes = 1000;
+constexpr int kSampleMs = 100;
+constexpr int kMaxSamples = 6000;
+constexpr int kLiveSamples = 80;
+constexpr int kSmooth = 5;
+
+int binCount(int samples)
+{
+    if (samples <= 0) {
+        return 0;
+    }
+    return qBound(8, samples / 5, 48);
+}
+
+QVariantList liveWindow(const QList<double> &raw)
+{
+    if (raw.isEmpty()) {
+        return {};
+    }
+    const int begin = qMax(0, raw.size() - kLiveSamples);
+    QVariantList out;
+    out.reserve(raw.size() - begin);
+    for (int i = begin; i < raw.size(); ++i) {
+        const int from = qMax(begin, i - kSmooth + 1);
+        double sum = 0;
+        for (int j = from; j <= i; ++j) {
+            sum += raw.at(j);
+        }
+        out.append(sum / (i - from + 1));
+    }
+    return out;
+}
+
+void trimToSharedTail(QVariantList &first, QVariantList &second)
+{
+    if (first.isEmpty() || second.isEmpty() || first.size() == second.size()) {
+        return;
+    }
+    const int count = qMin(first.size(), second.size());
+    if (first.size() != count) {
+        first = first.mid(first.size() - count);
+    }
+    if (second.size() != count) {
+        second = second.mid(second.size() - count);
+    }
+}
+
+QVariantList resample(const QList<double> &raw, int bins)
+{
+    if (raw.isEmpty() || bins <= 0) {
+        return {};
+    }
+    QVariantList out;
+    out.reserve(bins);
+    for (int bin = 0; bin < bins; ++bin) {
+        int from = int(double(bin) * raw.size() / bins);
+        int to = int(double(bin + 1) * raw.size() / bins);
+        from = qBound(0, from, raw.size() - 1);
+        to = qBound(from + 1, to, raw.size());
+        double sum = 0;
+        for (int i = from; i < to; ++i) {
+            sum += raw.at(i);
+        }
+        out.append(sum / (to - from));
+    }
+    return out;
+}
+
+QNetworkRequest speedRequest(const QUrl &url, int timeoutMs)
+{
+    QNetworkRequest request(url);
+    request.setTransferTimeout(timeoutMs);
+    request.setHeader(QNetworkRequest::UserAgentHeader, QStringLiteral("clash-kde"));
+    request.setAttribute(QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::ManualRedirectPolicy);
+    request.setAttribute(QNetworkRequest::CacheLoadControlAttribute, QNetworkRequest::AlwaysNetwork);
+    request.setAttribute(QNetworkRequest::CacheSaveControlAttribute, false);
+    return request;
+}
+
+qulonglong pace(qint64 bytes, qint64 startedMs)
+{
+    const qint64 elapsed = qMax(qint64(1), QDateTime::currentMSecsSinceEpoch() - startedMs);
+    return qulonglong(qMax(qint64(0), bytes) * 1000 / elapsed);
+}
+
+bool speedOk(QNetworkReply *reply)
+{
+    const int status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+    return reply->error() == QNetworkReply::NoError && (status == 0 || status == 200);
+}
+
+QString speedErrorText(QNetworkReply *reply)
+{
+    if (reply->error() != QNetworkReply::NoError) {
+        return reply->errorString();
+    }
+    return QString::number(reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt());
+}
+}
+
+void ClashClient::noteSpeed(bool force)
+{
+    const qint64 now = QDateTime::currentMSecsSinceEpoch();
+    if (!force && now - m_speedNotedMs < 100) {
+        return;
+    }
+    m_speedNotedMs = now;
+    Q_EMIT speedChanged();
+}
+
+QNetworkAccessManager *ClashClient::speedNam(bool throughProxy)
+{
+    if (!throughProxy) {
+        if (!m_directNam) {
+            m_directNam = new QNetworkAccessManager(this);
+            m_directNam->setProxy(QNetworkProxy(QNetworkProxy::NoProxy));
+        }
+        return m_directNam;
+    }
+    if (!m_proxyNam) {
+        m_proxyNam = new QNetworkAccessManager(this);
+    }
+    QString host = m_listenHost;
+    if (host.isEmpty() || host == QLatin1String("0.0.0.0") || host == QLatin1String("::")) {
+        host = QStringLiteral("127.0.0.1");
+    }
+    m_proxyNam->setProxy(QNetworkProxy(QNetworkProxy::HttpProxy, host, m_mixedPort));
+    return m_proxyNam;
+}
+
+qint64 ClashClient::speedDownloadBytes() const
+{
+    return qint64(qBound(1, m_speedTestMib, 100)) * 1000000;
+}
+
+void ClashClient::noteSpeedError(const QString &which, const QString &message)
+{
+    if (message.isEmpty()) {
+        return;
+    }
+    const QString line = which + QStringLiteral(": ") + message;
+    if (m_speedError.isEmpty()) {
+        m_speedError = line;
+    } else if (!m_speedError.contains(line)) {
+        m_speedError = m_speedError + QLatin1Char('\n') + line;
+    }
+}
+
+void ClashClient::abortSpeedReply(QNetworkReply *&reply)
+{
+    if (!reply) {
+        return;
+    }
+    auto *current = reply;
+    reply = nullptr;
+    current->disconnect(this);
+    current->abort();
+    current->deleteLater();
+}
+
+void ClashClient::takeSpeedSample(SpeedLeg &leg, qint64 now, bool force)
+{
+    if (leg.received <= 0 || leg.raw.size() >= kMaxSamples) {
+        return;
+    }
+    if (!force && !leg.downloading) {
+        return;
+    }
+    if (force && leg.raw.isEmpty()) {
+        leg.raw.append(double(pace(leg.received, leg.markMs)));
+        leg.sampleBytes = leg.received;
+        leg.sampleAt = now;
+        return;
+    }
+    if (leg.raw.isEmpty() && leg.sampleBytes == 0) {
+        leg.sampleBytes = leg.received;
+        leg.sampleAt = now;
+        return;
+    }
+    const qint64 dt = qMax(qint64(1), now - leg.sampleAt);
+    if (!force && dt < kSampleMs) {
+        return;
+    }
+    const qint64 delta = qMax(qint64(0), leg.received - leg.sampleBytes);
+    leg.sampleBytes = leg.received;
+    leg.sampleAt = now;
+    if (delta == 0) {
+        return;
+    }
+    leg.raw.append(double(delta) * 1000.0 / double(dt));
+}
+
+void ClashClient::publishSpeedSeries(bool force)
+{
+    if (m_speedRunning) {
+        auto proxy = liveWindow(m_proxyLeg.raw);
+        auto direct = liveWindow(m_directLeg.raw);
+        trimToSharedTail(proxy, direct);
+        m_speedProxySamples = proxy;
+        m_speedDirectSamples = direct;
+    } else {
+        const int bins = qMax(binCount(m_proxyLeg.raw.size()), binCount(m_directLeg.raw.size()));
+        m_speedProxySamples = resample(m_proxyLeg.raw, bins);
+        m_speedDirectSamples = resample(m_directLeg.raw, bins);
+    }
+    noteSpeed(force);
+}
+
+void ClashClient::startSpeedSampler()
+{
+    if (!m_speedSampleTimer) {
+        m_speedSampleTimer = new QTimer(this);
+        m_speedSampleTimer->setInterval(kSampleMs);
+        connect(m_speedSampleTimer, &QTimer::timeout, this, &ClashClient::sampleSpeedTick);
+    }
+    if (!m_speedSampleTimer->isActive()) {
+        m_speedSampleTimer->start();
+    }
+}
+
+void ClashClient::stopSpeedSampler()
+{
+    if (m_speedSampleTimer) {
+        m_speedSampleTimer->stop();
+    }
+}
+
+void ClashClient::sampleSpeedTick()
+{
+    if (!m_speedRunning) {
+        return;
+    }
+    const qint64 now = QDateTime::currentMSecsSinceEpoch();
+    const bool before = m_proxyLeg.raw.isEmpty() && m_directLeg.raw.isEmpty();
+    takeSpeedSample(m_proxyLeg, now, false);
+    takeSpeedSample(m_directLeg, now, false);
+    if (m_proxyLeg.downloading && m_proxyLeg.received > 0) {
+        m_speedProxyBps = pace(m_proxyLeg.received, m_proxyLeg.markMs);
+    }
+    if (m_directLeg.downloading && m_directLeg.received > 0) {
+        m_speedDirectBps = pace(m_directLeg.received, m_directLeg.markMs);
+    }
+    if (before && m_proxyLeg.raw.isEmpty() && m_directLeg.raw.isEmpty()) {
+        return;
+    }
+    publishSpeedSeries(false);
+}
+
+void ClashClient::finishSpeedTest()
+{
+    if (!m_speedRunning || !m_proxyLeg.downloadSettled || !m_directLeg.downloadSettled) {
+        return;
+    }
+    stopSpeedSampler();
+    m_speedRunning = false;
+    m_speedPhase = QStringLiteral("done");
+    publishSpeedSeries(true);
+}
+
+void ClashClient::resetSpeedTest()
+{
+    if (m_speedRunning) {
+        return;
+    }
+    stopSpeedSampler();
+    ++m_speedToken;
+    abortSpeedReply(m_proxyLeg.probe);
+    abortSpeedReply(m_proxyLeg.download);
+    abortSpeedReply(m_directLeg.probe);
+    abortSpeedReply(m_directLeg.download);
+    m_proxyLeg = SpeedLeg{};
+    m_directLeg = SpeedLeg{};
+    m_speedProxyBps = 0;
+    m_speedDirectBps = 0;
+    m_speedProxyLatencyMs = -1;
+    m_speedDirectLatencyMs = -1;
+    m_speedProxySamples.clear();
+    m_speedDirectSamples.clear();
+    m_speedProgress = 0;
+    m_speedPhase.clear();
+    m_speedError.clear();
+    noteSpeed(true);
+}
+
+void ClashClient::stopSpeedTest()
+{
+    const bool busy = m_speedRunning || m_proxyLeg.probe || m_proxyLeg.download || m_directLeg.probe || m_directLeg.download;
+    if (!busy) {
+        return;
+    }
+    stopSpeedSampler();
+    ++m_speedToken;
+    m_speedRunning = false;
+    abortSpeedReply(m_proxyLeg.probe);
+    abortSpeedReply(m_proxyLeg.download);
+    abortSpeedReply(m_directLeg.probe);
+    abortSpeedReply(m_directLeg.download);
+    m_proxyLeg.downloading = false;
+    m_directLeg.downloading = false;
+    if (!m_proxyLeg.raw.isEmpty() || !m_directLeg.raw.isEmpty()) {
+        m_speedPhase = QStringLiteral("done");
+        publishSpeedSeries(true);
+        return;
+    }
+    m_speedPhase = m_speedError.isEmpty() ? QString() : QStringLiteral("done");
+    m_speedProgress = 0;
+    noteSpeed(true);
+}
+
+void ClashClient::startSpeedTest()
+{
+    if (m_speedRunning) {
+        return;
+    }
+    stopSpeedSampler();
+    ++m_speedToken;
+    abortSpeedReply(m_proxyLeg.probe);
+    abortSpeedReply(m_proxyLeg.download);
+    abortSpeedReply(m_directLeg.probe);
+    abortSpeedReply(m_directLeg.download);
+    m_proxyLeg = SpeedLeg{};
+    m_directLeg = SpeedLeg{};
+    m_speedRunning = true;
+    m_speedProxyBps = 0;
+    m_speedDirectBps = 0;
+    m_speedProxyLatencyMs = -1;
+    m_speedDirectLatencyMs = -1;
+    m_speedProxySamples.clear();
+    m_speedDirectSamples.clear();
+    m_speedProgress = 0;
+    m_speedPhase = QStringLiteral("run");
+    m_speedError.clear();
+    noteSpeed(true);
+    beginSpeedProbes();
+}
+
+void ClashClient::beginSpeedProbes()
+{
+    if (!m_speedRunning) {
+        return;
+    }
+    const auto startProbe = [this](SpeedLeg &leg, bool throughProxy) {
+        leg.markMs = QDateTime::currentMSecsSinceEpoch();
+        const quint64 token = m_speedToken;
+        leg.probe = speedNam(throughProxy)->get(speedRequest(QUrl(QStringLiteral("https://speed.cloudflare.com/__down?bytes=%1").arg(kProbeBytes)), 15000));
+        connect(leg.probe, &QNetworkReply::readyRead, leg.probe, [reply = leg.probe] {
+            reply->readAll();
+        });
+        connect(leg.probe, &QNetworkReply::finished, this, [this, token, throughProxy] {
+            if (token != m_speedToken) {
+                return;
+            }
+            SpeedLeg &current = throughProxy ? m_proxyLeg : m_directLeg;
+            auto *reply = current.probe;
+            if (!reply) {
+                return;
+            }
+            current.probe = nullptr;
+            reply->disconnect(this);
+            reply->deleteLater();
+            const bool ok = speedOk(reply);
+            current.probeSettled = true;
+            current.probeOk = ok;
+            if (!ok) {
+                noteSpeedError(throughProxy ? QStringLiteral("Proxy") : QStringLiteral("Direct"), speedErrorText(reply));
+                current.downloadSettled = true;
+            } else {
+                const int latency = int(qBound(qint64(0), QDateTime::currentMSecsSinceEpoch() - current.markMs, qint64(600000)));
+                if (throughProxy) {
+                    m_speedProxyLatencyMs = latency;
+                } else {
+                    m_speedDirectLatencyMs = latency;
+                }
+            }
+            if (!m_proxyLeg.probeSettled || !m_directLeg.probeSettled) {
+                noteSpeed(true);
+                return;
+            }
+            if (!m_proxyLeg.probeOk && !m_directLeg.probeOk) {
+                finishSpeedTest();
+                return;
+            }
+            beginSpeedDownloads();
+        });
+    };
+    startProbe(m_proxyLeg, true);
+    startProbe(m_directLeg, false);
+}
+
+void ClashClient::beginSpeedDownloads()
+{
+    if (!m_speedRunning) {
+        return;
+    }
+    const qint64 now = QDateTime::currentMSecsSinceEpoch();
+    if (m_proxyLeg.probeOk) {
+        m_proxyLeg.markMs = now;
+        beginSpeedDownload(m_proxyLeg);
+    }
+    if (m_directLeg.probeOk) {
+        m_directLeg.markMs = now;
+        beginSpeedDownload(m_directLeg);
+    }
+    startSpeedSampler();
+    noteSpeed(true);
+}
+
+void ClashClient::beginSpeedDownload(SpeedLeg &leg)
+{
+    const bool throughProxy = &leg == &m_proxyLeg;
+    leg.received = 0;
+    leg.sampleBytes = 0;
+    leg.sampleAt = leg.markMs;
+    leg.downloading = true;
+    const quint64 token = m_speedToken;
+    const qint64 bytes = speedDownloadBytes();
+    const int timeoutMs = qBound(180000, m_speedTestMib * 20000, 900000);
+    leg.download = speedNam(throughProxy)->get(speedRequest(QUrl(QStringLiteral("https://speed.cloudflare.com/__down?bytes=%1").arg(bytes)), timeoutMs));
+    connect(leg.download, &QNetworkReply::readyRead, this, [this, token, throughProxy, reply = leg.download] {
+        const QByteArray chunk = reply->readAll();
+        if (token != m_speedToken || chunk.isEmpty()) {
+            return;
+        }
+        SpeedLeg &current = throughProxy ? m_proxyLeg : m_directLeg;
+        current.received += chunk.size();
+        auto &average = throughProxy ? m_speedProxyBps : m_speedDirectBps;
+        average = pace(current.received, current.markMs);
+        noteSpeed(false);
+    });
+    connect(leg.download, &QNetworkReply::finished, this, [this, token, throughProxy] {
+        if (token != m_speedToken) {
+            return;
+        }
+        SpeedLeg &current = throughProxy ? m_proxyLeg : m_directLeg;
+        auto *reply = current.download;
+        if (!reply) {
+            return;
+        }
+        const QByteArray tail = reply->readAll();
+        current.download = nullptr;
+        reply->disconnect(this);
+        reply->deleteLater();
+        if (!tail.isEmpty()) {
+            current.received += tail.size();
+        }
+        if (speedOk(reply) && current.received > 0) {
+            takeSpeedSample(current, QDateTime::currentMSecsSinceEpoch(), true);
+            auto &average = throughProxy ? m_speedProxyBps : m_speedDirectBps;
+            average = pace(current.received, current.markMs);
+        } else if (!speedOk(reply)) {
+            noteSpeedError(throughProxy ? QStringLiteral("Proxy") : QStringLiteral("Direct"), speedErrorText(reply));
+            if (current.received > 0) {
+                takeSpeedSample(current, QDateTime::currentMSecsSinceEpoch(), true);
+            }
+        }
+        current.downloading = false;
+        current.downloadSettled = true;
+        finishSpeedTest();
+    });
+}
+
+void ClashClient::refreshProxyProviders()
+{
+    if (m_providersPending) {
+        return;
+    }
+    m_providersPending = true;
+    auto *watcher = new QDBusPendingCallWatcher(m_iface->asyncCall(QStringLiteral("GetProxyProviders")), this);
+    connect(watcher, &QDBusPendingCallWatcher::finished, this, [this](QDBusPendingCallWatcher *call) {
+        call->deleteLater();
+        m_providersPending = false;
+        const QDBusPendingReply<QString> reply = *call;
+        if (!reply.isValid()) {
+            reportError(reply.error().message());
+            return;
+        }
+        const QVariantList next = jsonArray(reply.value());
+        if (next == m_proxyProviders) {
+            return;
+        }
+        m_proxyProviders = next;
+        Q_EMIT providersChanged();
+    });
+}
+
+void ClashClient::updateProxyProvider(const QString &name)
+{
+    setBusy(true);
+    auto *watcher = new QDBusPendingCallWatcher(m_iface->asyncCall(QStringLiteral("UpdateProxyProvider"), name), this);
+    connect(watcher, &QDBusPendingCallWatcher::finished, this, [this](QDBusPendingCallWatcher *call) {
+        call->deleteLater();
+        setBusy(false);
+        const QDBusPendingReply<> reply = *call;
+        if (!reply.isValid()) {
+            reportError(reply.error().message());
+            return;
+        }
+        refreshProxyProviders();
+    });
+}
+
+void ClashClient::refreshRules()
+{
+    if (m_rulesPending) {
+        return;
+    }
+    m_rulesPending = true;
+    auto *watcher = new QDBusPendingCallWatcher(m_iface->asyncCall(QStringLiteral("GetRuleView")), this);
+    connect(watcher, &QDBusPendingCallWatcher::finished, this, [this](QDBusPendingCallWatcher *call) {
+        call->deleteLater();
+        m_rulesPending = false;
+        const QDBusPendingReply<QString> reply = *call;
+        if (!reply.isValid()) {
+            reportError(reply.error().message());
+            return;
+        }
+        applyRuleView(QJsonDocument::fromJson(reply.value().toUtf8()).object().toVariantMap());
+    });
+}
+
+void ClashClient::updateRuleProvider(const QString &name)
+{
+    setBusy(true);
+    auto *watcher = new QDBusPendingCallWatcher(m_iface->asyncCall(QStringLiteral("UpdateRuleProvider"), name), this);
+    connect(watcher, &QDBusPendingCallWatcher::finished, this, [this](QDBusPendingCallWatcher *call) {
+        call->deleteLater();
+        setBusy(false);
+        const QDBusPendingReply<> reply = *call;
+        if (!reply.isValid()) {
+            reportError(reply.error().message());
+            return;
+        }
+        refreshRules();
+    });
+}
+
+void ClashClient::stageRule(int index, const QString &type, const QString &payload, const QString &target, bool enabled)
+{
+    const QVariantList shown = ownRules();
+    if (index < 0 || index >= shown.size()) {
+        return;
+    }
+    const QVariantMap next = ruleMap(type, payload, target.trimmed(), enabled);
+    if (m_ruleImporting) {
+        if (sameRule(m_ruleImport.at(index).toMap(), next)) {
+            return;
+        }
+        m_ruleImport[index] = next;
+        if (sameRules(m_ruleImport, m_savedRules)) {
+            m_ruleImporting = false;
+            m_ruleImport.clear();
+        } else {
+            m_preferReset = false;
+        }
+        Q_EMIT rulesChanged();
+        Q_EMIT draftChanged();
+        return;
+    }
+    const QString key = QString::number(index);
+    const QVariantMap saved = index < m_savedRules.size() ? m_savedRules.at(index).toMap() : QVariantMap();
+    if (sameRule(saved, next)) {
+        if (!m_ruleEdits.contains(key)) {
+            return;
+        }
+        m_ruleEdits.remove(key);
+    } else if (m_ruleEdits.contains(key) && sameRule(m_ruleEdits.value(key).toMap(), next)) {
+        return;
+    } else {
+        m_preferReset = false;
+        m_ruleEdits.insert(key, next);
+    }
+    Q_EMIT rulesChanged();
+    Q_EMIT draftChanged();
+}
+
+void ClashClient::stageForkedRule(const QString &type, const QString &payload, const QString &target, bool enabled)
+{
+    QVariantList base = ownRules();
+    base.append(ruleMap(type, payload, target.trimmed(), enabled));
+    if (sameRules(base, m_savedRules)) {
+        return;
+    }
+    m_ruleImport = base;
+    m_ruleImporting = true;
+    m_ruleEdits.clear();
+    m_preferReset = false;
+    Q_EMIT rulesChanged();
+    Q_EMIT draftChanged();
+}
+
+bool ClashClient::addOwnRule(const QString &type, const QString &payload, const QString &target)
+{
+    const QString kind = type.trimmed();
+    const QString value = kind == QLatin1String("MATCH") ? QString() : payload.trimmed();
+    const QString policy = target.trimmed();
+    if (kind != QLatin1String("MATCH") && value.isEmpty()) {
+        reportError(QStringLiteral("匹配内容不能为空"));
+        return false;
+    }
+    if (policy.isEmpty()) {
+        reportError(QStringLiteral("目标不能为空"));
+        return false;
+    }
+    if (m_ruleImporting) {
+        m_ruleImport.append(ruleMap(kind, value, policy, true));
+        m_preferReset = false;
+        Q_EMIT rulesChanged();
+        Q_EMIT draftChanged();
+        return true;
+    }
+    const QDBusReply<void> reply = m_iface->call(QStringLiteral("AddOwnRule"), kind, value, policy);
+    if (!reply.isValid()) {
+        reportError(reply.error().message());
+        return false;
+    }
+    pullRules();
+    return true;
+}
+
+void ClashClient::removeOwnRule(int index)
+{
+    if (m_ruleImporting) {
+        if (index < 0 || index >= m_ruleImport.size()) {
+            return;
+        }
+        m_ruleImport.removeAt(index);
+        if (sameRules(m_ruleImport, m_savedRules)) {
+            m_ruleImporting = false;
+            m_ruleImport.clear();
+        } else {
+            m_preferReset = false;
+        }
+        Q_EMIT rulesChanged();
+        Q_EMIT draftChanged();
+        return;
+    }
+    if (index < 0 || index >= m_savedRules.size()) {
+        return;
+    }
+    const QDBusReply<void> reply = m_iface->call(QStringLiteral("RemoveOwnRule"), static_cast<quint32>(index));
+    if (!reply.isValid()) {
+        reportError(reply.error().message());
+        return;
+    }
+    QVariantMap shifted;
+    for (auto it = m_ruleEdits.cbegin(); it != m_ruleEdits.cend(); ++it) {
+        bool ok = false;
+        int key = it.key().toInt(&ok);
+        if (!ok || key == index) {
+            continue;
+        }
+        if (key > index) {
+            key -= 1;
+        }
+        shifted.insert(QString::number(key), it.value());
+    }
+    m_ruleEdits = shifted;
+    shiftOwnRuleNotes(index);
+    pullRules();
+    Q_EMIT draftChanged();
+}
+
+int ClashClient::openRulesSpreadsheet()
+{
+    const QDBusReply<QString> csv = m_iface->call(QStringLiteral("RulesCsv"), rulesJson());
+    if (!csv.isValid()) {
+        reportError(csv.error().message());
+        return -1;
+    }
+    QString program = QStandardPaths::findExecutable(QStringLiteral("libreoffice"));
+    if (program.isEmpty()) {
+        program = QStandardPaths::findExecutable(QStringLiteral("soffice"));
+    }
+    QStringList arguments;
+    if (!program.isEmpty()) {
+        arguments << QStringLiteral("--nologo") << QStringLiteral("--norestore") << QStringLiteral("--calc")
+                  << QStringLiteral("--infilter=CSV:44,34,76");
+    } else {
+        program = QStandardPaths::findExecutable(QStringLiteral("xdg-open"));
+        if (program.isEmpty()) {
+            return 0;
+        }
+    }
+    discardSheetFile();
+    auto *file = new QTemporaryFile(QDir::tempPath() + QStringLiteral("/clash-kde-rules-XXXXXX.csv"));
+    file->setAutoRemove(false);
+    if (!file->open() || file->write(csv.value().toUtf8()) < 0) {
+        delete file;
+        reportError(QStringLiteral("无法写入表格"));
+        return -1;
+    }
+    const QString path = file->fileName();
+    file->close();
+    delete file;
+    arguments << path;
+    auto *process = new QProcess(this);
+    connect(process, &QProcess::finished, process, &QObject::deleteLater);
+    process->start(program, arguments);
+    if (!process->waitForStarted(3000)) {
+        QFile::remove(path);
+        process->deleteLater();
+        reportError(QStringLiteral("无法打开表格"));
+        return -1;
+    }
+    m_sheetPath = path;
+    return 1;
+}
+
+QString ClashClient::finishRulesSpreadsheet()
+{
+    if (m_sheetPath.isEmpty()) {
+        return QStringLiteral("无法读取表格");
+    }
+    QFile file(m_sheetPath);
+    if (!file.open(QIODevice::ReadOnly)) {
+        return QStringLiteral("无法读取表格");
+    }
+    const QString text = QString::fromUtf8(file.readAll());
+    file.close();
+    const QDBusReply<QString> parsed = m_iface->call(QStringLiteral("ParseRulesCsv"), text);
+    if (!parsed.isValid()) {
+        return parsed.error().message();
+    }
+    const QVariantList incoming = jsonArray(parsed.value());
+    discardSheetFile();
+    if (sameRules(incoming, ownRules()) || sameRules(incoming, m_savedRules)) {
+        if (sameRules(incoming, m_savedRules)) {
+            clearRuleDraft();
+            Q_EMIT rulesChanged();
+            Q_EMIT draftChanged();
+        }
+        return QStringLiteral("same");
+    }
+    m_ruleImport = incoming;
+    m_ruleImporting = true;
+    m_ruleEdits.clear();
+    m_preferReset = false;
+    Q_EMIT rulesChanged();
+    Q_EMIT draftChanged();
+    Q_EMIT ruleDraftDiscarded();
+    return {};
+}
+
+void ClashClient::cancelRulesSpreadsheet()
+{
+    discardSheetFile();
+}
+
 void ClashClient::reload()
 {
     refreshStatus();
     refreshProfiles();
+    pullNotes();
 }
 
 void ClashClient::ensureProxies()
@@ -914,6 +1984,7 @@ void ClashClient::copyLiveToDraft()
     m_draftBlurIp = m_blurIp;
     m_draftCompact = m_compact;
     m_draftShowWidgetHint = m_showWidgetHint;
+    m_draftSpeedTestMib = m_speedTestMib;
     m_draftTunDevice = m_tunDevice;
     m_draftOverridePath = m_overridePath;
     m_draftAllowLan = m_allowLan;
@@ -937,6 +2008,7 @@ bool ClashClient::draftMatchesLive() const
         && m_draftBlurIp == m_blurIp
         && m_draftCompact == m_compact
         && m_draftShowWidgetHint == m_showWidgetHint
+        && m_draftSpeedTestMib == m_speedTestMib
         && m_draftTunDevice.trimmed() == m_tunDevice
         && canonicalOverride(m_draftOverridePath, m_overrideDefault) == canonicalOverride(m_overridePath, m_overrideDefault)
         && m_draftAllowLan == m_allowLan
@@ -951,9 +2023,14 @@ void ClashClient::revertDraft()
     m_routeEdits.clear();
     m_routeBaselines.clear();
     m_routeProfile.clear();
+    clearRuleDraft();
+    m_noteEdits.clear();
     copyLiveToDraft();
     Q_EMIT draftChanged();
     Q_EMIT routeDraftDiscarded();
+    Q_EMIT rulesChanged();
+    Q_EMIT ruleDraftDiscarded();
+    Q_EMIT notesChanged();
 }
 
 void ClashClient::applyDefaultsToDraft()
@@ -970,6 +2047,7 @@ void ClashClient::applyDefaultsToDraft()
     m_draftBlurIp = false;
     m_draftCompact = false;
     m_draftShowWidgetHint = true;
+    m_draftSpeedTestMib = 20;
     m_draftTunDevice.clear();
     m_draftOverridePath = m_overrideDefault;
     m_draftAllowLan = false;
@@ -980,10 +2058,15 @@ void ClashClient::applyDefaultsToDraft()
     m_routeEdits.clear();
     m_routeBaselines.clear();
     m_routeProfile.clear();
+    clearRuleDraft();
+    m_noteEdits.clear();
     m_draftDirty = !draftMatchesLive();
     m_preferReset = true;
     Q_EMIT draftChanged();
     Q_EMIT routeDraftDiscarded();
+    Q_EMIT rulesChanged();
+    Q_EMIT ruleDraftDiscarded();
+    Q_EMIT notesChanged();
 }
 
 bool ClashClient::draftIsDefaults() const
@@ -992,10 +2075,13 @@ bool ClashClient::draftIsDefaults() const
         && !m_draftCoreDesired && !m_draftSystemProxyEnabled && !m_draftTunEnabled && m_draftMode == QStringLiteral("rule")
         && !m_draftSortGlobal && !m_draftAutoTestDelay && !m_draftBlurIp && !m_draftCompact
         && m_draftShowWidgetHint
+        && m_draftSpeedTestMib == 20
         && m_draftTunDevice.trimmed().isEmpty()
         && canonicalOverride(m_draftOverridePath, m_overrideDefault) == m_overrideDefault
         && !m_draftAllowLan && m_draftLanUsername.isEmpty() && m_draftLanPassword.isEmpty()
-        && m_routeEdits.isEmpty();
+        && m_routeEdits.isEmpty()
+        && m_noteEdits.isEmpty()
+        && !ruleDirty();
 }
 
 bool ClashClient::commitSettings()
@@ -1015,6 +2101,9 @@ bool ClashClient::commitSettings()
         m_routeEdits.clear();
         m_routeBaselines.clear();
         m_routeProfile.clear();
+        clearRuleDraft();
+        Q_EMIT rulesChanged();
+        Q_EMIT ruleDraftDiscarded();
         if (!m_tunDevice.isEmpty()) {
             const QDBusReply<void> auth = m_admin->call(QStringLiteral("AuthorizeTun"));
             if (!auth.isValid()) {
@@ -1030,8 +2119,24 @@ bool ClashClient::commitSettings()
         refreshStatus();
         return true;
     }
+    if (ruleDirty()) {
+        const QVariantList written = ownRules();
+        const QDBusReply<void> rulesReply = m_iface->call(QStringLiteral("SetOwnRules"), rulesJson());
+        if (!rulesReply.isValid()) {
+            return failed(rulesReply.error());
+        }
+        m_savedRules = written;
+        clearRuleDraft();
+        Q_EMIT rulesChanged();
+        Q_EMIT ruleDraftDiscarded();
+    }
     const QString routeProfile = m_routeProfile;
     const QVariantMap routeEdits = m_routeEdits;
+    QVariantMap notes = m_savedNotes;
+    for (auto it = m_noteEdits.cbegin(); it != m_noteEdits.cend(); ++it) {
+        notes.insert(it.key(), it.value());
+    }
+    bool notesMoved = false;
     for (auto it = routeEdits.cbegin(); it != routeEdits.cend(); ++it) {
         const QVariantMap edit = it.value().toMap();
         const int port = edit.value(QStringLiteral("port")).toInt();
@@ -1039,10 +2144,11 @@ bool ClashClient::commitSettings()
             reportError(QStringLiteral("端口无效"));
             return false;
         }
+        const QString renamed = edit.value(QStringLiteral("name")).toString();
         const QDBusReply<void> reply = m_iface->call(QStringLiteral("UpdateRoute"),
                                                      routeProfile,
                                                      it.key(),
-                                                     edit.value(QStringLiteral("name")).toString(),
+                                                     renamed,
                                                      edit.value(QStringLiteral("kind")).toString(),
                                                      edit.value(QStringLiteral("server")).toString(),
                                                      static_cast<quint16>(port),
@@ -1050,8 +2156,34 @@ bool ClashClient::commitSettings()
         if (!reply.isValid()) {
             return failed(reply.error());
         }
+        if (renamed != it.key()) {
+            const QString oldKey = QStringLiteral("route\n%1\n%2").arg(routeProfile, it.key());
+            const QString newKey = QStringLiteral("route\n%1\n%2").arg(routeProfile, renamed);
+            if (notes.contains(oldKey)) {
+                notes.insert(newKey, notes.value(oldKey));
+                notes.remove(oldKey);
+                notesMoved = true;
+            }
+        }
         m_routeEdits.remove(it.key());
         m_routeBaselines.remove(it.key());
+    }
+    if (!m_noteEdits.isEmpty() || notesMoved) {
+        QVariantMap clean;
+        for (auto it = notes.cbegin(); it != notes.cend(); ++it) {
+            const QString text = it.value().toString().trimmed();
+            if (!text.isEmpty()) {
+                clean.insert(it.key(), text);
+            }
+        }
+        const QString body = QString::fromUtf8(QJsonDocument(QJsonObject::fromVariantMap(clean)).toJson(QJsonDocument::Compact));
+        const QDBusReply<void> notesReply = m_iface->call(QStringLiteral("SetNotes"), body);
+        if (!notesReply.isValid()) {
+            return failed(notesReply.error());
+        }
+        m_savedNotes = clean;
+        m_noteEdits.clear();
+        Q_EMIT notesChanged();
     }
     if (m_routeEdits.isEmpty()) {
         m_routeProfile.clear();
@@ -1141,8 +2273,9 @@ bool ClashClient::commitSettings()
             return failed(reply.error());
         }
     }
-    if (m_draftSortGlobal != m_sortGlobal || m_draftAutoTestDelay != m_autoTestDelay || m_draftBlurIp != m_blurIp || m_draftShowWidgetHint != m_showWidgetHint) {
-        const QDBusReply<void> reply = m_iface->call(QStringLiteral("SetBehavior"), m_draftSortGlobal, m_draftAutoTestDelay, m_draftBlurIp, m_draftShowWidgetHint);
+    if (m_draftSortGlobal != m_sortGlobal || m_draftAutoTestDelay != m_autoTestDelay || m_draftBlurIp != m_blurIp || m_draftShowWidgetHint != m_showWidgetHint
+        || m_draftSpeedTestMib != m_speedTestMib) {
+        const QDBusReply<void> reply = m_iface->call(QStringLiteral("SetBehavior"), m_draftSortGlobal, m_draftAutoTestDelay, m_draftBlurIp, m_draftShowWidgetHint, m_draftSpeedTestMib);
         if (!reply.isValid()) {
             return failed(reply.error());
         }
@@ -1348,6 +2481,7 @@ void ClashClient::applyStatus(const QVariantMap &status)
     const bool blurIp = status.value(QStringLiteral("blur_ip")).toBool();
     const bool compact = status.value(QStringLiteral("compact")).toBool();
     const bool showWidgetHint = !status.contains(QStringLiteral("show_widget_hint")) || status.value(QStringLiteral("show_widget_hint")).toBool();
+    const int speedTestMib = status.contains(QStringLiteral("speed_test_mib")) ? qBound(1, status.value(QStringLiteral("speed_test_mib")).toInt(), 100) : 20;
     const bool allowLan = status.value(QStringLiteral("allow_lan")).toBool();
     const QString lanUsername = status.value(QStringLiteral("lan_username")).toString();
     const QString lanPassword = status.value(QStringLiteral("lan_password")).toString();
@@ -1366,13 +2500,21 @@ void ClashClient::applyStatus(const QVariantMap &status)
         && m_activeProfile == activeProfile && m_selections == selections && m_sortGlobal == sortGlobal
         && m_sortMode == sortMode && m_showUnreachable == showUnreachable && m_sortPrefs == sortPrefs
         && m_autoTestDelay == autoTestDelay && m_blurIp == blurIp && m_compact == compact
-        && m_showWidgetHint == showWidgetHint && m_allowLan == allowLan
+        && m_showWidgetHint == showWidgetHint && m_speedTestMib == speedTestMib && m_allowLan == allowLan
         && m_lanUsername == lanUsername && m_lanPassword == lanPassword && m_lanAllowed == lanAllowed
         && m_message == message) {
+        if (!coreRunning && !m_connections.isEmpty()) {
+            m_connections.clear();
+            Q_EMIT connectionsChanged();
+        }
         return;
     }
     m_coreDesired = coreDesired;
     m_coreRunning = coreRunning;
+    if (!m_coreRunning && !m_connections.isEmpty()) {
+        m_connections.clear();
+        Q_EMIT connectionsChanged();
+    }
     m_systemProxyEnabled = systemProxyEnabled;
     m_systemProxyApplied = systemProxyApplied;
     m_tunEnabled = tunEnabled;
@@ -1400,6 +2542,7 @@ void ClashClient::applyStatus(const QVariantMap &status)
     m_blurIp = blurIp;
     m_compact = compact;
     m_showWidgetHint = showWidgetHint;
+    m_speedTestMib = speedTestMib;
     m_allowLan = allowLan;
     m_lanUsername = lanUsername;
     m_lanPassword = lanPassword;

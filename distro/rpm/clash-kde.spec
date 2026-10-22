@@ -1,5 +1,5 @@
 Name:           clash-kde
-Version:        1.0.2
+Version:        1.0.3
 Release:        1%{?dist}
 Summary:        KDE settings page and panel widget for a per-user mihomo proxy
 License:        GPL-3.0-or-later
@@ -105,6 +105,12 @@ fi
 %{_datadir}/locale/*/LC_MESSAGES/plasma_applet_org.kde.plasma.clashkde.mo
 
 %changelog
+* Thu Oct 22 2026 KangxiDictionary <108598928+KangxiDictionary@users.noreply.github.com> - 1.0.3-1
+- The Status page lists live connections and can close them.
+- A speed test downloads through the proxy and directly at the same time. The size is set on the Other page.
+- Profiles lists proxy providers beside the profile list.
+- Own rules are edited as a draft and can be filled from a spreadsheet. A subscribed route or profile rule can be restored.
+
 * Wed Oct 21 2026 KangxiDictionary <108598928+KangxiDictionary@users.noreply.github.com> - 1.0.2-1
 - The Status page can hide its note about the included panel widget.
 - Default discards unsaved route, profile, and selection edits.

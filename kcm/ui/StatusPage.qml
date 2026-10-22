@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls as QQC2
 import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
+import org.kde.quickcharts as Charts
 import org.kde.quickcharts.controls as ChartsControls
 
 Item {
@@ -37,6 +38,84 @@ Item {
         id: tx
     }
 
+    ListModel {
+        id: connectionModel
+    }
+
+    function formatBytes(bytes) {
+        const value = Number(bytes || 0);
+        if (value < 1024) {
+            return tx.i18n("%1 B", tx.formatNumber(value));
+        }
+        if (value < 1024 * 1024) {
+            return tx.i18n("%1 KB", tx.formatNumber(value / 1024, 1));
+        }
+        if (value < 1024 * 1024 * 1024) {
+            return tx.i18n("%1 MB", tx.formatNumber(value / 1024 / 1024, 1));
+        }
+        return tx.i18n("%1 GB", tx.formatNumber(value / 1024 / 1024 / 1024, 2));
+    }
+
+    function connectionRow(row) {
+        return {
+            connectionId: String(row.id || ""),
+            process: String(row.process || ""),
+            process_path: String(row.process_path || ""),
+            host: String(row.host || ""),
+            port: String(row.port || ""),
+            destination_ip: String(row.destination_ip || ""),
+            source_ip: String(row.source_ip || ""),
+            source_port: String(row.source_port || ""),
+            rule: String(row.rule || ""),
+            rule_payload: String(row.rule_payload || ""),
+            upload: Number(row.upload || 0),
+            download: Number(row.download || 0)
+        };
+    }
+
+    function syncConnections() {
+        const rows = kcm.client.connections;
+        let same = connectionModel.count === rows.length;
+        for (let i = 0; same && i < rows.length; ++i) {
+            if (connectionModel.get(i).connectionId !== String(rows[i].id || "")) {
+                same = false;
+            }
+        }
+        if (!same) {
+            connectionModel.clear();
+            for (let i = 0; i < rows.length; ++i) {
+                connectionModel.append(connectionRow(rows[i]));
+            }
+            return;
+        }
+        for (let i = 0; i < rows.length; ++i) {
+            const next = connectionRow(rows[i]);
+            const current = connectionModel.get(i);
+            if (current.download !== next.download || current.upload !== next.upload || current.rule !== next.rule || current.host !== next.host || current.process !== next.process || current.rule_payload !== next.rule_payload) {
+                connectionModel.set(i, next);
+            }
+        }
+    }
+
+    Timer {
+        interval: 2000
+        repeat: true
+        running: root.visible && kcm.client.coreRunning
+        onTriggered: kcm.client.refreshConnections()
+        onRunningChanged: {
+            if (running) {
+                kcm.client.refreshConnections();
+            }
+        }
+    }
+
+    Connections {
+        target: kcm.client
+        function onConnectionsChanged() {
+            root.syncConnections();
+        }
+    }
+
     function formatRate(bps) {
         if (bps < 1024) {
             return tx.i18n("%1 B/s", tx.formatNumber(bps));
@@ -45,6 +124,196 @@ Item {
             return tx.i18n("%1 KB/s", tx.formatNumber(bps / 1024, 1));
         }
         return tx.i18n("%1 MB/s", tx.formatNumber(bps / 1024 / 1024, 2));
+    }
+
+    function formatLatency(ms) {
+        if (ms < 0) {
+            return "—";
+        }
+        return tx.i18n("%1 ms", tx.formatNumber(ms));
+    }
+
+    component RateChart: ColumnLayout {
+        id: chartRoot
+
+        property bool live: false
+        property real firstValue: 0
+        property real secondValue: 0
+        property var firstSeries: []
+        property var secondSeries: []
+        property string firstName: ""
+        property string secondName: ""
+        property real firstShown: 0
+        property real secondShown: 0
+        property bool firstPending: false
+        property bool secondPending: false
+        readonly property bool showFirst: live || firstSeries.length > 0
+        readonly property bool showSecond: live || secondSeries.length > 0
+
+        function secondColor() {
+            const base = Kirigami.Theme.highlightColor;
+            const hue = base.hsvHue < 0 ? 0.5 : (base.hsvHue / 360 + 0.5) % 1;
+            return Qt.hsva(hue, base.hsvSaturation, base.hsvValue, base.a);
+        }
+
+        spacing: Kirigami.Units.largeSpacing
+
+        Item {
+            visible: false
+            Layout.preferredWidth: 0
+            Layout.preferredHeight: 0
+            Layout.maximumHeight: 0
+
+            Charts.SingleValueSource {
+                id: firstNow
+                value: chartRoot.firstValue
+            }
+            Charts.SingleValueSource {
+                id: secondNow
+                value: chartRoot.secondValue
+            }
+            Charts.HistoryProxySource {
+                id: firstHistory
+                source: firstNow
+                interval: chartRoot.live ? 1000 : 0
+                maximumHistory: 60
+                fillMode: Charts.HistoryProxySource.FillFromEnd
+            }
+            Charts.HistoryProxySource {
+                id: secondHistory
+                source: secondNow
+                interval: chartRoot.live ? 1000 : 0
+                maximumHistory: 60
+                fillMode: Charts.HistoryProxySource.FillFromEnd
+            }
+            Charts.ArraySource {
+                id: firstArray
+                array: chartRoot.firstSeries
+            }
+            Charts.ArraySource {
+                id: secondArray
+                array: chartRoot.secondSeries
+            }
+            Charts.ArraySource {
+                id: nameSource
+                array: {
+                    const names = [];
+                    if (chartRoot.showFirst) {
+                        names.push(chartRoot.firstName);
+                    }
+                    if (chartRoot.showSecond) {
+                        names.push(chartRoot.secondName);
+                    }
+                    return names;
+                }
+            }
+            Charts.ColorGradientSource {
+                id: pairedColors
+                baseColor: Kirigami.Theme.highlightColor
+                itemCount: 2
+            }
+            Charts.ArraySource {
+                id: loneColor
+                array: [chartRoot.showFirst ? Kirigami.Theme.highlightColor : chartRoot.secondColor()]
+            }
+            TextMetrics {
+                id: rateWidth
+                text: tx.i18n("%1 MB/s", tx.formatNumber(999.99, 2))
+            }
+        }
+
+        RowLayout {
+            spacing: Kirigami.Units.smallSpacing
+            Layout.fillWidth: true
+            Layout.preferredHeight: Kirigami.Units.gridUnit * 6
+            Layout.minimumHeight: Kirigami.Units.gridUnit * 5
+            Layout.topMargin: axisMetrics.height / 2
+            Layout.bottomMargin: Layout.topMargin
+
+            ChartsControls.AxisLabels {
+                id: axisLabels
+                Layout.fillHeight: true
+                constrainToBounds: false
+                direction: ChartsControls.AxisLabels.VerticalBottomTop
+                delegate: QQC2.Label {
+                    anchors.right: parent.right
+                    font: Kirigami.Theme.smallFont
+                    text: root.formatRate(Number(ChartsControls.AxisLabels.label))
+                    opacity: 0.75
+                }
+                source: Charts.ChartAxisSource {
+                    chart: lineChart
+                    axis: Charts.ChartAxisSource.YAxis
+                    itemCount: 5
+                }
+                TextMetrics {
+                    id: axisMetrics
+                    font: Kirigami.Theme.smallFont
+                    text: root.formatRate(0)
+                }
+            }
+
+            Charts.LineChart {
+                id: lineChart
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                direction: chartRoot.live ? Charts.XYChart.ZeroAtEnd : Charts.XYChart.ZeroAtStart
+                interpolate: true
+                fillOpacity: 0.1
+                opacity: chartRoot.showFirst || chartRoot.showSecond ? 1 : 0
+                valueSources: {
+                    const sources = [];
+                    if (chartRoot.showFirst) {
+                        sources.push(chartRoot.live ? firstHistory : firstArray);
+                    }
+                    if (chartRoot.showSecond) {
+                        sources.push(chartRoot.live ? secondHistory : secondArray);
+                    }
+                    return sources;
+                }
+                nameSource: nameSource
+                colorSource: chartRoot.showFirst && chartRoot.showSecond ? pairedColors : loneColor
+                highlight: rateLegend.highlightedIndex
+
+                yRange {
+                    from: 0
+                    automatic: true
+                    minimum: 1
+                }
+
+                ChartsControls.GridLines {
+                    anchors.fill: parent
+                    z: lineChart.z - 1
+                    chart: lineChart
+                    direction: ChartsControls.GridLines.Vertical
+                    major.count: 3
+                    major.lineWidth: 1
+                    major.color: Kirigami.ColorUtils.linearInterpolation(Kirigami.Theme.backgroundColor, Kirigami.Theme.textColor, 0.2)
+                    minor.visible: false
+                }
+            }
+        }
+
+        ChartsControls.Legend {
+            id: rateLegend
+            Layout.fillWidth: true
+            chart: lineChart
+            highlightEnabled: true
+            horizontalSpacing: Kirigami.Units.gridUnit
+            verticalSpacing: Kirigami.Units.smallSpacing
+            maximumDelegateWidth: Kirigami.Units.gridUnit * 15
+            formatValue: function(input, index) {
+                const slot = chartRoot.showFirst && chartRoot.showSecond ? index : (chartRoot.showSecond ? 1 : 0);
+                if ((slot === 0 && chartRoot.firstPending) || (slot === 1 && chartRoot.secondPending)) {
+                    return "—";
+                }
+                const value = slot === 0 ? chartRoot.firstShown : chartRoot.secondShown;
+                return root.formatRate(Number(value) || 0);
+            }
+            maximumValueWidth: function(input, index) {
+                return rateWidth.advanceWidth;
+            }
+        }
     }
 
     ColumnLayout {
@@ -250,35 +519,16 @@ Item {
             Layout.fillWidth: true
             spacing: Kirigami.Units.largeSpacing * 2
 
-            ColumnLayout {
+            RateChart {
                 Layout.fillWidth: true
                 Layout.alignment: Qt.AlignTop
-                spacing: Kirigami.Units.smallSpacing
-
-                ChartsControls.LegendDelegate {
-                    name: tx.i18n("Download")
-                    value: root.formatRate(kcm.client.downloadBps)
-                    color: Kirigami.Theme.positiveTextColor
-                    maximumValueWidth: rateWidth.advanceWidth
-                    Layout.fillWidth: true
-                }
-
-                ChartsControls.LegendDelegate {
-                    name: tx.i18n("Upload")
-                    value: root.formatRate(kcm.client.uploadBps)
-                    color: Kirigami.Theme.visitedLinkColor
-                    maximumValueWidth: rateWidth.advanceWidth
-                    Layout.fillWidth: true
-                }
-
-                TextMetrics {
-                    id: rateWidth
-                    text: tx.i18n("%1 MB/s", tx.formatNumber(999.9, 1))
-                }
-            }
-
-            Item {
-                Layout.fillWidth: true
+                live: true
+                firstName: tx.i18nc("@title", "Download Rate")
+                secondName: tx.i18nc("@title", "Upload Rate")
+                firstValue: kcm.client.downloadBps
+                secondValue: kcm.client.uploadBps
+                firstShown: kcm.client.downloadBps
+                secondShown: kcm.client.uploadBps
             }
 
             ColumnLayout {
@@ -351,8 +601,269 @@ Item {
             }
         }
 
-        Item {
+        RowLayout {
+            Layout.fillWidth: true
             Layout.fillHeight: true
+            spacing: Kirigami.Units.largeSpacing
+
+            ColumnLayout {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                Layout.minimumWidth: Kirigami.Units.gridUnit * 16
+                Layout.alignment: Qt.AlignTop
+                spacing: Kirigami.Units.smallSpacing
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: Kirigami.Units.smallSpacing
+
+                    Kirigami.Heading {
+                        text: tx.i18n("Connections")
+                        level: 3
+                        Layout.fillWidth: true
+                    }
+
+                    QQC2.Button {
+                        Kirigami.MnemonicData.enabled: false
+                        text: tx.i18n("Close all")
+                        enabled: kcm.client.coreRunning && connectionModel.count > 0
+                        onClicked: closeAllDialog.open()
+
+                        QQC2.ToolTip.visible: hovered
+                        QQC2.ToolTip.delay: 700
+                        QQC2.ToolTip.text: tx.i18n("Closes every connection going through the core.")
+                    }
+                }
+
+                Item {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    Layout.minimumHeight: Kirigami.Units.gridUnit * 8
+
+                    QQC2.ScrollView {
+                        anchors.fill: parent
+                        Kirigami.StyleHints.showFramedBackground: true
+
+                        ListView {
+                        id: connectionList
+                        clip: true
+                        reuseItems: true
+                        model: connectionModel
+                        spacing: Kirigami.Units.smallSpacing
+                        boundsBehavior: Flickable.StopAtBounds
+
+                        delegate: QQC2.ItemDelegate {
+                            id: connectionDelegate
+                            required property int index
+                            required property string connectionId
+                            required property string process
+                            required property string process_path
+                            required property string host
+                            required property string port
+                            required property string destination_ip
+                            required property string source_ip
+                            required property string source_port
+                            required property string rule
+                            required property string rule_payload
+                            required property var upload
+                            required property var download
+                            width: ListView.view ? ListView.view.width : 0
+                            hoverEnabled: true
+                            Kirigami.MnemonicData.enabled: false
+
+                            background: Rectangle {
+                                radius: Kirigami.Units.cornerRadius
+                                color: connectionDelegate.hovered ? Kirigami.Theme.highlightColor : Kirigami.Theme.alternateBackgroundColor
+                                opacity: connectionDelegate.hovered ? 0.35 : 1
+                            }
+
+                readonly property string destination: {
+                    const raw = host.length > 0 ? host : destination_ip;
+                    const shown = kcm.client.presentHost(raw, kcm.client.blurIp);
+                    return port.length > 0 ? shown + ":" + port : shown;
+                }
+                readonly property string ruleText: rule_payload.length > 0 ? rule + " " + rule_payload : rule
+                readonly property string tip: {
+                    const parts = [];
+                    if (process_path.length > 0) {
+                        parts.push(process_path);
+                    }
+                    const source = kcm.client.presentHost(source_ip, kcm.client.blurIp);
+                    if (source.length > 0) {
+                        parts.push(source_port.length > 0 ? source + ":" + source_port : source);
+                    }
+                    return parts.join("\n");
+                }
+
+                            contentItem: RowLayout {
+                    spacing: Kirigami.Units.smallSpacing
+
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: 0
+
+                        QQC2.Label {
+                            text: connectionDelegate.process.length > 0 ? connectionDelegate.process : tx.i18n("Unknown process")
+                            font.bold: true
+                            elide: Text.ElideRight
+                            Layout.fillWidth: true
+                            Kirigami.MnemonicData.enabled: false
+                        }
+                        QQC2.Label {
+                            text: connectionDelegate.destination + (connectionDelegate.ruleText.length > 0 ? " · " + connectionDelegate.ruleText : "")
+                            opacity: 0.7
+                            font: Kirigami.Theme.smallFont
+                            elide: Text.ElideRight
+                            Layout.fillWidth: true
+                            Kirigami.MnemonicData.enabled: false
+                        }
+                    }
+
+                    ColumnLayout {
+                        spacing: 0
+
+                        QQC2.Label {
+                            text: tx.i18n("Download") + " " + root.formatBytes(connectionDelegate.download)
+                            font: Kirigami.Theme.smallFont
+                            horizontalAlignment: Text.AlignRight
+                            Layout.fillWidth: true
+                            Kirigami.MnemonicData.enabled: false
+                        }
+                        QQC2.Label {
+                            text: tx.i18n("Upload") + " " + root.formatBytes(connectionDelegate.upload)
+                            font: Kirigami.Theme.smallFont
+                            opacity: 0.7
+                            horizontalAlignment: Text.AlignRight
+                            Layout.fillWidth: true
+                            Kirigami.MnemonicData.enabled: false
+                        }
+                    }
+
+                    QQC2.ToolButton {
+                        Kirigami.MnemonicData.enabled: false
+                        icon.name: "edit-delete"
+                        display: QQC2.AbstractButton.IconOnly
+                        onClicked: kcm.client.closeConnection(connectionDelegate.connectionId)
+
+                        QQC2.ToolTip.visible: hovered
+                        QQC2.ToolTip.delay: 700
+                        QQC2.ToolTip.text: tx.i18n("Closes this connection.")
+                    }
+                }
+
+                            HoverHandler {
+                                id: connectionHover
+                            }
+
+                            QQC2.ToolTip.visible: connectionHover.hovered && connectionDelegate.tip.length > 0
+                            QQC2.ToolTip.delay: 700
+                            QQC2.ToolTip.text: connectionDelegate.tip
+                        }
+                    }
+                    }
+
+                    QQC2.Label {
+                        anchors.left: parent.left
+                        anchors.top: parent.top
+                        anchors.right: parent.right
+                        anchors.margins: Kirigami.Units.largeSpacing
+                        visible: !kcm.client.coreRunning || connectionModel.count === 0
+                        text: kcm.client.coreRunning ? tx.i18n("No connections") : tx.i18n("Core is not running")
+                        wrapMode: Text.WordWrap
+                        opacity: 0.7
+                        Kirigami.MnemonicData.enabled: false
+                    }
+                }
+            }
+
+            ColumnLayout {
+                Layout.preferredWidth: Kirigami.Units.gridUnit * 22
+                Layout.maximumWidth: Kirigami.Units.gridUnit * 28
+                Layout.minimumWidth: Kirigami.Units.gridUnit * 16
+                Layout.alignment: Qt.AlignTop
+                spacing: Kirigami.Units.smallSpacing
+
+                Kirigami.Heading {
+                    text: tx.i18n("Speed test")
+                    level: 3
+                    Layout.fillWidth: true
+                }
+
+                Rectangle {
+                    Layout.fillWidth: true
+                    radius: Kirigami.Units.cornerRadius
+                    color: Kirigami.Theme.alternateBackgroundColor
+                    implicitHeight: speedColumn.implicitHeight + Kirigami.Units.largeSpacing * 2
+
+                    ColumnLayout {
+                        id: speedColumn
+                        width: parent.width - Kirigami.Units.largeSpacing * 2
+                        anchors.centerIn: parent
+                        spacing: Kirigami.Units.largeSpacing
+
+                        QQC2.Label {
+                            text: tx.i18n("Downloads %1 MB from Cloudflare through the proxy and directly at the same time. Results are for reference only.", tx.formatNumber(kcm.client.speedTestMib))
+                            wrapMode: Text.WordWrap
+                            Layout.fillWidth: true
+                            Kirigami.MnemonicData.enabled: false
+                        }
+
+                        RateChart {
+                            Layout.fillWidth: true
+                            firstName: tx.i18n("Proxy")
+                            secondName: tx.i18n("Direct")
+                            firstSeries: kcm.client.speedProxySamples
+                            secondSeries: kcm.client.speedDirectSamples
+                            firstShown: kcm.client.speedProxyBps
+                            secondShown: kcm.client.speedDirectBps
+                            firstPending: kcm.client.speedProxySamples.length === 0 && kcm.client.speedPhase !== "run"
+                            secondPending: kcm.client.speedDirectSamples.length === 0 && kcm.client.speedPhase !== "run"
+                        }
+
+                        QQC2.Label {
+                            text: tx.i18n("Latency") + "  " + tx.i18n("Proxy") + "  " + root.formatLatency(kcm.client.speedProxyLatencyMs) + "    " + tx.i18n("Direct") + "  " + root.formatLatency(kcm.client.speedDirectLatencyMs)
+                            wrapMode: Text.WordWrap
+                            font: Kirigami.Theme.smallFont
+                            Layout.fillWidth: true
+                            Kirigami.MnemonicData.enabled: false
+                        }
+
+                        QQC2.Label {
+                            visible: kcm.client.speedError.length > 0
+                            text: kcm.client.speedError
+                            wrapMode: Text.WordWrap
+                            color: Kirigami.Theme.negativeTextColor
+                            Layout.fillWidth: true
+                            Kirigami.MnemonicData.enabled: false
+                        }
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: Kirigami.Units.smallSpacing
+
+                            QQC2.Button {
+                                Kirigami.MnemonicData.enabled: false
+                                Layout.fillWidth: true
+                                text: kcm.client.speedRunning ? tx.i18n("Stop") : tx.i18n("Start test")
+                                icon.name: kcm.client.speedRunning ? "media-playback-stop" : "media-playback-start"
+                                onClicked: kcm.client.speedRunning ? kcm.client.stopSpeedTest() : kcm.client.startSpeedTest()
+                            }
+
+                            QQC2.Button {
+                                Kirigami.MnemonicData.enabled: false
+                                visible: !kcm.client.speedRunning && kcm.client.speedPhase === "done"
+                                text: tx.i18n("Reset")
+                                icon.name: "edit-clear"
+                                onClicked: kcm.client.resetSpeedTest()
+                            }
+                        }
+                    }
+                }
+
+                Item {
+                    Layout.fillHeight: true
+                }
+            }
         }
 
         QQC2.Label {
@@ -364,6 +875,13 @@ Item {
             text: tx.i18n("This program includes a Mihomo widget you can add to the panel.")
             Kirigami.MnemonicData.enabled: false
         }
+    }
+
+    Kirigami.PromptDialog {
+        id: closeAllDialog
+        standardButtons: Kirigami.Dialog.Ok | Kirigami.Dialog.Cancel
+        title: tx.i18n("Close all connections?")
+        onAccepted: kcm.client.closeAllConnections()
     }
 
     QQC2.Dialog {

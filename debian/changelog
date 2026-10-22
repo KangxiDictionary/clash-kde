@@ -1,3 +1,12 @@
+clash-kde (1.0.3) unstable; urgency=medium
+
+  * The Status page lists live connections and can close them.
+  * A speed test downloads through the proxy and directly at the same time. The size is set on the Other page.
+  * Profiles lists proxy providers beside the profile list.
+  * Own rules are edited as a draft and can be filled from a spreadsheet. A subscribed route or profile rule can be restored.
+
+ -- KangxiDictionary <108598928+KangxiDictionary@users.noreply.github.com>  Thu, 22 Oct 2026 10:30:00 +0800
+
 clash-kde (1.0.2) unstable; urgency=medium
 
   * The Status page can hide its note about the included panel widget.

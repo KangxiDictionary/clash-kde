@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <QList>
 #include <QObject>
 #include <QVariantList>
 #include <QVariantMap>
@@ -38,6 +39,23 @@ class ClashClient : public QObject
     Q_PROPERTY(bool delayTesting READ delayTesting NOTIFY delayTestingChanged)
     Q_PROPERTY(QVariantList profiles READ profiles NOTIFY profilesChanged)
     Q_PROPERTY(QVariantList groups READ groups NOTIFY proxiesChanged)
+    Q_PROPERTY(QVariantList connections READ connections NOTIFY connectionsChanged)
+    Q_PROPERTY(bool speedRunning READ speedRunning NOTIFY speedChanged)
+    Q_PROPERTY(qulonglong speedProxyBps READ speedProxyBps NOTIFY speedChanged)
+    Q_PROPERTY(qulonglong speedDirectBps READ speedDirectBps NOTIFY speedChanged)
+    Q_PROPERTY(int speedProxyLatencyMs READ speedProxyLatencyMs NOTIFY speedChanged)
+    Q_PROPERTY(int speedDirectLatencyMs READ speedDirectLatencyMs NOTIFY speedChanged)
+    Q_PROPERTY(QVariantList speedProxySamples READ speedProxySamples NOTIFY speedChanged)
+    Q_PROPERTY(QVariantList speedDirectSamples READ speedDirectSamples NOTIFY speedChanged)
+    Q_PROPERTY(qreal speedProgress READ speedProgress NOTIFY speedChanged)
+    Q_PROPERTY(QString speedPhase READ speedPhase NOTIFY speedChanged)
+    Q_PROPERTY(QString speedError READ speedError NOTIFY speedChanged)
+    Q_PROPERTY(int speedTestMib READ speedTestMib NOTIFY statusChanged)
+    Q_PROPERTY(QVariantList proxyProviders READ proxyProviders NOTIFY providersChanged)
+    Q_PROPERTY(QVariantList ownRules READ ownRules NOTIFY rulesChanged)
+    Q_PROPERTY(QVariantList profileRules READ profileRules NOTIFY rulesChanged)
+    Q_PROPERTY(QVariantList ruleProviders READ ruleProviders NOTIFY rulesChanged)
+    Q_PROPERTY(QVariantList ruleTargets READ ruleTargets NOTIFY rulesChanged)
     Q_PROPERTY(QVariantList accounts READ accounts NOTIFY accountsChanged)
     Q_PROPERTY(QString accountsError READ accountsError NOTIFY accountsChanged)
     Q_PROPERTY(qulonglong ownUid READ ownUid CONSTANT)
@@ -55,6 +73,7 @@ class ClashClient : public QObject
     Q_PROPERTY(bool draftBlurIp READ draftBlurIp WRITE setDraftBlurIp NOTIFY draftChanged)
     Q_PROPERTY(bool draftCompact READ draftCompact WRITE setDraftCompact NOTIFY draftChanged)
     Q_PROPERTY(bool draftShowWidgetHint READ draftShowWidgetHint WRITE setDraftShowWidgetHint NOTIFY draftChanged)
+    Q_PROPERTY(int draftSpeedTestMib READ draftSpeedTestMib WRITE setDraftSpeedTestMib NOTIFY draftChanged)
     Q_PROPERTY(QString draftTunDevice READ draftTunDevice WRITE setDraftTunDevice NOTIFY draftChanged)
     Q_PROPERTY(QString draftOverridePath READ draftOverridePath WRITE setDraftOverridePath NOTIFY draftChanged)
     Q_PROPERTY(bool sortGlobal READ sortGlobal NOTIFY statusChanged)
@@ -106,6 +125,23 @@ public:
     bool delayTesting() const;
     QVariantList profiles() const;
     QVariantList groups() const;
+    QVariantList connections() const;
+    bool speedRunning() const { return m_speedRunning; }
+    qulonglong speedProxyBps() const { return m_speedProxyBps; }
+    qulonglong speedDirectBps() const { return m_speedDirectBps; }
+    int speedProxyLatencyMs() const { return m_speedProxyLatencyMs; }
+    int speedDirectLatencyMs() const { return m_speedDirectLatencyMs; }
+    QVariantList speedProxySamples() const { return m_speedProxySamples; }
+    QVariantList speedDirectSamples() const { return m_speedDirectSamples; }
+    qreal speedProgress() const { return m_speedProgress; }
+    QString speedPhase() const { return m_speedPhase; }
+    QString speedError() const { return m_speedError; }
+    int speedTestMib() const { return m_speedTestMib; }
+    QVariantList proxyProviders() const;
+    QVariantList ownRules() const;
+    QVariantList profileRules() const;
+    QVariantList ruleProviders() const;
+    QVariantList ruleTargets() const;
     QVariantList accounts() const;
     QString accountsError() const;
     qulonglong ownUid() const;
@@ -138,6 +174,8 @@ public:
     void setDraftCompact(bool enabled);
     bool draftShowWidgetHint() const;
     void setDraftShowWidgetHint(bool enabled);
+    int draftSpeedTestMib() const;
+    void setDraftSpeedTestMib(int mib);
     QString draftTunDevice() const;
     void setDraftTunDevice(const QString &name);
     QString draftOverridePath() const;
@@ -175,6 +213,7 @@ public:
     Q_INVOKABLE QString presentExit(const QString &raw, bool blur) const;
     Q_INVOKABLE QString presentPlace(const QString &raw) const;
     Q_INVOKABLE QString presentAddress(const QString &raw, bool blur) const;
+    Q_INVOKABLE QString presentHost(const QString &host, bool blur) const;
     Q_INVOKABLE QString addressOf(const QString &raw) const;
     Q_INVOKABLE void ensureProxies();
     Q_INVOKABLE void copyText(const QString &text) const;
@@ -203,6 +242,11 @@ public:
     Q_INVOKABLE void setCompact(bool enabled);
     Q_INVOKABLE QVariantMap routeDetail(const QString &name);
     Q_INVOKABLE void stageRoute(const QString &previous, const QString &name, const QString &kind, const QString &server, int port, const QString &secret);
+    Q_INVOKABLE bool restoreRoute(const QString &name);
+    Q_INVOKABLE bool restoreProfileRule(int index);
+    Q_INVOKABLE QString noteFor(const QString &key) const;
+    Q_INVOKABLE void stageNote(const QString &key, const QString &text);
+    Q_INVOKABLE void resetSpeedTest();
     Q_INVOKABLE QVariantMap stagedRoute(const QString &previous) const;
     Q_INVOKABLE bool addRoute(const QString &group, const QString &name, const QString &kind, const QString &server, int port, const QString &secret);
     Q_INVOKABLE void removeRoute(const QString &name);
@@ -211,6 +255,22 @@ public:
     Q_INVOKABLE void setAccountLan(qulonglong uid, bool enabled);
     Q_INVOKABLE void openOverrideFile(const QString &path);
     Q_INVOKABLE void openOverrideFolder(const QString &path);
+    Q_INVOKABLE void refreshConnections();
+    Q_INVOKABLE void startSpeedTest();
+    Q_INVOKABLE void stopSpeedTest();
+    Q_INVOKABLE void closeConnection(const QString &id);
+    Q_INVOKABLE void closeAllConnections();
+    Q_INVOKABLE void refreshProxyProviders();
+    Q_INVOKABLE void updateProxyProvider(const QString &name);
+    Q_INVOKABLE void refreshRules();
+    Q_INVOKABLE void updateRuleProvider(const QString &name);
+    Q_INVOKABLE void stageRule(int index, const QString &type, const QString &payload, const QString &target, bool enabled);
+    Q_INVOKABLE void stageForkedRule(const QString &type, const QString &payload, const QString &target, bool enabled);
+    Q_INVOKABLE bool addOwnRule(const QString &type, const QString &payload, const QString &target);
+    Q_INVOKABLE void removeOwnRule(int index);
+    Q_INVOKABLE int openRulesSpreadsheet();
+    Q_INVOKABLE QString finishRulesSpreadsheet();
+    Q_INVOKABLE void cancelRulesSpreadsheet();
     Q_INVOKABLE void reload();
     bool commitSettings();
     void revertDraft();
@@ -227,6 +287,12 @@ Q_SIGNALS:
     void delayUpdated(const QString &group, const QString &name, qlonglong delayMs);
     void draftChanged();
     void routeDraftDiscarded();
+    void ruleDraftDiscarded();
+    void connectionsChanged();
+    void speedChanged();
+    void notesChanged();
+    void providersChanged();
+    void rulesChanged();
     void hintChanged();
     void errorOccurred(const QString &message);
     void editorTextReady(const QString &body);
@@ -248,6 +314,42 @@ private:
     void overlayCurrentAccount();
     void reportError(const QString &message);
     QString prepareOverride(const QString &path);
+    bool ruleDirty() const;
+    QString rulesJson() const;
+    void clearRuleDraft();
+    void pullRules();
+    void applyRuleView(const QVariantMap &view);
+    void discardSheetFile();
+    struct SpeedLeg {
+        class QNetworkReply *probe = nullptr;
+        class QNetworkReply *download = nullptr;
+        qint64 markMs = 0;
+        qint64 received = 0;
+        qint64 sampleBytes = 0;
+        qint64 sampleAt = 0;
+        bool probeSettled = false;
+        bool probeOk = false;
+        bool downloading = false;
+        bool downloadSettled = false;
+        QList<double> raw;
+    };
+
+    void beginSpeedProbes();
+    void beginSpeedDownloads();
+    void beginSpeedDownload(SpeedLeg &leg);
+    void takeSpeedSample(SpeedLeg &leg, qint64 now, bool force);
+    void startSpeedSampler();
+    void stopSpeedSampler();
+    void sampleSpeedTick();
+    void finishSpeedTest();
+    void abortSpeedReply(class QNetworkReply *&reply);
+    void publishSpeedSeries(bool force);
+    void noteSpeedError(const QString &which, const QString &message);
+    qint64 speedDownloadBytes() const;
+    void noteSpeed(bool force = false);
+    void pullNotes();
+    void shiftOwnRuleNotes(int removed);
+    class QNetworkAccessManager *speedNam(bool throughProxy);
     void asyncCall(const QString &method, const QVariantList &args, bool refreshProfilesAfter, bool refreshProxiesAfter, bool markBusy = true);
     void accountCall(const QString &method, qulonglong uid);
 
@@ -299,6 +401,7 @@ private:
     bool m_draftBlurIp = false;
     bool m_draftCompact = false;
     bool m_draftShowWidgetHint = true;
+    int m_draftSpeedTestMib = 20;
     QString m_draftTunDevice;
     QString m_draftOverridePath;
     QString m_tunDevice;
@@ -312,9 +415,42 @@ private:
     bool m_blurIp = false;
     bool m_compact = false;
     bool m_showWidgetHint = true;
+    int m_speedTestMib = 20;
     QString m_routeProfile;
     QVariantMap m_routeEdits;
     QVariantMap m_routeBaselines;
+    QVariantMap m_savedNotes;
+    QVariantMap m_noteEdits;
+    QVariantList m_connections;
+    bool m_connectionsPending = false;
+    class QNetworkAccessManager *m_directNam = nullptr;
+    class QNetworkAccessManager *m_proxyNam = nullptr;
+    class QTimer *m_speedSampleTimer = nullptr;
+    SpeedLeg m_proxyLeg;
+    SpeedLeg m_directLeg;
+    bool m_speedRunning = false;
+    qulonglong m_speedProxyBps = 0;
+    qulonglong m_speedDirectBps = 0;
+    int m_speedProxyLatencyMs = -1;
+    int m_speedDirectLatencyMs = -1;
+    QVariantList m_speedProxySamples;
+    QVariantList m_speedDirectSamples;
+    qreal m_speedProgress = 0;
+    QString m_speedPhase;
+    QString m_speedError;
+    qint64 m_speedNotedMs = 0;
+    quint64 m_speedToken = 0;
+    QVariantList m_proxyProviders;
+    bool m_providersPending = false;
+    QVariantList m_savedRules;
+    QVariantList m_ruleImport;
+    bool m_ruleImporting = false;
+    QVariantMap m_ruleEdits;
+    QVariantList m_profileRules;
+    QVariantList m_ruleProviders;
+    QVariantList m_ruleTargets;
+    bool m_rulesPending = false;
+    QString m_sheetPath;
     bool m_allowLan = false;
     QString m_lanUsername;
     QString m_lanPassword;

@@ -317,7 +317,7 @@ pub async fn revoke_tun() -> Result<(), String> {
 pub async fn revoke_quickly() -> Result<(), String> {
     match tokio::time::timeout(Duration::from_millis(1200), revoke_tun()).await {
         Ok(result) => result,
-        Err(_) => Err("没能及时撤销 TUN 授权".to_string()),
+        Err(_) => Err("无法及时撤销 TUN 授权".to_string()),
     }
 }
 

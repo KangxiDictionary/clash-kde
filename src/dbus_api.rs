@@ -150,9 +150,16 @@ impl Manager {
         auto_test_delay: bool,
         blur_ip: bool,
         show_widget_hint: bool,
+        speed_test_mib: i32,
     ) -> fdo::Result<()> {
         self.app
-            .set_behavior(sort_global, auto_test_delay, blur_ip, show_widget_hint)
+            .set_behavior(
+                sort_global,
+                auto_test_delay,
+                blur_ip,
+                show_widget_hint,
+                speed_test_mib,
+            )
             .await
             .map_err(failed)
     }
@@ -200,6 +207,29 @@ impl Manager {
     #[zbus(name = "RemoveRoute")]
     async fn remove_route(&self, id: String, name: String) -> fdo::Result<()> {
         self.app.remove_route(&id, &name).await.map_err(failed)
+    }
+
+    #[zbus(name = "RestoreRoute")]
+    async fn restore_route(&self, id: String, name: String) -> fdo::Result<()> {
+        self.app.restore_route(&id, &name).await.map_err(failed)
+    }
+
+    #[zbus(name = "RestoreProfileRule")]
+    async fn restore_profile_rule(&self, id: String, index: u32) -> fdo::Result<()> {
+        self.app
+            .restore_profile_rule(&id, index)
+            .await
+            .map_err(failed)
+    }
+
+    #[zbus(name = "GetNotes")]
+    async fn get_notes(&self) -> String {
+        self.app.notes_json().await
+    }
+
+    #[zbus(name = "SetNotes")]
+    async fn set_notes(&self, body: String) -> fdo::Result<()> {
+        self.app.set_notes(&body).await.map_err(failed)
     }
 
     #[zbus(name = "UpdateRoute")]
@@ -262,6 +292,69 @@ impl Manager {
     #[zbus(name = "GetProxies")]
     async fn get_proxies(&self) -> fdo::Result<String> {
         self.app.proxies_json().await.map_err(failed)
+    }
+
+    #[zbus(name = "GetConnections")]
+    async fn get_connections(&self) -> fdo::Result<String> {
+        self.app.connections_json().await.map_err(failed)
+    }
+
+    #[zbus(name = "CloseConnection")]
+    async fn close_connection(&self, id: String) -> fdo::Result<()> {
+        self.app.close_connection(&id).await.map_err(failed)
+    }
+
+    #[zbus(name = "CloseAllConnections")]
+    async fn close_all_connections(&self) -> fdo::Result<()> {
+        self.app.close_all_connections().await.map_err(failed)
+    }
+
+    #[zbus(name = "GetProxyProviders")]
+    async fn get_proxy_providers(&self) -> fdo::Result<String> {
+        Ok(self.app.proxy_providers_json().await)
+    }
+
+    #[zbus(name = "UpdateProxyProvider")]
+    async fn update_proxy_provider(&self, name: String) -> fdo::Result<()> {
+        self.app.update_proxy_provider(&name).await.map_err(failed)
+    }
+
+    #[zbus(name = "UpdateRuleProvider")]
+    async fn update_rule_provider(&self, name: String) -> fdo::Result<()> {
+        self.app.update_rule_provider(&name).await.map_err(failed)
+    }
+
+    #[zbus(name = "GetRuleView")]
+    async fn get_rule_view(&self) -> fdo::Result<String> {
+        self.app.rule_view_json().await.map_err(failed)
+    }
+
+    #[zbus(name = "AddOwnRule")]
+    async fn add_own_rule(&self, kind: String, payload: String, target: String) -> fdo::Result<()> {
+        self.app
+            .add_own_rule(kind, payload, target)
+            .await
+            .map_err(failed)
+    }
+
+    #[zbus(name = "RemoveOwnRule")]
+    async fn remove_own_rule(&self, index: u32) -> fdo::Result<()> {
+        self.app.remove_own_rule(index).await.map_err(failed)
+    }
+
+    #[zbus(name = "SetOwnRules")]
+    async fn set_own_rules(&self, body: String) -> fdo::Result<()> {
+        self.app.set_own_rules(&body).await.map_err(failed)
+    }
+
+    #[zbus(name = "RulesCsv")]
+    async fn rules_csv(&self, body: String) -> fdo::Result<String> {
+        crate::rules::csv_from_json(&body).map_err(failed)
+    }
+
+    #[zbus(name = "ParseRulesCsv")]
+    async fn parse_rules_csv(&self, body: String) -> fdo::Result<String> {
+        crate::rules::json_from_csv(&body).map_err(failed)
     }
 
     #[zbus(signal)]

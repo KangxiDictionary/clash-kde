@@ -26,20 +26,74 @@ Item {
     property bool chosenActive: false
     property string chosenMode: "profile"
     property bool chosenShow: true
+    property string page: "routes"
+
+    onPageChanged: {
+        const next = page === "rules" ? 1 : 0;
+        if (modeTabs.currentIndex !== next) {
+            modeTabs.currentIndex = next;
+        }
+    }
 
     ListModel {
         id: shownModel
     }
 
+    function profileSubscribed() {
+        const id = kcm.client.draftActiveProfile;
+        const profiles = kcm.client.profiles || [];
+        for (let i = 0; i < profiles.length; ++i) {
+            if (profiles[i].id === id) {
+                return String(profiles[i].url || "").length > 0;
+            }
+        }
+        return false;
+    }
+
+    property bool pickedManually: false
+    property bool fileChanged: false
+    property bool itemChanged: false
+
+    function refreshItemChanged() {
+        const staged = kcm.client.stagedRoute(root.picked);
+        root.itemChanged = root.fileChanged || !!(staged && staged.name);
+    }
+
+    function openCurrent() {
+        if (root.groupNow.length === 0) {
+            return;
+        }
+        if (root.pickedManually) {
+            for (let i = 0; i < nodeModel.count; ++i) {
+                if (nodeModel.get(i).name === root.picked) {
+                    return;
+                }
+            }
+        }
+        if (root.picked === root.groupNow && root.detail && root.detail.name === root.groupNow) {
+            return;
+        }
+        root.picked = root.groupNow;
+        root.showPicked();
+    }
+
     function showPicked() {
         if (root.picked.length === 0) {
             root.detail = {};
+            root.fileChanged = false;
+            root.itemChanged = false;
+            root.filling = true;
+            detailNote.text = "";
+            root.filling = false;
             return;
         }
         root.filling = true;
         root.revealSecret = false;
+        const live = kcm.client.routeDetail(root.picked);
+        root.fileChanged = live.changed === true;
         const staged = kcm.client.stagedRoute(root.picked);
-        root.detail = staged && staged.name ? staged : kcm.client.routeDetail(root.picked);
+        root.detail = staged && staged.name ? staged : live;
+        detailNote.text = kcm.client.noteFor("route\n" + kcm.client.draftActiveProfile + "\n" + root.picked);
         detailName.text = root.detail.name || "";
         const kind = String(root.detail.kind || "http").toLowerCase();
         let kindIndex = 0;
@@ -53,6 +107,7 @@ Item {
         detailServer.text = root.detail.server || "";
         detailPort.value = root.detail.port > 0 ? root.detail.port : 443;
         detailSecret.text = root.detail.secret || "";
+        root.refreshItemChanged();
         root.filling = false;
     }
 
@@ -61,6 +116,7 @@ Item {
             return;
         }
         kcm.client.stageRoute(root.picked, detailName.text, detailKind.currentText, detailServer.text, detailPort.value, detailSecret.text);
+        root.refreshItemChanged();
     }
 
     function rebuildShown() {
@@ -107,6 +163,18 @@ Item {
         target: kcm.client
         function onRouteDraftDiscarded() {
             root.showPicked();
+        }
+        function onNotesChanged() {
+            if (detailNote.activeFocus || root.filling || root.picked.length === 0) {
+                return;
+            }
+            const next = kcm.client.noteFor("route\n" + kcm.client.draftActiveProfile + "\n" + root.picked);
+            if (next === detailNote.text) {
+                return;
+            }
+            root.filling = true;
+            detailNote.text = next;
+            root.filling = false;
         }
     }
 
@@ -363,6 +431,7 @@ Item {
         }
         root.resort();
         root.considerAutoTest();
+        root.openCurrent();
     }
 
     function chooseNode(name) {
@@ -428,26 +497,80 @@ Item {
         }
     }
 
-    Component.onCompleted: syncFromClient()
+    Component.onCompleted: {
+        syncFromClient();
+        Qt.callLater(() => kcm.client.refreshRules());
+    }
 
-    ColumnLayout {
+    RowLayout {
         anchors.fill: parent
-        spacing: Kirigami.Units.largeSpacing
+        spacing: Kirigami.Units.smallSpacing
 
-        Kirigami.InlineMessage {
-            Layout.fillWidth: true
-            visible: !kcm.client.coreRunning
-            type: Kirigami.MessageType.Warning
-            text: tx.i18n("Core is not running")
-            showCloseButton: false
+        QQC2.TabBar {
+            id: modeTabs
+            Layout.fillHeight: true
+            Layout.preferredWidth: Math.max(routeTab.implicitWidth, ruleTab.implicitWidth)
+            spacing: 0
+            onCurrentIndexChanged: {
+                const next = currentIndex === 1 ? "rules" : "routes";
+                if (root.page !== next) {
+                    root.page = next;
+                }
+            }
+            contentItem: ListView {
+                model: modeTabs.contentModel
+                currentIndex: modeTabs.currentIndex
+                orientation: ListView.Vertical
+                spacing: modeTabs.spacing
+                interactive: false
+                boundsBehavior: Flickable.StopAtBounds
+                clip: true
+            }
+            background: Item {
+                Kirigami.Separator {
+                    anchors.top: parent.top
+                    anchors.bottom: parent.bottom
+                    anchors.right: parent.right
+                }
+            }
+
+            QQC2.TabButton {
+                id: routeTab
+                text: tx.i18n("Routes")
+                width: modeTabs.width
+                Kirigami.MnemonicData.enabled: false
+            }
+            QQC2.TabButton {
+                id: ruleTab
+                text: tx.i18n("Rules")
+                width: modeTabs.width
+                Kirigami.MnemonicData.enabled: false
+            }
         }
 
-        QQC2.Label {
-            visible: root.selectedGroup.length === 0
-            text: tx.i18n("No proxy groups")
-            opacity: 0.7
+        Item {
             Layout.fillWidth: true
-        }
+            Layout.fillHeight: true
+
+            ColumnLayout {
+                anchors.fill: parent
+                visible: root.page === "routes"
+                spacing: Kirigami.Units.largeSpacing
+
+                Kirigami.InlineMessage {
+                    Layout.fillWidth: true
+                    visible: !kcm.client.coreRunning
+                    type: Kirigami.MessageType.Warning
+                    text: tx.i18n("Core is not running")
+                    showCloseButton: false
+                }
+
+                QQC2.Label {
+                    visible: root.selectedGroup.length === 0
+                    text: tx.i18n("No proxy groups")
+                    opacity: 0.7
+                    Layout.fillWidth: true
+                }
 
         RowLayout {
             Layout.fillWidth: true
@@ -466,6 +589,8 @@ Item {
                 Layout.fillWidth: true
                 Layout.maximumWidth: Kirigami.Units.gridUnit * 20
                 onActivated: {
+                    root.pickedManually = false;
+                    root.picked = "";
                     root.selectedGroup = currentText;
                     root.nodeSignature = "";
                     root.syncFromClient();
@@ -492,7 +617,7 @@ Item {
 
                 QQC2.ToolTip.visible: hovered
                 QQC2.ToolTip.delay: 700
-                QQC2.ToolTip.text: tx.i18n("Sort and filter")
+                QQC2.ToolTip.text: tx.i18n("Sorts and filters this list.")
 
                 QQC2.Menu {
                     id: sortMenu
@@ -541,18 +666,18 @@ Item {
             }
         }
 
-        Kirigami.Separator {
-            Layout.fillWidth: true
-            visible: root.selectedGroup.length > 0
-        }
+                Kirigami.Separator {
+                    Layout.fillWidth: true
+                    visible: root.selectedGroup.length > 0
+                }
 
-        Item {
-            Layout.fillWidth: true
-            Layout.fillHeight: true
-            visible: root.selectedGroup.length > 0
+                Item {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
 
             Kirigami.SearchField {
                 id: routeSearch
+                visible: root.selectedGroup.length > 0
                 anchors.left: parent.left
                 anchors.right: parent.right
                 anchors.top: parent.top
@@ -579,18 +704,23 @@ Item {
             }
 
             QQC2.SplitView {
+                visible: root.selectedGroup.length > 0
                 anchors.top: routeSearch.bottom
                 anchors.topMargin: Kirigami.Units.smallSpacing
                 anchors.left: parent.left
                 anchors.right: parent.right
-                anchors.bottom: buttonRow.top
-                anchors.bottomMargin: Kirigami.Units.smallSpacing
+                anchors.bottom: parent.bottom
                 orientation: Qt.Horizontal
 
-                QQC2.ScrollView {
+                ColumnLayout {
+                    spacing: Kirigami.Units.smallSpacing
                     QQC2.SplitView.preferredWidth: Kirigami.Units.gridUnit * 16
                     QQC2.SplitView.minimumWidth: Kirigami.Units.gridUnit * 10
                     QQC2.SplitView.fillHeight: true
+
+                QQC2.ScrollView {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
                     Kirigami.StyleHints.showFramedBackground: true
 
                     ListView {
@@ -616,6 +746,7 @@ Item {
                             highlighted: root.groupNow === name
                             Kirigami.MnemonicData.enabled: false
                             onClicked: {
+                                root.pickedManually = true;
                                 root.picked = name;
                                 root.showPicked();
                                 root.chooseNode(name);
@@ -630,11 +761,61 @@ Item {
                     }
                 }
 
-                Flickable {
-                    id: detailFlick
+                RowLayout {
+                    Layout.alignment: Qt.AlignRight
+                    spacing: Kirigami.Units.smallSpacing
+
+                    QQC2.ToolButton {
+                        icon.name: "document-edit"
+                        display: QQC2.AbstractButton.IconOnly
+                        text: QQC2.ToolTip.text
+                        enabled: kcm.client.draftActiveProfile.length > 0
+                        Kirigami.MnemonicData.enabled: false
+                        onClicked: {
+                            editorDialog.profileId = kcm.client.draftActiveProfile;
+                            editorText.text = kcm.client.profileBody(kcm.client.draftActiveProfile);
+                            editorDialog.open();
+                        }
+                        QQC2.ToolTip.text: tx.i18n("Opens this profile in the editor. A subscription update replaces the whole file.")
+                        QQC2.ToolTip.visible: hovered
+                    }
+
+                    QQC2.ToolButton {
+                        icon.name: "list-add"
+                        display: QQC2.AbstractButton.IconOnly
+                        text: QQC2.ToolTip.text
+                        enabled: root.selectedGroup.length > 0
+                        Kirigami.MnemonicData.enabled: false
+                        onClicked: addDialog.open
+                        QQC2.ToolTip.text: tx.i18n("Adds a route to the current profile, which a subscription update replaces.")
+                        QQC2.ToolTip.visible: hovered
+                    }
+
+                    QQC2.ToolButton {
+                        icon.name: "list-remove"
+                        display: QQC2.AbstractButton.IconOnly
+                        text: QQC2.ToolTip.text
+                        enabled: root.detail.in_file === true
+                        Kirigami.MnemonicData.enabled: false
+                        onClicked: removeDialog.open
+                        QQC2.ToolTip.text: tx.i18n("Removes the selected route from the current profile, which a subscription update replaces.")
+                        QQC2.ToolTip.visible: hovered
+                    }
+                }
+                }
+
+                Item {
                     QQC2.SplitView.fillWidth: true
                     QQC2.SplitView.minimumWidth: Kirigami.Units.gridUnit * 14
                     QQC2.SplitView.fillHeight: true
+
+                Flickable {
+                    id: detailFlick
+                    anchors.top: parent.top
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.bottom: restoreRow.top
+                    anchors.bottomMargin: Kirigami.Units.smallSpacing
                     contentWidth: width
                     contentHeight: detailColumn.implicitHeight
                     clip: true
@@ -782,53 +963,78 @@ Item {
                                     QQC2.ToolTip.text: tx.i18n("Hold to show the password.")
                                 }
                             }
+
+                            QQC2.Label {
+                                text: tx.i18n("Comment")
+                                font.bold: true
+                                visible: root.picked.length > 0
+                                Kirigami.MnemonicData.enabled: false
+                            }
+                            QQC2.Label {
+                                text: tx.i18n("A note kept by this program, separate from the profile.")
+                                visible: root.picked.length > 0
+                                wrapMode: Text.WordWrap
+                                opacity: 0.7
+                                font: Kirigami.Theme.smallFont
+                                Layout.fillWidth: true
+                                Kirigami.MnemonicData.enabled: false
+                            }
+                            QQC2.TextArea {
+                                id: detailNote
+                                visible: root.picked.length > 0
+                                Layout.fillWidth: true
+                                readonly property real noteLimit: Kirigami.Units.gridUnit * 12
+                                Layout.preferredHeight: Math.min(noteLimit, Math.max(implicitBackgroundHeight, contentHeight + topPadding + bottomPadding))
+                                Layout.maximumHeight: noteLimit
+                                wrapMode: TextEdit.Wrap
+                                clip: true
+                                Kirigami.MnemonicData.enabled: false
+                                QQC2.ScrollBar.vertical: QQC2.ScrollBar {
+                                    policy: QQC2.ScrollBar.AsNeeded
+                                }
+                                onTextChanged: {
+                                    if (root.filling || root.picked.length === 0) {
+                                        return;
+                                    }
+                                    kcm.client.stageNote("route\n" + kcm.client.draftActiveProfile + "\n" + root.picked, text);
+                                }
+                            }
                         }
                     }
                 }
+
+                RowLayout {
+                    id: restoreRow
+                    anchors.right: parent.right
+                    anchors.bottom: parent.bottom
+                    QQC2.Button {
+                        text: tx.i18n("Restore")
+                        icon.name: "edit-undo"
+                        enabled: root.profileSubscribed() && root.itemChanged
+                        Kirigami.MnemonicData.enabled: false
+                        onClicked: {
+                            if (root.detail.in_file !== true) {
+                                kcm.client.showHint(tx.i18n("This item is not in the subscription."));
+                                return;
+                            }
+                            if (kcm.client.restoreRoute(root.picked)) {
+                                root.showPicked();
+                            }
+                        }
+                        QQC2.ToolTip.visible: hovered && !root.profileSubscribed()
+                        QQC2.ToolTip.delay: 700
+                        QQC2.ToolTip.text: tx.i18n("This profile has no subscription, so this item cannot be restored.")
+                    }
+                }
+                }
             }
 
-            Row {
-                id: buttonRow
-                anchors.right: parent.right
-                anchors.bottom: parent.bottom
-                spacing: Kirigami.Units.smallSpacing
+            }
+            }
 
-                QQC2.ToolButton {
-                    icon.name: "document-edit"
-                    display: QQC2.AbstractButton.IconOnly
-                    text: QQC2.ToolTip.text
-                    enabled: kcm.client.draftActiveProfile.length > 0
-                    Kirigami.MnemonicData.enabled: false
-                    onClicked: {
-                        editorDialog.profileId = kcm.client.draftActiveProfile;
-                        editorText.text = kcm.client.profileBody(kcm.client.draftActiveProfile);
-                        editorDialog.open();
-                    }
-                    QQC2.ToolTip.text: tx.i18n("Opens this profile in the editor. A subscription update replaces the whole file.")
-                    QQC2.ToolTip.visible: hovered
-                }
-
-                QQC2.ToolButton {
-                    icon.name: "list-add"
-                    display: QQC2.AbstractButton.IconOnly
-                    text: QQC2.ToolTip.text
-                    enabled: root.selectedGroup.length > 0
-                    Kirigami.MnemonicData.enabled: false
-                    onClicked: addDialog.open()
-                    QQC2.ToolTip.text: tx.i18n("Adds a route to the current profile, which a subscription update replaces.")
-                    QQC2.ToolTip.visible: hovered
-                }
-
-                QQC2.ToolButton {
-                    icon.name: "list-remove"
-                    display: QQC2.AbstractButton.IconOnly
-                    text: QQC2.ToolTip.text
-                    enabled: root.detail.in_file === true
-                    Kirigami.MnemonicData.enabled: false
-                    onClicked: removeDialog.open()
-                    QQC2.ToolTip.text: tx.i18n("Removes the selected route from the current profile, which a subscription update replaces.")
-                    QQC2.ToolTip.visible: hovered
-                }
+            RulesPane {
+                anchors.fill: parent
+                visible: root.page === "rules"
             }
         }
     }

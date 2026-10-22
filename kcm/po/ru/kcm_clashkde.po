@@ -256,8 +256,8 @@ msgstr "Файл замены"
 msgid "Point KDE applications at this core while it is running"
 msgstr "Пока ядро запущено, направлять на него приложения KDE"
 
-msgid "Proxies"
-msgstr "Прокси"
+msgid "Nodes"
+msgstr "Узлы"
 
 msgid "Remove"
 msgstr "Удалить"
@@ -573,3 +573,212 @@ msgstr "Показывать заметку о виджете панели"
 
 msgid "Shows a note on the Status page that this program includes a panel widget."
 msgstr "На странице состояния сообщает, что в программе есть виджет для панели."
+
+msgid "Connections"
+msgstr "Подключения"
+
+msgid "Close all"
+msgstr "Закрыть все"
+
+msgid "Closes every connection going through the core."
+msgstr "Закрывает каждое соединение, идущее через ядро."
+
+msgid "No connections"
+msgstr "Нет подключений"
+
+msgid "Unknown process"
+msgstr "Неизвестный процесс"
+
+msgid "Closes this connection."
+msgstr "Закрывает это соединение."
+
+msgid "Close all connections?"
+msgstr "Закрыть все подключения?"
+
+msgid "Proxy providers"
+msgstr "Поставщики прокси"
+
+msgid "%1 nodes"
+msgstr "%1 узлов"
+
+msgid "Update now"
+msgstr "Обновить сейчас"
+
+msgid "Start the core first."
+msgstr "Сначала запустите ядро."
+
+msgid "Routes"
+msgstr "Маршруты"
+
+msgid "Groups and the route each one is using."
+msgstr "Группы и маршрут, который использует каждая."
+
+msgid "Rules"
+msgstr "Правила"
+
+msgid "Rules you add, the profile rules, and rule sets."
+msgstr "Ваши правила, правила профиля и наборы правил."
+
+msgid "Domain"
+msgstr "Домен"
+
+msgid "Domain suffix"
+msgstr "Суффикс домена"
+
+msgid "Domain keyword"
+msgstr "Ключевое слово домена"
+
+msgid "IP range"
+msgstr "Диапазон IP"
+
+msgid "Process name"
+msgstr "Имя процесса"
+
+msgid "Destination port"
+msgstr "Порт назначения"
+
+msgid "Final match"
+msgstr "Последнее совпадение"
+
+msgid "Your rules"
+msgstr "Мои правила"
+
+msgid "Profile rules"
+msgstr "Правила профиля"
+
+msgid "Rule sets"
+msgstr "Наборы правил"
+
+msgid "Add a rule"
+msgstr "Добавить правило"
+
+msgid "Adds a rule now, before the profile rules. A subscription update does not remove it."
+msgstr "Сразу добавляет правило перед правилами профиля. Обновление подписки его не удаляет."
+
+msgid "Removes the selected rule now."
+msgstr "Сразу удаляет выбранное правило."
+
+msgid "Edit in a spreadsheet"
+msgstr "Изменить в таблице"
+
+msgid "Opens these rules in a spreadsheet. Press Apply after they are read back."
+msgstr "Открывает эти правила в таблице. После чтения нажмите «Применить»."
+
+msgid "No spreadsheet program was found."
+msgstr "Программа для таблиц не найдена."
+
+msgid "%1 rules"
+msgstr "%1 правил"
+
+msgid "Select a rule to see its details."
+msgstr "Выберите правило, чтобы увидеть подробности."
+
+msgid "Editing this profile rule saves your own copy, which a subscription update does not remove."
+msgstr "Правка здесь сохраняет вашу копию, и обновление подписки её не удаляет."
+
+msgid "This rule set comes with the profile. It can be updated, not edited here."
+msgstr "Этот набор правил идёт с профилем. Здесь его можно обновить, но не изменить."
+
+msgid "The kind of match this rule uses."
+msgstr "По чему это правило сравнивает."
+
+msgid "Match"
+msgstr "Совпадение"
+
+msgid "What this rule compares against. A final match leaves this empty."
+msgstr "С чем это правило сравнивает. Последнее совпадение оставляет это пустым."
+
+msgid "Target"
+msgstr "Назначение"
+
+msgid "The group, DIRECT, or REJECT that handles a match."
+msgstr "Группа, DIRECT или REJECT, которая обрабатывает совпадение."
+
+msgid "Enabled"
+msgstr "Включено"
+
+msgid "A disabled rule stays in the list and is left out of the running config."
+msgstr "Выключенное правило остаётся в списке и не попадает в работающую конфигурацию."
+
+msgid "Remove this rule?"
+msgstr "Удалить это правило?"
+
+msgid "Save over this CSV file, then press Done. A separate spreadsheet file is not read back, and LibreOffice does not edit the YAML."
+msgstr "Сохраните поверх этого CSV и нажмите «Готово». Другой файл таблицы не будет прочитан, а LibreOffice не редактирует YAML."
+
+msgid "Done"
+msgstr "Готово"
+
+msgid "Cancel"
+msgstr "Отмена"
+
+msgid "Speed test"
+msgstr "Проверка скорости"
+
+msgid "Downloads %1 MB from Cloudflare through the proxy and directly at the same time. Results are for reference only."
+msgstr "Одновременно загружает %1 МБ с Cloudflare через прокси и напрямую. Результаты приведены для справки."
+
+msgid "Start test"
+msgstr "Начать тест"
+
+msgid "Latency"
+msgstr "Задержка"
+
+msgid "Selects this profile. Press Apply to use it."
+msgstr "Выбирает этот профиль. Он включится после применения."
+
+msgid "Edits the name and the subscription link."
+msgstr "Меняет имя и ссылку подписки."
+
+msgctxt "@title"
+msgid "Download Rate"
+msgstr "Скорость загрузки"
+
+msgctxt "@title"
+msgid "Upload Rate"
+msgstr "Скорость передачи"
+
+msgid "Proxy"
+msgstr "Прокси"
+
+msgid "Restore"
+msgstr "Восстановить"
+
+msgid "Reset"
+msgstr "Сбросить"
+
+msgid "Comment"
+msgstr "Комментарий"
+
+msgid "A note kept by this program, separate from the profile."
+msgstr "Заметка, которую программа хранит отдельно от профиля."
+
+msgid "This profile has no subscription, so this item cannot be restored."
+msgstr "У этого профиля нет подписки, поэтому этот элемент нельзя восстановить."
+
+msgid "This item is not in the subscription."
+msgstr "Этого элемента нет в подписке."
+
+msgid "Download size"
+msgstr "Размер загрузки"
+
+msgid "How much each speed test downloads through the proxy and directly."
+msgstr "Сколько каждый тест скорости загружает через прокси и напрямую."
+
+msgid "No proxy providers"
+msgstr "Нет поставщиков прокси"
+
+msgid "Updates this profile from its subscription."
+msgstr "Обновляет этот профиль из подписки."
+
+msgid "Removes this profile."
+msgstr "Удаляет этот профиль."
+
+msgid "Sorts and filters this list."
+msgstr "Сортирует и фильтрует этот список."
+
+msgid "Updates this proxy provider."
+msgstr "Обновляет этого поставщика прокси."
+
+msgid "Updates this rule set."
+msgstr "Обновляет этот набор правил."

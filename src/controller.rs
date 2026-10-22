@@ -130,6 +130,114 @@ impl Controller {
         }
         Ok(response.bytes_stream())
     }
+
+    pub async fn connections(&self) -> Result<Vec<ConnectionRow>, String> {
+        let response = self
+            .client
+            .get(format!("{}/connections", self.base))
+            .send()
+            .await
+            .map_err(|error| format!("无法读取连接: {error}"))?;
+        if !response.status().is_success() {
+            return Err(format!("无法读取连接: HTTP {}", response.status()));
+        }
+        let body: Value = response
+            .json()
+            .await
+            .map_err(|error| format!("连接响应无法解析: {error}"))?;
+        Ok(parse_connections(&body))
+    }
+
+    pub async fn close_connection(&self, id: &str) -> Result<(), String> {
+        let id = id.trim();
+        if id.is_empty() {
+            return Err("没有这条连接".to_string());
+        }
+        let response = self
+            .client
+            .delete(format!("{}/connections/{}", self.base, path_segment(id)))
+            .send()
+            .await
+            .map_err(|error| format!("无法关闭连接: {error}"))?;
+        if response.status().is_success() {
+            Ok(())
+        } else {
+            Err(format!("无法关闭连接: HTTP {}", response.status()))
+        }
+    }
+
+    pub async fn close_all_connections(&self) -> Result<(), String> {
+        let response = self
+            .client
+            .delete(format!("{}/connections", self.base))
+            .send()
+            .await
+            .map_err(|error| format!("无法关闭连接: {error}"))?;
+        if response.status().is_success() {
+            Ok(())
+        } else {
+            Err(format!("无法关闭连接: HTTP {}", response.status()))
+        }
+    }
+
+    pub async fn proxy_providers(&self) -> Result<Vec<LiveProvider>, String> {
+        self.provider_list("proxies", ProviderKind::Proxy).await
+    }
+
+    pub async fn rule_providers(&self) -> Result<Vec<LiveProvider>, String> {
+        self.provider_list("rules", ProviderKind::Rule).await
+    }
+
+    async fn provider_list(
+        &self,
+        kind: &str,
+        count: ProviderKind,
+    ) -> Result<Vec<LiveProvider>, String> {
+        let response = self
+            .client
+            .get(format!("{}/providers/{kind}", self.base))
+            .send()
+            .await
+            .map_err(|error| format!("无法读取节点列表: {error}"))?;
+        if !response.status().is_success() {
+            return Err(format!("无法读取节点列表: HTTP {}", response.status()));
+        }
+        let body: Value = response
+            .json()
+            .await
+            .map_err(|error| format!("节点列表无法解析: {error}"))?;
+        Ok(parse_providers(&body, count))
+    }
+
+    pub async fn update_proxy_provider(&self, name: &str) -> Result<(), String> {
+        self.update_provider("proxies", name).await
+    }
+
+    pub async fn update_rule_provider(&self, name: &str) -> Result<(), String> {
+        self.update_provider("rules", name).await
+    }
+
+    async fn update_provider(&self, kind: &str, name: &str) -> Result<(), String> {
+        let name = name.trim();
+        if name.is_empty() {
+            return Err("没有这个列表".to_string());
+        }
+        let response = self
+            .client
+            .put(format!(
+                "{}/providers/{kind}/{}",
+                self.base,
+                path_segment(name)
+            ))
+            .send()
+            .await
+            .map_err(|error| format!("无法更新列表: {error}"))?;
+        if response.status().is_success() {
+            Ok(())
+        } else {
+            Err(format!("无法更新列表: HTTP {}", response.status()))
+        }
+    }
 }
 
 #[derive(Clone, Debug, serde::Serialize)]
@@ -197,6 +305,166 @@ fn delay_of(value: &Value) -> i64 {
         .and_then(Value::as_i64)
         .filter(|delay| *delay >= 0)
         .unwrap_or(-1)
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
+pub struct ConnectionRow {
+    pub id: String,
+    pub process: String,
+    pub process_path: String,
+    pub host: String,
+    pub port: String,
+    pub destination_ip: String,
+    pub source_ip: String,
+    pub source_port: String,
+    pub rule: String,
+    pub rule_payload: String,
+    pub upload: u64,
+    pub download: u64,
+    pub network: String,
+}
+
+#[derive(Clone, Copy, Debug)]
+enum ProviderKind {
+    Proxy,
+    Rule,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct LiveProvider {
+    pub name: String,
+    pub updated_at: String,
+    pub count: i64,
+}
+
+pub fn parse_connections(body: &Value) -> Vec<ConnectionRow> {
+    let Some(list) = body.get("connections").and_then(Value::as_array) else {
+        return Vec::new();
+    };
+    list.iter().filter_map(connection_row).collect()
+}
+
+fn connection_row(value: &Value) -> Option<ConnectionRow> {
+    let id = value.get("id").and_then(Value::as_str).unwrap_or("").trim();
+    if id.is_empty() {
+        return None;
+    }
+    let metadata = value.get("metadata");
+    let host = clean_host(&meta_text(metadata, "host"));
+    let process_path = meta_text(metadata, "processPath");
+    let mut process = meta_text(metadata, "process");
+    if process.is_empty() && !process_path.is_empty() {
+        process = process_path
+            .rsplit(['/', '\\'])
+            .next()
+            .unwrap_or("")
+            .to_string();
+    }
+    Some(ConnectionRow {
+        id: id.to_string(),
+        process,
+        process_path,
+        host,
+        port: meta_text(metadata, "destinationPort"),
+        destination_ip: meta_text(metadata, "destinationIP"),
+        source_ip: meta_text(metadata, "sourceIP"),
+        source_port: meta_text(metadata, "sourcePort"),
+        rule: text_field(value, "rule"),
+        rule_payload: text_field(value, "rulePayload"),
+        upload: number_field(value, "upload"),
+        download: number_field(value, "download"),
+        network: meta_text(metadata, "network"),
+    })
+}
+
+fn meta_text(metadata: Option<&Value>, key: &str) -> String {
+    metadata
+        .and_then(|value| value.get(key))
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .trim()
+        .to_string()
+}
+
+fn text_field(value: &Value, key: &str) -> String {
+    value
+        .get(key)
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .trim()
+        .to_string()
+}
+
+fn number_field(value: &Value, key: &str) -> u64 {
+    value.get(key).and_then(Value::as_u64).unwrap_or(0)
+}
+
+pub fn clean_host(text: &str) -> String {
+    let text = text.trim();
+    let text = text.split(['?', '#']).next().unwrap_or("");
+    let text = text
+        .strip_prefix("https://")
+        .or_else(|| text.strip_prefix("http://"))
+        .unwrap_or(text);
+    if text.starts_with('[')
+        && let Some(end) = text.find(']')
+    {
+        return text[1..end].to_string();
+    }
+    let text = text.split('/').next().unwrap_or("");
+    if let Some((host, port)) = text.rsplit_once(':')
+        && !host.is_empty()
+        && !host.contains(':')
+        && port.chars().all(|ch| ch.is_ascii_digit())
+    {
+        return host.to_string();
+    }
+    text.to_string()
+}
+
+fn parse_providers(body: &Value, kind: ProviderKind) -> Vec<LiveProvider> {
+    let Some(map) = body.get("providers").and_then(Value::as_object) else {
+        return Vec::new();
+    };
+    let mut rows = Vec::new();
+    for (name, value) in map {
+        let named = value
+            .get("name")
+            .and_then(Value::as_str)
+            .unwrap_or(name)
+            .trim();
+        if named.is_empty() {
+            continue;
+        }
+        rows.push(LiveProvider {
+            name: named.to_string(),
+            updated_at: tidy_time(text_field(value, "updatedAt")),
+            count: provider_count(value, kind),
+        });
+    }
+    rows.sort_by(|left, right| left.name.cmp(&right.name));
+    rows
+}
+
+fn provider_count(value: &Value, kind: ProviderKind) -> i64 {
+    match kind {
+        ProviderKind::Proxy => value
+            .get("proxies")
+            .and_then(Value::as_array)
+            .map(|items| items.len() as i64)
+            .unwrap_or(0),
+        ProviderKind::Rule => value.get("ruleCount").and_then(Value::as_i64).unwrap_or(0),
+    }
+}
+
+fn tidy_time(text: String) -> String {
+    let Some(dot) = text.find('.') else {
+        return text;
+    };
+    let rest = &text[dot + 1..];
+    let zone = rest.find(['+', '-', 'Z']).unwrap_or(rest.len());
+    let digits: String = rest[..zone].chars().take(3).collect();
+    format!("{}{digits}{}", &text[..=dot], &rest[zone..])
 }
 
 pub fn path_segment(name: &str) -> String {
@@ -455,6 +723,71 @@ mod tests {
         );
         let failed = serde_json::json!({"success": false});
         assert!(describe_region(&failed).is_none());
+    }
+
+    #[test]
+    fn parses_connections_without_keeping_a_query_token() {
+        let body = serde_json::json!({
+            "connections": [{
+                "id": "abc",
+                "metadata": {
+                    "network": "tcp",
+                    "host": "https://example.com/path?token=secret",
+                    "destinationPort": "443",
+                    "destinationIP": "1.2.3.4",
+                    "sourceIP": "127.0.0.1",
+                    "sourcePort": "40000",
+                    "process": "firefox",
+                    "processPath": "/usr/bin/firefox"
+                },
+                "upload": 10,
+                "download": 20,
+                "rule": "DomainSuffix",
+                "rulePayload": "example.com"
+            }]
+        });
+        let rows = parse_connections(&body);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].host, "example.com");
+        assert_eq!(rows[0].process, "firefox");
+        assert_eq!(rows[0].download, 20);
+        let text = serde_json::to_string(&rows).unwrap();
+        assert!(!text.contains("token"));
+        let path_only = serde_json::json!({
+            "connections": [{
+                "id": "path-only",
+                "metadata": {
+                    "host": "example.com",
+                    "process": "",
+                    "processPath": "/usr/bin/firefox"
+                }
+            }]
+        });
+        let named = parse_connections(&path_only);
+        assert_eq!(named[0].process, "firefox");
+        assert_eq!(named[0].process_path, "/usr/bin/firefox");
+    }
+
+    #[test]
+    fn parses_provider_counts_without_the_url() {
+        let body = serde_json::json!({
+            "providers": {
+                "alpha": {
+                    "name": "alpha",
+                    "vehicleType": "HTTP",
+                    "updatedAt": "2024-01-02T03:04:05.123456789Z",
+                    "subscriptionInfo": {"Upload": 1},
+                    "proxies": [{}, {}]
+                }
+            }
+        });
+        let rows = parse_providers(&body, ProviderKind::Proxy);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].name, "alpha");
+        assert_eq!(rows[0].count, 2);
+        assert_eq!(rows[0].updated_at, "2024-01-02T03:04:05.123Z");
+        let text = format!("{:?}", rows[0]);
+        assert!(!text.contains("subscription"));
     }
 
     #[test]

@@ -14,6 +14,7 @@ mod paths;
 mod privilege;
 mod profile;
 mod proxy_settings;
+mod rules;
 mod session_bridge;
 mod state;
 

@@ -256,8 +256,8 @@ msgstr "上書きファイル"
 msgid "Point KDE applications at this core while it is running"
 msgstr "コアの実行中は KDE アプリケーションをそこへ向ける"
 
-msgid "Proxies"
-msgstr "プロキシ"
+msgid "Nodes"
+msgstr "ノード"
 
 msgid "Remove"
 msgstr "削除"
@@ -573,3 +573,212 @@ msgstr "パネルウィジェットの案内を表示する"
 
 msgid "Shows a note on the Status page that this program includes a panel widget."
 msgstr "状態ページに、このプログラムがパネルウィジェットを用意していると表示します。"
+
+msgid "Connections"
+msgstr "接続"
+
+msgid "Close all"
+msgstr "すべて閉じる"
+
+msgid "Closes every connection going through the core."
+msgstr "コアを通る接続をすべて閉じます。"
+
+msgid "No connections"
+msgstr "接続はありません"
+
+msgid "Unknown process"
+msgstr "不明なプロセス"
+
+msgid "Closes this connection."
+msgstr "この接続を閉じます。"
+
+msgid "Close all connections?"
+msgstr "すべての接続を閉じますか？"
+
+msgid "Proxy providers"
+msgstr "プロキシプロバイダー"
+
+msgid "%1 nodes"
+msgstr "%1 個のノード"
+
+msgid "Update now"
+msgstr "今すぐ更新"
+
+msgid "Start the core first."
+msgstr "先にコアを起動してください。"
+
+msgid "Routes"
+msgstr "経路"
+
+msgid "Groups and the route each one is using."
+msgstr "グループと、それぞれが使っている経路です。"
+
+msgid "Rules"
+msgstr "ルール"
+
+msgid "Rules you add, the profile rules, and rule sets."
+msgstr "自分で追加したルール、プロファイルのルール、ルールセットです。"
+
+msgid "Domain"
+msgstr "ドメイン"
+
+msgid "Domain suffix"
+msgstr "ドメインサフィックス"
+
+msgid "Domain keyword"
+msgstr "ドメインキーワード"
+
+msgid "IP range"
+msgstr "IP 範囲"
+
+msgid "Process name"
+msgstr "プロセス名"
+
+msgid "Destination port"
+msgstr "宛先ポート"
+
+msgid "Final match"
+msgstr "最終一致"
+
+msgid "Your rules"
+msgstr "自分のルール"
+
+msgid "Profile rules"
+msgstr "プロファイルのルール"
+
+msgid "Rule sets"
+msgstr "ルールセット"
+
+msgid "Add a rule"
+msgstr "ルールを追加"
+
+msgid "Adds a rule now, before the profile rules. A subscription update does not remove it."
+msgstr "ルールをすぐに追加し、プロファイルのルールより前に置きます。購読の更新では消えません。"
+
+msgid "Removes the selected rule now."
+msgstr "選択したルールをすぐに削除します。"
+
+msgid "Edit in a spreadsheet"
+msgstr "表計算で編集"
+
+msgid "Opens these rules in a spreadsheet. Press Apply after they are read back."
+msgstr "これらのルールを表計算で開きます。読み戻したあとに適用を押します。"
+
+msgid "No spreadsheet program was found."
+msgstr "表計算プログラムが見つかりません。"
+
+msgid "%1 rules"
+msgstr "%1 件のルール"
+
+msgid "Select a rule to see its details."
+msgstr "詳細を見るルールを選択します。"
+
+msgid "Editing this profile rule saves your own copy, which a subscription update does not remove."
+msgstr "ここで編集すると自分のルールとして保存され、購読の更新では消えません。"
+
+msgid "This rule set comes with the profile. It can be updated, not edited here."
+msgstr "このルールセットはプロファイルに付いています。ここでは更新でき、編集はできません。"
+
+msgid "The kind of match this rule uses."
+msgstr "このルールが何で一致するかを示します。"
+
+msgid "Match"
+msgstr "一致内容"
+
+msgid "What this rule compares against. A final match leaves this empty."
+msgstr "ルールが比べる内容です。最終一致では空にします。"
+
+msgid "Target"
+msgstr "宛先"
+
+msgid "The group, DIRECT, or REJECT that handles a match."
+msgstr "一致した通信を扱うグループ、DIRECT、または REJECT です。"
+
+msgid "Enabled"
+msgstr "有効"
+
+msgid "A disabled rule stays in the list and is left out of the running config."
+msgstr "無効なルールは一覧に残り、実行中の設定には入りません。"
+
+msgid "Remove this rule?"
+msgstr "このルールを削除しますか？"
+
+msgid "Save over this CSV file, then press Done. A separate spreadsheet file is not read back, and LibreOffice does not edit the YAML."
+msgstr "この CSV に上書き保存してから完了を押してください。別の表計算ファイルは読み戻されず、LibreOffice は YAML を編集しません。"
+
+msgid "Done"
+msgstr "完了"
+
+msgid "Cancel"
+msgstr "キャンセル"
+
+msgid "Speed test"
+msgstr "速度テスト"
+
+msgid "Downloads %1 MB from Cloudflare through the proxy and directly at the same time. Results are for reference only."
+msgstr "プロキシ経由と直接接続で、Cloudflare から同時に %1 MB ずつダウンロードします。結果は参考値です。"
+
+msgid "Start test"
+msgstr "速度を測る"
+
+msgid "Latency"
+msgstr "遅延"
+
+msgid "Selects this profile. Press Apply to use it."
+msgstr "このプロファイルを選びます。適用すると使われます。"
+
+msgid "Edits the name and the subscription link."
+msgstr "名前と購読リンクを編集します。"
+
+msgctxt "@title"
+msgid "Download Rate"
+msgstr "ダウンロード量"
+
+msgctxt "@title"
+msgid "Upload Rate"
+msgstr "アップロード量"
+
+msgid "Proxy"
+msgstr "プロキシ"
+
+msgid "Restore"
+msgstr "復元"
+
+msgid "Reset"
+msgstr "リセット"
+
+msgid "Comment"
+msgstr "メモ"
+
+msgid "A note kept by this program, separate from the profile."
+msgstr "このプログラムが設定ファイルとは別に保存するメモです。"
+
+msgid "This profile has no subscription, so this item cannot be restored."
+msgstr "このプロファイルには購読がないため、この項目は復元できません。"
+
+msgid "This item is not in the subscription."
+msgstr "この項目は購読にありません。"
+
+msgid "Download size"
+msgstr "ダウンロードサイズ"
+
+msgid "How much each speed test downloads through the proxy and directly."
+msgstr "速度テストのたびに、プロキシ経由と直接接続でこれだけダウンロードします。"
+
+msgid "No proxy providers"
+msgstr "プロキシプロバイダーはありません"
+
+msgid "Updates this profile from its subscription."
+msgstr "サブスクリプションからこのプロファイルを更新します。"
+
+msgid "Removes this profile."
+msgstr "このプロファイルを削除します。"
+
+msgid "Sorts and filters this list."
+msgstr "この一覧を並べ替えて絞り込みます。"
+
+msgid "Updates this proxy provider."
+msgstr "このプロキシプロバイダーを更新します。"
+
+msgid "Updates this rule set."
+msgstr "このルールセットを更新します。"

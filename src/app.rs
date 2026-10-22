@@ -13,6 +13,7 @@ use crate::core::{self, CoreProcess};
 use crate::paths::Paths;
 use crate::profile::{self, Profile};
 use crate::proxy_settings;
+use crate::rules::{self, OwnRule};
 use crate::state::{self, Settings};
 
 #[derive(Clone, Debug)]
@@ -121,6 +122,7 @@ struct Status {
     blur_ip: bool,
     compact: bool,
     show_widget_hint: bool,
+    speed_test_mib: u32,
     tun_device: String,
     override_default: String,
     allow_lan: bool,
@@ -141,6 +143,12 @@ impl App {
         }
         if state::ensure_secret(&mut settings) {
             settings.save(&paths).map_err(|error| error.to_string())?;
+        }
+        for profile in profile::load_profiles(&paths) {
+            if profile.url.is_empty() {
+                continue;
+            }
+            let _ = profile::read_subscription_body(&paths, &profile.id);
         }
         let (events, _) = broadcast::channel(1024);
         let (exit_tx, exit_rx) = mpsc::unbounded_channel();
@@ -322,7 +330,7 @@ impl App {
             Some(task) => match task.await {
                 Ok(Err(error)) => Some(error),
                 Ok(Ok(())) => None,
-                Err(_) => Some("没能撤销 TUN 授权".to_string()),
+                Err(_) => Some("无法撤销 TUN 授权".to_string()),
             },
             None => None,
         };
@@ -431,7 +439,10 @@ impl App {
             }
         };
         let id = uuid::Uuid::new_v4().to_string();
-        profile::write_profile_body(&self.paths, &id, &text).map_err(|error| error.to_string())?;
+        profile::write_profile_body(&self.paths, &id, &text)
+            .map_err(|error| profile::explain_io("无法写入配置", &error))?;
+        profile::write_subscription_body(&self.paths, &id, &text)
+            .map_err(|error| error.to_string())?;
         let mut profiles = profile::load_profiles(&self.paths);
         profiles.push(Profile {
             id: id.clone(),
@@ -516,7 +527,10 @@ impl App {
         }
         let fetched = controller::fetch_subscription(&profile.url).await?;
         let text = profile::subscription_yaml(&fetched.body)?;
-        profile::write_profile_body(&self.paths, id, &text).map_err(|error| error.to_string())?;
+        profile::write_subscription_body(&self.paths, id, &text)
+            .map_err(|error| error.to_string())?;
+        profile::write_profile_body(&self.paths, id, &text)
+            .map_err(|error| profile::explain_io("无法写入配置", &error))?;
         let mut profiles = profile::load_profiles(&self.paths);
         if let Some(profile) = profiles.iter_mut().find(|profile| profile.id == id) {
             profile.updated_unix = profile::now_unix();
@@ -597,13 +611,18 @@ impl App {
         auto_test_delay: bool,
         blur_ip: bool,
         show_widget_hint: bool,
+        speed_test_mib: i32,
     ) -> Result<(), String> {
+        if !(1..=100).contains(&speed_test_mib) {
+            return Err("测速大小要在 1 到 100 MB 之间".to_string());
+        }
         {
             let mut inner = self.inner.lock().await;
             inner.settings.sort_global = sort_global;
             inner.settings.auto_test_delay = auto_test_delay;
             inner.settings.blur_ip = blur_ip;
             inner.settings.show_widget_hint = show_widget_hint;
+            inner.settings.speed_test_mib = speed_test_mib as u32;
             inner
                 .settings
                 .save(&self.paths)
@@ -663,10 +682,173 @@ impl App {
         Ok(())
     }
 
+    pub async fn connections_json(&self) -> Result<String, String> {
+        let rows = self.running_controller().await?.connections().await?;
+        Ok(serde_json::to_string(&rows).expect("connections json"))
+    }
+
+    pub async fn close_connection(&self, id: &str) -> Result<(), String> {
+        self.running_controller().await?.close_connection(id).await
+    }
+
+    pub async fn close_all_connections(&self) -> Result<(), String> {
+        self.running_controller()
+            .await?
+            .close_all_connections()
+            .await
+    }
+
+    pub async fn proxy_providers_json(&self) -> String {
+        let profile = self.active_profile_value().await;
+        let names = rules::provider_names(&profile, "proxy-providers");
+        let live = self.live_proxy_providers().await;
+        rules::provider_json(&rules::merge_provider_lists(&names, &live))
+    }
+
+    pub async fn update_proxy_provider(&self, name: &str) -> Result<(), String> {
+        self.running_controller()
+            .await?
+            .update_proxy_provider(name)
+            .await
+    }
+
+    pub async fn update_rule_provider(&self, name: &str) -> Result<(), String> {
+        self.running_controller()
+            .await?
+            .update_rule_provider(name)
+            .await
+    }
+
+    pub async fn rule_view_json(&self) -> Result<String, String> {
+        let own = rules::load_rules(&rules::rules_file(&self.paths))?;
+        let profile = self.active_profile_value().await;
+        let names = rules::provider_names(&profile, "rule-providers");
+        let live = self.live_rule_providers().await;
+        let providers = rules::merge_provider_lists(&names, &live);
+        let targets = rules::policy_names(&profile);
+        let profile_rules = rules::profile_rules(&profile);
+        let id = self.inner.lock().await.settings.active_profile.clone();
+        let changed: Vec<bool> = self
+            .subscription_text(&id)
+            .map_or_else(Vec::new, |snapshot| {
+                let Ok(working) = profile::read_profile_body(&self.paths, &id) else {
+                    return Vec::new();
+                };
+                (0..profile_rules.len())
+                    .map(|index| profile::rule_differs(&working, &snapshot, index))
+                    .collect()
+            });
+        let mut view: serde_json::Value = serde_json::from_str(&rules::rule_view_json(
+            &own,
+            &profile_rules,
+            &providers,
+            &targets,
+        ))
+        .expect("rule view");
+        view["changed"] = serde_json::json!(changed);
+        Ok(view.to_string())
+    }
+
+    fn subscription_text(&self, id: &str) -> Option<String> {
+        let profiles = profile::load_profiles(&self.paths);
+        let profile = profiles.iter().find(|profile| profile.id == id)?;
+        if profile.url.is_empty() {
+            return None;
+        }
+        profile::read_subscription_body(&self.paths, id).ok()
+    }
+
+    pub async fn add_own_rule(
+        self: &Arc<Self>,
+        kind: String,
+        payload: String,
+        target: String,
+    ) -> Result<(), String> {
+        let mut rules = rules::load_rules(&rules::rules_file(&self.paths))?;
+        rules.push(OwnRule {
+            kind,
+            payload,
+            target,
+            enabled: true,
+        });
+        self.store_own_rules(rules).await
+    }
+
+    pub async fn remove_own_rule(self: &Arc<Self>, index: u32) -> Result<(), String> {
+        let mut rules = rules::load_rules(&rules::rules_file(&self.paths))?;
+        if index as usize >= rules.len() {
+            return Err("没有这条规则".to_string());
+        }
+        rules.remove(index as usize);
+        self.store_own_rules(rules).await
+    }
+
+    pub async fn set_own_rules(self: &Arc<Self>, body: &str) -> Result<(), String> {
+        let rules = rules::rules_from_json(body)?;
+        self.store_own_rules(rules).await
+    }
+
+    async fn store_own_rules(self: &Arc<Self>, rules: Vec<OwnRule>) -> Result<(), String> {
+        let profile = self.active_profile_value().await;
+        rules::validate_rules(&rules, &rules::policy_names(&profile))?;
+        rules::save_rules(&rules::rules_file(&self.paths), &rules)?;
+        self.reload_runtime().await
+    }
+
+    async fn running_controller(&self) -> Result<Controller, String> {
+        let (running, port, secret) = self.controller_endpoint().await;
+        if !running {
+            return Err("内核没有在运行".to_string());
+        }
+        Ok(Controller::new(port, &secret))
+    }
+
+    async fn active_profile_value(&self) -> serde_yaml::Value {
+        let id = self.inner.lock().await.settings.active_profile.clone();
+        if id.is_empty() {
+            return serde_yaml::Value::Mapping(serde_yaml::Mapping::new());
+        }
+        let Ok(body) = profile::read_profile_body(&self.paths, &id) else {
+            return serde_yaml::Value::Mapping(serde_yaml::Mapping::new());
+        };
+        profile::decode_subscription(&body)
+            .unwrap_or(serde_yaml::Value::Mapping(serde_yaml::Mapping::new()))
+    }
+
+    async fn live_proxy_providers(&self) -> Vec<(String, String, i64)> {
+        let Ok(controller) = self.running_controller().await else {
+            return Vec::new();
+        };
+        controller
+            .proxy_providers()
+            .await
+            .unwrap_or_default()
+            .into_iter()
+            .map(|row| (row.name, row.updated_at, row.count))
+            .collect()
+    }
+
+    async fn live_rule_providers(&self) -> Vec<(String, String, i64)> {
+        let Ok(controller) = self.running_controller().await else {
+            return Vec::new();
+        };
+        controller
+            .rule_providers()
+            .await
+            .unwrap_or_default()
+            .into_iter()
+            .map(|row| (row.name, row.updated_at, row.count))
+            .collect()
+    }
+
     pub async fn route_detail(&self, id: &str, name: &str) -> Result<String, String> {
         let body = self.profile_body(id).await?;
         let found = profile::route_fields(&body, name)?;
         let in_file = found.is_some();
+        let changed = in_file
+            && self
+                .subscription_text(id)
+                .is_some_and(|snapshot| profile::route_differs(&body, &snapshot, name));
         let fields = found.unwrap_or(profile::RouteFields {
             name: name.to_string(),
             kind: String::new(),
@@ -682,6 +864,7 @@ impl App {
             port: u16,
             secret: &'a str,
             in_file: bool,
+            changed: bool,
         }
         Ok(serde_json::to_string(&Detail {
             name: &fields.name,
@@ -690,6 +873,7 @@ impl App {
             port: fields.port,
             secret: &fields.secret,
             in_file,
+            changed,
         })
         .expect("route detail"))
     }
@@ -750,6 +934,50 @@ impl App {
         self.set_profile_body(id, next).await
     }
 
+    pub async fn restore_route(self: &Arc<Self>, id: &str, name: &str) -> Result<(), String> {
+        let profiles = profile::load_profiles(&self.paths);
+        let Some(profile) = profiles.iter().find(|profile| profile.id == id) else {
+            return Err("找不到这个配置".to_string());
+        };
+        if profile.url.is_empty() {
+            return Err("这个配置没有订阅地址".to_string());
+        }
+        let snapshot = profile::read_subscription_body(&self.paths, id)?;
+        let working = profile::read_profile_body(&self.paths, id)
+            .map_err(|error| profile::explain_io("无法读取配置", &error))?;
+        let next = profile::restore_route(&working, &snapshot, name)?;
+        self.set_profile_body(id, next).await
+    }
+
+    pub async fn restore_profile_rule(
+        self: &Arc<Self>,
+        id: &str,
+        index: u32,
+    ) -> Result<(), String> {
+        let profiles = profile::load_profiles(&self.paths);
+        let Some(profile) = profiles.iter().find(|profile| profile.id == id) else {
+            return Err("找不到这个配置".to_string());
+        };
+        if profile.url.is_empty() {
+            return Err("这个配置没有订阅地址".to_string());
+        }
+        let snapshot = profile::read_subscription_body(&self.paths, id)?;
+        let working = profile::read_profile_body(&self.paths, id)
+            .map_err(|error| profile::explain_io("无法读取配置", &error))?;
+        let next = profile::restore_profile_rule(&working, &snapshot, index as usize)?;
+        self.set_profile_body(id, next).await
+    }
+
+    pub async fn notes_json(&self) -> String {
+        serde_json::to_string(&crate::state::load_notes(&self.paths))
+            .unwrap_or_else(|_| "{}".to_string())
+    }
+
+    pub async fn set_notes(&self, body: &str) -> Result<(), String> {
+        let notes = serde_json::from_str(body).map_err(|_| "注释无法解析".to_string())?;
+        crate::state::save_notes(&self.paths, &notes)
+    }
+
     pub async fn set_view_pref(
         &self,
         profile: &str,
@@ -790,8 +1018,8 @@ impl App {
         if id.is_empty() {
             return Ok("[]".to_string());
         }
-        let text =
-            profile::read_profile_body(&self.paths, id).map_err(|error| error.to_string())?;
+        let text = profile::read_profile_body(&self.paths, id)
+            .map_err(|error| profile::explain_io("无法读取配置", &error))?;
         let groups = profile::selector_groups(&text);
         Ok(serde_json::to_string(&groups).unwrap_or_else(|_| "[]".to_string()))
     }
@@ -914,7 +1142,7 @@ impl App {
             return Err("找不到这个配置".to_string());
         }
         profile::read_profile_body(&self.paths, id)
-            .map_err(|error| format!("无法读取配置: {error}"))
+            .map_err(|error| profile::explain_io("无法读取配置", &error))
     }
 
     pub async fn set_profile_body(self: &Arc<Self>, id: &str, body: String) -> Result<(), String> {
@@ -925,7 +1153,8 @@ impl App {
             return Err("找不到这个配置".to_string());
         }
         let text = profile::subscription_yaml(&body)?;
-        profile::write_profile_body(&self.paths, id, &text).map_err(|error| error.to_string())?;
+        profile::write_profile_body(&self.paths, id, &text)
+            .map_err(|error| profile::explain_io("无法写入配置", &error))?;
         self.reload_active_if_running(id).await
     }
 
@@ -974,7 +1203,8 @@ impl App {
             }
         };
         let id = uuid::Uuid::new_v4().to_string();
-        profile::write_profile_body(&self.paths, &id, &text).map_err(|error| error.to_string())?;
+        profile::write_profile_body(&self.paths, &id, &text)
+            .map_err(|error| profile::explain_io("无法写入配置", &error))?;
         let mut profiles = profile::load_profiles(&self.paths);
         profiles.push(Profile {
             id: id.clone(),
@@ -1103,7 +1333,7 @@ impl App {
         if let Some(task) = revoke {
             match task.await {
                 Ok(result) => result?,
-                Err(_) => return Err("没能撤销 TUN 授权".to_string()),
+                Err(_) => return Err("无法撤销 TUN 授权".to_string()),
             }
         }
         Ok(())
@@ -1182,6 +1412,7 @@ impl App {
             blur_ip: inner.settings.blur_ip,
             compact: inner.settings.compact,
             show_widget_hint: inner.settings.show_widget_hint,
+            speed_test_mib: inner.settings.speed_test_mib,
             tun_device: inner.settings.tun_device.clone(),
             override_default: self.paths.override_file().display().to_string(),
             allow_lan: inner.settings.allow_lan,

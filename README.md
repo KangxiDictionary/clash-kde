@@ -9,7 +9,7 @@ Each signed-in account has its own core, profiles, and node choices. One account
 - Starts and stops that account's core. The last choice is restored at login. A core that was left stopped stays stopped.
 - Applies the system proxy only while the core is running and TUN is off. Turning the proxy off in **System Settings → Network → Proxy Server** turns this switch off as well, so a later start does not write that setting back.
 - TUN captures only this account's traffic. Turning it on asks for permission. It does not change firewall rules; if a firewall is enabled, the status page says so.
-- Imports a subscription or a profile file, selects a route, and tests delay. There is no rule-set editor and no raw YAML page for import.
+- Imports a subscription or a profile file, selects a route, and tests delay. Own rules are a separate list and can be filled from a spreadsheet. There is no raw YAML page for import.
 - The panel widget changes the core, the system proxy, the profile, and the route immediately. In System Settings, the switches, the profile, the route, and the advanced fields apply when you press **Apply**. Testing delay and checking the exit region happen immediately. **Reset** discards the unsaved draft. **Default** restores the first-install preferences and leaves profile files in place.
 
 ## Requirements
@@ -40,7 +40,7 @@ sudo apt install ../clash-kde_*.deb
 On Fedora 41 and newer:
 
 ```sh
-git archive --format=tar.gz --prefix=clash-kde-1.0.2/ -o ~/rpmbuild/SOURCES/clash-kde-1.0.2.tar.gz HEAD
+git archive --format=tar.gz --prefix=clash-kde-1.0.3/ -o ~/rpmbuild/SOURCES/clash-kde-1.0.3.tar.gz HEAD
 sudo dnf builddep distro/rpm/clash-kde.spec
 rpmbuild -bb distro/rpm/clash-kde.spec
 ```

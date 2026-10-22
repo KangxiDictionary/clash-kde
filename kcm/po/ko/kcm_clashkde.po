@@ -256,8 +256,8 @@ msgstr "덮어쓰기 파일"
 msgid "Point KDE applications at this core while it is running"
 msgstr "코어가 실행 중일 때 KDE 프로그램을 그쪽으로 보냅니다"
 
-msgid "Proxies"
-msgstr "프록시"
+msgid "Nodes"
+msgstr "노드"
 
 msgid "Remove"
 msgstr "제거"
@@ -573,3 +573,212 @@ msgstr "패널 위젯 안내 표시"
 
 msgid "Shows a note on the Status page that this program includes a panel widget."
 msgstr "상태 페이지에 이 프로그램이 패널 위젯을 제공한다고 표시합니다."
+
+msgid "Connections"
+msgstr "연결"
+
+msgid "Close all"
+msgstr "모두 닫기"
+
+msgid "Closes every connection going through the core."
+msgstr "코어를 지나는 연결을 모두 닫습니다."
+
+msgid "No connections"
+msgstr "연결 없음"
+
+msgid "Unknown process"
+msgstr "알 수 없는 프로세스"
+
+msgid "Closes this connection."
+msgstr "이 연결을 닫습니다."
+
+msgid "Close all connections?"
+msgstr "모든 연결을 닫을까요?"
+
+msgid "Proxy providers"
+msgstr "프록시 공급자"
+
+msgid "%1 nodes"
+msgstr "노드 %1개"
+
+msgid "Update now"
+msgstr "지금 업데이트"
+
+msgid "Start the core first."
+msgstr "먼저 코어를 시작하세요."
+
+msgid "Routes"
+msgstr "경로"
+
+msgid "Groups and the route each one is using."
+msgstr "그룹과 각 그룹이 쓰는 경로입니다."
+
+msgid "Rules"
+msgstr "규칙"
+
+msgid "Rules you add, the profile rules, and rule sets."
+msgstr "직접 추가한 규칙, 프로필의 규칙, 규칙 모음입니다."
+
+msgid "Domain"
+msgstr "도메인"
+
+msgid "Domain suffix"
+msgstr "도메인 접미사"
+
+msgid "Domain keyword"
+msgstr "도메인 키워드"
+
+msgid "IP range"
+msgstr "IP 범위"
+
+msgid "Process name"
+msgstr "프로세스 이름"
+
+msgid "Destination port"
+msgstr "대상 포트"
+
+msgid "Final match"
+msgstr "최종 일치"
+
+msgid "Your rules"
+msgstr "내 규칙"
+
+msgid "Profile rules"
+msgstr "프로필의 규칙"
+
+msgid "Rule sets"
+msgstr "규칙 모음"
+
+msgid "Add a rule"
+msgstr "규칙 추가"
+
+msgid "Adds a rule now, before the profile rules. A subscription update does not remove it."
+msgstr "규칙을 바로 추가해 프로필 규칙보다 앞에 둡니다. 구독을 갱신해도 지워지지 않습니다."
+
+msgid "Removes the selected rule now."
+msgstr "선택한 규칙을 바로 제거합니다."
+
+msgid "Edit in a spreadsheet"
+msgstr "스프레드시트로 편집"
+
+msgid "Opens these rules in a spreadsheet. Press Apply after they are read back."
+msgstr "이 규칙들을 스프레드시트로 엽니다. 다시 읽어 온 뒤 적용을 누르세요."
+
+msgid "No spreadsheet program was found."
+msgstr "스프레드시트 프로그램을 찾지 못했습니다."
+
+msgid "%1 rules"
+msgstr "규칙 %1개"
+
+msgid "Select a rule to see its details."
+msgstr "자세히 볼 규칙을 선택하세요."
+
+msgid "Editing this profile rule saves your own copy, which a subscription update does not remove."
+msgstr "여기서 고치면 내 규칙으로 저장되며, 구독 갱신으로 지워지지 않습니다."
+
+msgid "This rule set comes with the profile. It can be updated, not edited here."
+msgstr "이 규칙 모음은 프로필에 딸려 있습니다. 여기서는 갱신만 되고 편집은 되지 않습니다."
+
+msgid "The kind of match this rule uses."
+msgstr "이 규칙이 무엇으로 맞추는지입니다."
+
+msgid "Match"
+msgstr "일치 내용"
+
+msgid "What this rule compares against. A final match leaves this empty."
+msgstr "규칙이 비교하는 내용입니다. 최종 일치는 비워 둡니다."
+
+msgid "Target"
+msgstr "대상"
+
+msgid "The group, DIRECT, or REJECT that handles a match."
+msgstr "일치했을 때 쓸 그룹, DIRECT 또는 REJECT입니다."
+
+msgid "Enabled"
+msgstr "사용"
+
+msgid "A disabled rule stays in the list and is left out of the running config."
+msgstr "끈 규칙은 목록에 남고, 실행 중인 설정에는 들어가지 않습니다."
+
+msgid "Remove this rule?"
+msgstr "이 규칙을 제거할까요?"
+
+msgid "Save over this CSV file, then press Done. A separate spreadsheet file is not read back, and LibreOffice does not edit the YAML."
+msgstr "이 CSV 파일에 덮어 저장한 다음 완료를 누르세요. 다른 스프레드시트 파일은 다시 읽지 않으며, LibreOffice는 YAML을 편집하지 않습니다."
+
+msgid "Done"
+msgstr "완료"
+
+msgid "Cancel"
+msgstr "취소"
+
+msgid "Speed test"
+msgstr "속도 테스트"
+
+msgid "Downloads %1 MB from Cloudflare through the proxy and directly at the same time. Results are for reference only."
+msgstr "프록시와 직접 연결로 Cloudflare에서 동시에 %1 MB씩 받습니다. 결과는 참고용입니다."
+
+msgid "Start test"
+msgstr "속도 테스트"
+
+msgid "Latency"
+msgstr "지연"
+
+msgid "Selects this profile. Press Apply to use it."
+msgstr "이 프로필을 고릅니다. 적용을 눌러야 쓰입니다."
+
+msgid "Edits the name and the subscription link."
+msgstr "이름과 구독 주소를 고칩니다."
+
+msgctxt "@title"
+msgid "Download Rate"
+msgstr "다운로드 속도"
+
+msgctxt "@title"
+msgid "Upload Rate"
+msgstr "업로드 속도"
+
+msgid "Proxy"
+msgstr "프록시"
+
+msgid "Restore"
+msgstr "복원"
+
+msgid "Reset"
+msgstr "재설정"
+
+msgid "Comment"
+msgstr "메모"
+
+msgid "A note kept by this program, separate from the profile."
+msgstr "이 프로그램이 구성 파일과 따로 저장하는 메모입니다."
+
+msgid "This profile has no subscription, so this item cannot be restored."
+msgstr "이 구성에는 구독이 없어 이 항목을 복원할 수 없습니다."
+
+msgid "This item is not in the subscription."
+msgstr "이 항목은 구독에 없습니다."
+
+msgid "Download size"
+msgstr "다운로드 크기"
+
+msgid "How much each speed test downloads through the proxy and directly."
+msgstr "속도 테스트를 할 때마다 프록시와 직접 연결로 각각 이만큼 받습니다."
+
+msgid "No proxy providers"
+msgstr "프록시 공급자가 없습니다"
+
+msgid "Updates this profile from its subscription."
+msgstr "구독에서 이 프로필을 업데이트합니다."
+
+msgid "Removes this profile."
+msgstr "이 프로필을 제거합니다."
+
+msgid "Sorts and filters this list."
+msgstr "이 목록을 정렬하고 필터합니다."
+
+msgid "Updates this proxy provider."
+msgstr "이 프록시 공급자를 업데이트합니다."
+
+msgid "Updates this rule set."
+msgstr "이 규칙 집합을 업데이트합니다."

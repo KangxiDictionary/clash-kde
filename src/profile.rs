@@ -49,6 +49,44 @@ pub fn profile_body_path(paths: &Paths, id: &str) -> PathBuf {
     paths.profiles_dir().join(format!("{id}.yaml"))
 }
 
+pub fn subscription_body_path(paths: &Paths, id: &str) -> PathBuf {
+    paths.profiles_dir().join(format!("{id}.subscription.yaml"))
+}
+
+pub fn write_subscription_body(paths: &Paths, id: &str, body: &str) -> std::io::Result<()> {
+    fs::create_dir_all(paths.profiles_dir())?;
+    write_private(&subscription_body_path(paths, id), body.as_bytes())
+}
+
+pub fn explain_io(action: &str, error: &std::io::Error) -> String {
+    let reason = match error.kind() {
+        std::io::ErrorKind::NotFound => "找不到文件",
+        std::io::ErrorKind::PermissionDenied => "没有权限",
+        _ => return format!("{action}：{error}"),
+    };
+    format!("{action}：{reason}")
+}
+
+/// The last downloaded subscription, kept apart from the working profile.
+/// An older profile gets a snapshot of its current file the first time this is read.
+pub fn read_subscription_body(paths: &Paths, id: &str) -> Result<String, String> {
+    let path = subscription_body_path(paths, id);
+    if path.exists() {
+        return fs::read_to_string(&path).map_err(|error| explain_io("无法读取订阅", &error));
+    }
+    let profiles = load_profiles(paths);
+    let Some(profile) = profiles.iter().find(|profile| profile.id == id) else {
+        return Err("找不到这个配置".to_string());
+    };
+    if profile.url.is_empty() {
+        return Err("这个配置没有订阅地址".to_string());
+    }
+    let body = read_profile_body(paths, id).map_err(|error| explain_io("无法读取配置", &error))?;
+    write_subscription_body(paths, id, &body)
+        .map_err(|error| explain_io("无法写入订阅", &error))?;
+    Ok(body)
+}
+
 pub fn read_profile_body(paths: &Paths, id: &str) -> std::io::Result<String> {
     fs::read_to_string(profile_body_path(paths, id))
 }
@@ -98,7 +136,7 @@ pub fn decode_subscription(body: &str) -> Result<Value, String> {
 pub fn check_profile_text(body: &str) -> Result<(), String> {
     let text = body.trim().trim_start_matches('\u{feff}');
     if text.is_empty() {
-        return Err("配置是空的".to_string());
+        return Err("配置不能为空".to_string());
     }
     match serde_yaml::from_str::<Value>(text) {
         Ok(value) if value.as_mapping().is_some() => Ok(()),
@@ -339,6 +377,11 @@ fn managed_keys(settings: &Settings, lan_open: bool) -> Value {
         Value::String("mode".into()),
         Value::String(settings.mode.clone()),
     );
+    // 不打开这项时，连接列表里的进程名一直是空的。
+    managed.insert(
+        Value::String("find-process-mode".into()),
+        Value::String("always".into()),
+    );
     if !settings.tun_enabled {
         let mut tun = Mapping::new();
         tun.insert(Value::String("enable".into()), Value::Bool(false));
@@ -358,12 +401,16 @@ pub fn write_runtime_config(paths: &Paths, settings: &Settings) -> Result<(), St
         paths,
         &settings.override_path,
     ))?;
-    let config = prepare_runtime_config(
+    let mut config = prepare_runtime_config(
         profile,
         overlay,
         settings,
         crate::lan::permitted(&crate::lan::policy_dir(), crate::lan::current_uid()),
     );
+    let own = crate::rules::load_rules(&crate::rules::rules_file(paths))?;
+    let names = crate::rules::policy_names(&config);
+    crate::rules::validate_rules(&own, &names)?;
+    crate::rules::insert_own_rules(&mut config, &own);
     let text =
         serde_yaml::to_string(&config).map_err(|error| format!("无法生成运行配置: {error}"))?;
     fs::create_dir_all(paths.runtime_dir()).map_err(|error| error.to_string())?;
@@ -452,6 +499,101 @@ pub fn update_route(body: &str, previous: &str, fields: &RouteFields) -> Result<
         if found && fields.name != previous {
             rename_member(map, &previous, &fields.name);
         }
+        Ok(())
+    })
+}
+
+pub fn restore_route(working: &str, snapshot: &str, name: &str) -> Result<String, String> {
+    let name = name.trim();
+    if name.is_empty() || reserved_route(name) {
+        return Err("这条路线不能还原".to_string());
+    }
+    let snapshot_value = decode_subscription(snapshot)?;
+    let Some(snapshot_map) = snapshot_value.as_mapping() else {
+        return Err("订阅原文无法解析".to_string());
+    };
+    let original = snapshot_map
+        .get(Value::String("proxies".into()))
+        .and_then(Value::as_sequence)
+        .and_then(|list| list.iter().find(|item| route_name(item) == name))
+        .cloned()
+        .ok_or_else(|| "订阅里没有这条路线".to_string())?;
+    edit_document(working, |map| {
+        let list = proxy_list(map);
+        let Some(item) = list.iter_mut().find(|item| route_name(item) == name) else {
+            return Err("这条路线不在配置文件里".to_string());
+        };
+        *item = original;
+        Ok(())
+    })
+}
+
+pub fn route_differs(working: &str, snapshot: &str, name: &str) -> bool {
+    let Ok(working) = decode_subscription(working) else {
+        return false;
+    };
+    let Ok(snapshot) = decode_subscription(snapshot) else {
+        return false;
+    };
+    let Some(current) = proxy_named(&working, name) else {
+        return false;
+    };
+    let Some(original) = proxy_named(&snapshot, name) else {
+        return false;
+    };
+    current != original
+}
+
+pub fn rule_differs(working: &str, snapshot: &str, index: usize) -> bool {
+    let Ok(working) = decode_subscription(working) else {
+        return false;
+    };
+    let Ok(snapshot) = decode_subscription(snapshot) else {
+        return false;
+    };
+    let Some(current) = sequence_item(&working, "rules", index) else {
+        return false;
+    };
+    let Some(original) = sequence_item(&snapshot, "rules", index) else {
+        return false;
+    };
+    current != original
+}
+
+fn proxy_named<'a>(document: &'a Value, name: &str) -> Option<&'a Value> {
+    document
+        .as_mapping()?
+        .get(Value::String("proxies".into()))?
+        .as_sequence()?
+        .iter()
+        .find(|item| route_name(item) == name)
+}
+
+fn sequence_item<'a>(document: &'a Value, key: &str, index: usize) -> Option<&'a Value> {
+    document
+        .as_mapping()?
+        .get(Value::String(key.into()))?
+        .as_sequence()?
+        .get(index)
+}
+
+pub fn restore_profile_rule(working: &str, snapshot: &str, index: usize) -> Result<String, String> {
+    let snapshot_value = decode_subscription(snapshot)?;
+    let original = snapshot_value
+        .as_mapping()
+        .and_then(|map| map.get(Value::String("rules".into())))
+        .and_then(Value::as_sequence)
+        .and_then(|list| list.get(index).cloned())
+        .ok_or_else(|| "订阅里没有这条规则".to_string())?;
+    edit_document(working, |map| {
+        let key = Value::String("rules".into());
+        let Some(list) = map.get_mut(&key).and_then(Value::as_sequence_mut) else {
+            return Err("配置里没有规则".to_string());
+        };
+        let Some(item) = list.get_mut(index) else {
+            return Err("配置里没有这条规则".to_string());
+        };
+        *item = original;
         Ok(())
     })
 }
@@ -719,7 +861,7 @@ mod tests {
     #[test]
     fn managed_keys_win_and_tun_stays_off() {
         let profile = serde_yaml::from_str(
-            "allow-lan: true\nbind-address: '*'\ntun:\n  enable: true\n  stack: system\nproxies: []\n",
+            "allow-lan: true\nbind-address: '*'\nfind-process-mode: off\ntun:\n  enable: true\n  stack: system\nproxies: []\n",
         )
         .unwrap();
         let overlay =
@@ -743,6 +885,10 @@ mod tests {
             Some("127.0.0.1:19090")
         );
         assert_eq!(config.get("mode").and_then(Value::as_str), Some("rule"));
+        assert_eq!(
+            config.get("find-process-mode").and_then(Value::as_str),
+            Some("always")
+        );
         assert_eq!(
             config
                 .get("tun")
@@ -992,5 +1138,112 @@ proxy-groups:
         assert_eq!(profiles[0].total, 0);
         assert_eq!(profiles[0].expire_unix, 0);
         assert_eq!(profiles[0].upload, 0);
+    }
+
+    #[test]
+    fn own_rules_are_prepended_without_changing_the_override_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let paths = Paths {
+            config_dir: dir.path().join("config"),
+            data_dir: dir.path().join("data"),
+            kioslaverc: dir.path().join("kioslaverc"),
+        };
+        let body = "rules:\n- DOMAIN,a.com,PROXY\n- MATCH,DIRECT\nproxy-groups:\n- {name: PROXY, type: select, proxies: [DIRECT]}\n";
+        write_profile_body(&paths, "profile", body).unwrap();
+        let override_path = paths.override_file();
+        fs::create_dir_all(override_path.parent().unwrap()).unwrap();
+        fs::write(&override_path, "mode: rule\n").unwrap();
+        let before = fs::read(&override_path).unwrap();
+        crate::rules::save_rules(
+            &crate::rules::rules_file(&paths),
+            &[crate::rules::OwnRule {
+                kind: "DOMAIN-SUFFIX".into(),
+                payload: "b.com".into(),
+                target: "REJECT".into(),
+                enabled: true,
+            }],
+        )
+        .unwrap();
+        let mut settings = Settings::default();
+        settings.active_profile = "profile".into();
+        write_runtime_config(&paths, &settings).unwrap();
+        assert_eq!(fs::read(&override_path).unwrap(), before);
+        let runtime = fs::read_to_string(paths.runtime_config()).unwrap();
+        let config: Value = serde_yaml::from_str(&runtime).unwrap();
+        let lines: Vec<&str> = config
+            .get("rules")
+            .and_then(Value::as_sequence)
+            .unwrap()
+            .iter()
+            .map(|value| value.as_str().unwrap())
+            .collect();
+        assert_eq!(
+            lines,
+            vec![
+                "DOMAIN-SUFFIX,b.com,REJECT",
+                "DOMAIN,a.com,PROXY",
+                "MATCH,DIRECT"
+            ]
+        );
+    }
+
+    #[test]
+    fn restore_puts_the_subscription_proxy_back() {
+        let snapshot = "proxies:\n- {name: A, type: ss, server: one.example, port: 1, password: old, cipher: aes-128-gcm}\n";
+        let working = "proxies:\n- {name: A, type: ss, server: two.example, port: 2, password: new, cipher: aes-128-gcm}\n";
+        let restored = restore_route(working, snapshot, "A").unwrap();
+        let fields = route_fields(&restored, "A").unwrap().unwrap();
+        assert_eq!(fields.server, "one.example");
+        assert_eq!(fields.port, 1);
+        assert_eq!(fields.secret, "old");
+        assert!(restored.contains("aes-128-gcm"));
+        assert!(restore_route(working, snapshot, "B").is_err());
+    }
+
+    #[test]
+    fn an_unchanged_item_does_not_differ_from_the_subscription() {
+        let snapshot = "proxies:\n- {name: A, type: ss, server: one.example, port: 1, password: old, cipher: aes-128-gcm}\nrules:\n- DOMAIN,a.com,DIRECT\n";
+        let edited = "proxies:\n- {name: A, type: ss, server: two.example, port: 1, password: old, cipher: aes-128-gcm}\nrules:\n- DOMAIN,b.com,DIRECT\n";
+        assert!(!route_differs(snapshot, snapshot, "A"));
+        assert!(route_differs(edited, snapshot, "A"));
+        assert!(!route_differs(edited, snapshot, "B"));
+        assert!(!rule_differs(snapshot, snapshot, 0));
+        assert!(rule_differs(edited, snapshot, 0));
+        assert!(!rule_differs(edited, snapshot, 3));
+    }
+
+    #[test]
+    fn a_missing_file_is_explained_without_english_errno_text() {
+        let missing =
+            std::io::Error::new(std::io::ErrorKind::NotFound, "No such file or directory");
+        assert_eq!(
+            explain_io("无法读取配置", &missing),
+            "无法读取配置：找不到文件"
+        );
+        let denied = std::io::Error::new(std::io::ErrorKind::PermissionDenied, "Permission denied");
+        assert_eq!(
+            explain_io("无法写入配置", &denied),
+            "无法写入配置：没有权限"
+        );
+    }
+
+    #[test]
+    fn restore_puts_the_subscription_rule_back() {
+        let snapshot = "rules:\n- DOMAIN,a.com,DIRECT\n- MATCH,REJECT\n";
+        let working = "rules:\n- DOMAIN,b.com,PROXY\n- MATCH,DIRECT\n";
+        let restored = restore_profile_rule(working, snapshot, 0).unwrap();
+        let value: Value = serde_yaml::from_str(&restored).unwrap();
+        let rules = value.get("rules").and_then(Value::as_sequence).unwrap();
+        assert_eq!(rules[0].as_str(), Some("DOMAIN,a.com,DIRECT"));
+        assert_eq!(rules[1].as_str(), Some("MATCH,DIRECT"));
+        assert_eq!(
+            restore_profile_rule(working, snapshot, 4).unwrap_err(),
+            "订阅里没有这条规则"
+        );
+        let short = "rules:\n- DOMAIN,b.com,PROXY\n";
+        assert_eq!(
+            restore_profile_rule(short, snapshot, 1).unwrap_err(),
+            "配置里没有这条规则"
+        );
     }
 }

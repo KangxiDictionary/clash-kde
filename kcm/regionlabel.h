@@ -76,6 +76,35 @@ inline QString blurAddress(const QString &address)
     return QStringLiteral("*");
 }
 
+inline bool looksLikeIp(const QString &address)
+{
+    const QString text = address.trimmed();
+    if (!text.contains(QLatin1Char(':')) && text.count(QLatin1Char('.')) == 3) {
+        const QStringList parts = text.split(QLatin1Char('.'));
+        if (parts.size() != 4) {
+            return false;
+        }
+        for (const QString &part : parts) {
+            bool ok = false;
+            const int value = part.toInt(&ok);
+            if (!ok || value < 0 || value > 255) {
+                return false;
+            }
+        }
+        return true;
+    }
+    return text.contains(QLatin1Char(':')) && !text.contains(QLatin1Char('.')) && text.count(QLatin1Char(':')) >= 2;
+}
+
+inline QString presentHost(const QString &host, bool blurIp)
+{
+    const QString text = host.trimmed();
+    if (text.isEmpty() || !blurIp || !looksLikeIp(text)) {
+        return text;
+    }
+    return blurAddress(text);
+}
+
 inline QString exitAddress(const QString &raw)
 {
     const QString text = raw.trimmed();
