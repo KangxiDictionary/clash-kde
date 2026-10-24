@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-FileCopyrightText: 2026 clash-kde contributors
+
 use std::collections::{BTreeMap, HashSet};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -34,6 +37,14 @@ enum ExitKind {
     Unexpected,
 }
 
+/// Stable phase names for the UI. These must not be translated: the KCM uses
+/// them to decide whether a start is still in progress or has failed.
+const PHASE_STOPPED: &str = "stopped";
+const PHASE_STARTING: &str = "starting";
+const PHASE_DOWNLOADING: &str = "downloading";
+const PHASE_RUNNING: &str = "running";
+const PHASE_FAILED: &str = "failed";
+
 struct Running {
     pid: u32,
     kill: oneshot::Sender<()>,
@@ -56,6 +67,7 @@ struct Inner {
     download_bps: u64,
     exit_region: String,
     message: String,
+    phase: String,
     running: Option<Running>,
     restart_attempts: u32,
 }
@@ -112,6 +124,7 @@ struct Status {
     exit_region: String,
     active_profile: String,
     message: String,
+    phase: String,
     override_path: String,
     selections: BTreeMap<String, String>,
     sort_global: bool,
@@ -175,6 +188,7 @@ impl App {
                 download_bps: 0,
                 exit_region: String::new(),
                 message: String::new(),
+                phase: PHASE_STOPPED.to_string(),
                 running: None,
                 restart_attempts: 0,
             }),
@@ -194,15 +208,18 @@ impl App {
     }
 
     pub async fn restore_desired(self: &Arc<Self>) {
+        // A proxy left over from a previous run points at a port that is not
+        // listening yet. Clear it before starting; sync_system_proxy applies it
+        // again once the new core is ready.
+        self.withdraw_proxy().await;
         let desired = self.inner.lock().await.settings.core_desired;
         if desired {
+            tracing::info!("恢复上次的内核运行状态");
             if let Err(error) = self.spawn_core().await {
-                tracing::error!("{error}");
+                tracing::error!("恢复内核失败: {error}");
             }
         } else {
-            // 内核不该运行时，现场的系统代理要撤掉。标记文件丢失时也要关掉
-            // 仍指向本程序的 GNOME 代理。
-            self.withdraw_proxy().await;
+            self.set_phase(PHASE_STOPPED).await;
             self.emit(Event::Status);
         }
     }
@@ -210,9 +227,11 @@ impl App {
     pub async fn shutdown(&self) {
         let _ = self.stop_process().await;
         self.withdraw_proxy().await;
+        self.set_phase(PHASE_STOPPED).await;
     }
 
     pub async fn start(self: &Arc<Self>) -> Result<(), String> {
+        tracing::info!("启动内核");
         {
             let mut inner = self.inner.lock().await;
             inner.settings.core_desired = true;
@@ -223,19 +242,24 @@ impl App {
                 .save(&self.paths)
                 .map_err(|error| error.to_string())?;
             if inner.core_running {
+                inner.phase = PHASE_RUNNING.to_string();
+                drop(inner);
                 self.emit(Event::Status);
                 return Ok(());
             }
+            inner.phase = PHASE_STARTING.to_string();
         }
         self.spawn_core().await
     }
 
     pub async fn stop(self: &Arc<Self>) -> Result<(), String> {
+        tracing::info!("停止内核");
         {
             let mut inner = self.inner.lock().await;
             inner.settings.core_desired = false;
             inner.restart_attempts = 0;
             inner.message.clear();
+            inner.phase = PHASE_STOPPED.to_string();
             inner
                 .settings
                 .save(&self.paths)
@@ -244,16 +268,22 @@ impl App {
         let stopped = self.stop_process().await;
         self.withdraw_proxy().await;
         self.schedule_region_lookup();
+        if let Err(error) = &stopped {
+            self.set_message(error.clone()).await;
+            self.set_phase(PHASE_FAILED).await;
+        }
         self.emit(Event::Status);
         stopped
     }
 
     pub async fn restart(self: &Arc<Self>) -> Result<(), String> {
+        tracing::info!("重启内核");
         {
             let mut inner = self.inner.lock().await;
             inner.settings.core_desired = true;
             inner.restart_attempts = 0;
             inner.message.clear();
+            inner.phase = PHASE_STARTING.to_string();
             inner
                 .settings
                 .save(&self.paths)
@@ -378,7 +408,13 @@ impl App {
         if mihomo_path.is_empty() {
             return Err("mihomo 路径不能为空".to_string());
         }
+        if mihomo_path.chars().count() > 1024 {
+            return Err("mihomo 路径不能超过 1024 个字符".to_string());
+        }
         let tun_device = state::normalize_tun_device(&tun_device)?;
+        if override_path.chars().count() > 4096 {
+            return Err("覆盖文件路径不能超过 4096 个字符".to_string());
+        }
         let override_path = state::normalize_override_path(&self.paths, &override_path)?;
         let effective = state::effective_override(&self.paths, &override_path);
         profile::ensure_override_file(&effective).map_err(|error| error.to_string())?;
@@ -425,19 +461,25 @@ impl App {
 
     pub async fn add_subscription(&self, name: String, url: String) -> Result<String, String> {
         let url = url.trim().to_string();
+        if url.chars().count() > 2048 {
+            return Err("订阅地址不能超过 2048 个字符".to_string());
+        }
         if !(url.starts_with("http://") || url.starts_with("https://")) {
             return Err("订阅地址需要以 http:// 或 https:// 开头".to_string());
         }
-        let fetched = controller::fetch_subscription(&url).await?;
-        let text = profile::subscription_yaml(&fetched.body)?;
         let name = {
             let trimmed = name.trim();
+            if trimmed.chars().count() > 128 {
+                return Err("名称不能超过 128 个字符".to_string());
+            }
             if trimmed.is_empty() {
                 url.clone()
             } else {
                 trimmed.to_string()
             }
         };
+        let fetched = controller::fetch_subscription(&url).await?;
+        let text = profile::subscription_yaml(&fetched.body)?;
         let id = uuid::Uuid::new_v4().to_string();
         profile::write_profile_body(&self.paths, &id, &text)
             .map_err(|error| profile::explain_io("无法写入配置", &error))?;
@@ -974,6 +1016,9 @@ impl App {
     }
 
     pub async fn set_notes(&self, body: &str) -> Result<(), String> {
+        if body.len() > 1_000_000 {
+            return Err("注释太大".to_string());
+        }
         let notes = serde_json::from_str(body).map_err(|_| "注释无法解析".to_string())?;
         crate::state::save_notes(&self.paths, &notes)
     }
@@ -1146,6 +1191,9 @@ impl App {
     }
 
     pub async fn set_profile_body(self: &Arc<Self>, id: &str, body: String) -> Result<(), String> {
+        if body.len() > 8_000_000 {
+            return Err("配置文件太大".to_string());
+        }
         if !profile::load_profiles(&self.paths)
             .iter()
             .any(|profile| profile.id == id)
@@ -1168,6 +1216,12 @@ impl App {
         let url = url.trim().to_string();
         if name.is_empty() {
             return Err("名称不能为空".to_string());
+        }
+        if name.chars().count() > 128 {
+            return Err("名称不能超过 128 个字符".to_string());
+        }
+        if url.chars().count() > 2048 {
+            return Err("订阅地址不能超过 2048 个字符".to_string());
         }
         if !url.is_empty() && !(url.starts_with("http://") || url.starts_with("https://")) {
             return Err("订阅地址需要以 http:// 或 https:// 开头".to_string());
@@ -1202,6 +1256,9 @@ impl App {
                     .to_string()
             }
         };
+        if name.chars().count() > 128 {
+            return Err("名称不能超过 128 个字符".to_string());
+        }
         let id = uuid::Uuid::new_v4().to_string();
         profile::write_profile_body(&self.paths, &id, &text)
             .map_err(|error| profile::explain_io("无法写入配置", &error))?;
@@ -1400,6 +1457,7 @@ impl App {
             exit_region: inner.exit_region.clone(),
             active_profile: inner.settings.active_profile.clone(),
             message: inner.message.clone(),
+            phase: inner.phase.clone(),
             override_path: state::effective_override(&self.paths, &inner.settings.override_path)
                 .display()
                 .to_string(),
@@ -1437,6 +1495,14 @@ impl App {
 
     async fn spawn_core(self: &Arc<Self>) -> Result<(), String> {
         let settings = self.inner.lock().await.settings.clone();
+        self.set_phase(PHASE_STARTING).await;
+        tracing::info!(
+            "准备内核: binary={}, mixed_port={}, controller_port={}, profile={}",
+            settings.mihomo_path,
+            settings.mixed_port,
+            settings.controller_port,
+            settings.active_profile
+        );
         let binary = match core::resolve_binary(&settings.mihomo_path) {
             Ok(binary) => binary,
             Err(error) => return self.fail_before_start(error).await,
@@ -1444,10 +1510,51 @@ impl App {
         if let Err(error) = profile::write_runtime_config(&self.paths, &settings) {
             return self.fail_before_start(error).await;
         }
+        // A restart closes the old listener. Stop advertising it before the
+        // stop/launch window; sync_system_proxy puts it back only after the new
+        // controller answers.
+        self.withdraw_proxy().await;
         if let Err(error) = self.stop_process().await {
             self.mark_stopped(error.clone()).await;
             self.emit(Event::Status);
             return Err(error);
+        }
+
+        // mihomo exits immediately when another program (often mihomo-party)
+        // still owns one of its ports. Check before launching so the UI gets a
+        // useful message instead of a timeout.
+        let mut busy = Vec::new();
+        for attempt in 0..10 {
+            busy.clear();
+            if !core::port_available(settings.mixed_port) {
+                busy.push(format!("混合端口 {}", settings.mixed_port));
+            }
+            if !core::port_available(settings.controller_port) {
+                busy.push(format!("控制器端口 {}", settings.controller_port));
+            }
+            if busy.is_empty() {
+                break;
+            }
+            if attempt < 9 {
+                tokio::time::sleep(Duration::from_millis(100)).await;
+            }
+        }
+        if !busy.is_empty() {
+            return self
+                .fail_before_start(format!(
+                    "{} 已被其他程序占用；如果系统 mihomo.service 正在运行，请先执行 sudo systemctl disable --now mihomo；否则用 ss -ltnp 查看占用者，或换一个端口",
+                    busy.join("、")
+                ))
+                .await;
+        }
+
+        let geodata = core::geodata_sources();
+        match core::geodata_mode(&geodata) {
+            "dat" => tracing::info!("本地没有 MMDB，将使用 geoip.dat/geosite.dat"),
+            "download" => {
+                tracing::warn!("本地没有可用的地理数据，mihomo 首次启动可能需要下载 MMDB/GeoSite")
+            }
+            _ => {}
         }
 
         let launch = self.launch_process(settings, binary).await;
@@ -1465,7 +1572,9 @@ impl App {
     }
 
     async fn fail_before_start(&self, error: String) -> Result<(), String> {
+        tracing::error!("内核未能启动: {error}");
         self.set_message(error.clone()).await;
+        self.set_phase(PHASE_FAILED).await;
         self.emit(Event::Status);
         Err(error)
     }
@@ -1475,6 +1584,7 @@ impl App {
         let limit = Duration::from_secs(180);
         let mut announced = "正在启动内核".to_string();
         self.set_message(announced.clone()).await;
+        self.set_phase(PHASE_STARTING).await;
         self.emit(Event::Status);
         loop {
             let controller = {
@@ -1488,6 +1598,7 @@ impl App {
                 if let Some(error) = core::tun_listen_error(&self.paths.core_log()) {
                     let tun = self.inner.lock().await.settings.tun_enabled;
                     if tun {
+                        tracing::error!("TUN 启动失败: {error}");
                         return Err(error);
                     }
                 }
@@ -1495,18 +1606,27 @@ impl App {
             }
             match process.try_wait() {
                 Ok(Some(status)) => {
+                    tracing::error!("mihomo 在控制器就绪前退出: {status}");
                     return Err(self.startup_failure(&format!("mihomo 已退出: {status}")));
                 }
                 Ok(None) => {}
                 Err(error) => return Err(format!("无法检查 mihomo: {error}")),
             }
             if started.elapsed() >= limit {
+                tracing::error!("等待 mihomo 控制器超时 ({} 秒)", limit.as_secs());
                 return Err(self.startup_failure("mihomo 控制器没有在限定时间内响应"));
             }
             let hint = core::startup_hint(&self.paths.core_log());
             if hint != announced {
                 announced = hint.clone();
+                let phase = if core::startup_downloading(&self.paths.core_log()) {
+                    PHASE_DOWNLOADING
+                } else {
+                    PHASE_STARTING
+                };
+                tracing::info!("内核启动进度: {hint}");
                 self.set_message(hint).await;
+                self.set_phase(phase).await;
                 self.emit(Event::Status);
             }
             tokio::time::sleep(Duration::from_millis(50)).await;
@@ -1537,9 +1657,12 @@ impl App {
                 &self.paths.core_log(),
             )
             .await?;
+            tracing::info!("已通过系统服务启动 TUN 内核: pid={pid}");
             core::CoreProcess::adopt(pid)
         } else {
-            core::CoreProcess::spawn(&self.paths, &binary)?
+            let process = core::CoreProcess::spawn(&self.paths, &binary)?;
+            tracing::info!("已启动内核: pid={}", process.pid());
+            process
         };
         let controller = Controller::new(settings.controller_port, &settings.controller_secret);
         if let Err(error) = self.wait_until_ready(&mut process).await {
@@ -1563,6 +1686,7 @@ impl App {
             inner.upload_bps = 0;
             inner.download_bps = 0;
             inner.message.clear();
+            inner.phase = PHASE_RUNNING.to_string();
             inner.running = Some(Running {
                 pid: process.pid(),
                 kill: kill_tx,
@@ -1766,17 +1890,24 @@ impl App {
             inner.upload_bps = 0;
             inner.download_bps = 0;
             match kind {
-                ExitKind::Requested => false,
+                ExitKind::Requested => {
+                    inner.phase = PHASE_STOPPED.to_string();
+                    false
+                }
                 ExitKind::Unexpected
                     if inner.settings.core_desired && inner.restart_attempts < 3 =>
                 {
                     inner.restart_attempts += 1;
+                    inner.phase = PHASE_STARTING.to_string();
+                    tracing::warn!("内核意外退出，准备第 {} 次重试", inner.restart_attempts);
                     true
                 }
                 ExitKind::Unexpected => {
                     inner.exit_region.clear();
                     inner.message =
                         format!("mihomo 已退出\n{}", core::log_tail(&self.paths.core_log()));
+                    inner.phase = PHASE_FAILED.to_string();
+                    tracing::error!("内核意外退出，已停止重试: {}", inner.message);
                     false
                 }
             }
@@ -1874,10 +2005,15 @@ impl App {
         inner.download_bps = 0;
         inner.exit_region.clear();
         inner.message = message;
+        inner.phase = PHASE_FAILED.to_string();
     }
 
     async fn set_message(&self, message: String) {
         self.inner.lock().await.message = message;
+    }
+
+    async fn set_phase(&self, phase: &str) {
+        self.inner.lock().await.phase = phase.to_string();
     }
 
     async fn controller_endpoint(&self) -> (bool, u16, String) {

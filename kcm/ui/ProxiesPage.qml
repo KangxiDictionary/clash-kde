@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-FileCopyrightText: 2026 clash-kde contributors
+
 import QtQuick
 import QtQuick.Controls as QQC2
 import QtQuick.Layouts
@@ -810,6 +813,7 @@ Item {
                 anchors.left: parent.left
                 anchors.right: parent.right
                 anchors.top: parent.top
+                maximumLength: 128
                 Kirigami.MnemonicData.enabled: false
                 onTextChanged: {
                     root.nodeQuery = text;
@@ -953,6 +957,9 @@ Item {
                     anchors.left: parent.left
                     anchors.right: parent.right
                     anchors.bottom: restoreRow.top
+                    anchors.topMargin: Kirigami.Units.smallSpacing
+                    anchors.leftMargin: Kirigami.Units.largeSpacing
+                    anchors.rightMargin: Kirigami.Units.largeSpacing
                     anchors.bottomMargin: Kirigami.Units.smallSpacing
                     contentWidth: width
                     contentHeight: detailColumn.implicitHeight
@@ -994,8 +1001,20 @@ Item {
                                 id: detailName
                                 Layout.fillWidth: true
                                 enabled: root.detail.in_file === true
+                                maximumLength: 128
+                                placeholderText: tx.i18n("Route name")
+                                inputMethodHints: Qt.ImhNoPredictiveText
                                 Kirigami.MnemonicData.enabled: false
                                 onTextChanged: root.pushRoute()
+                            }
+                            QQC2.Label {
+                                visible: root.detail.in_file === true && detailName.text.trim().length === 0
+                                text: tx.i18n("The route name cannot be empty.")
+                                color: Kirigami.Theme.negativeTextColor
+                                font: Kirigami.Theme.smallFont
+                                wrapMode: Text.WordWrap
+                                Layout.fillWidth: true
+                                Kirigami.MnemonicData.enabled: false
                             }
 
                             QQC2.Label {
@@ -1037,8 +1056,20 @@ Item {
                                 id: detailServer
                                 Layout.fillWidth: true
                                 enabled: root.detail.in_file === true
+                                maximumLength: 255
+                                placeholderText: tx.i18n("Hostname or IP address")
+                                inputMethodHints: Qt.ImhUrlCharactersOnly | Qt.ImhNoAutoUppercase
                                 Kirigami.MnemonicData.enabled: false
                                 onTextChanged: root.pushRoute()
+                            }
+                            QQC2.Label {
+                                visible: root.detail.in_file === true && detailServer.text.trim().length === 0
+                                text: tx.i18n("The server cannot be empty.")
+                                color: Kirigami.Theme.negativeTextColor
+                                font: Kirigami.Theme.smallFont
+                                wrapMode: Text.WordWrap
+                                Layout.fillWidth: true
+                                Kirigami.MnemonicData.enabled: false
                             }
 
                             QQC2.Label {
@@ -1060,7 +1091,9 @@ Item {
                                 enabled: root.detail.in_file === true
                                 from: 1
                                 to: 65535
+                                stepSize: 1
                                 editable: true
+                                inputMethodHints: Qt.ImhDigitsOnly
                                 Kirigami.MnemonicData.enabled: false
                                 onValueModified: root.pushRoute()
                             }
@@ -1084,6 +1117,7 @@ Item {
                                     id: detailSecret
                                     Layout.fillWidth: true
                                     enabled: root.detail.in_file === true
+                                    maximumLength: 512
                                     echoMode: root.revealSecret ? TextInput.Normal : TextInput.Password
                                     Kirigami.MnemonicData.enabled: false
                                     onTextChanged: root.pushRoute()
@@ -1122,15 +1156,21 @@ Item {
                                 visible: root.picked.length > 0
                                 Layout.fillWidth: true
                                 readonly property real noteLimit: Kirigami.Units.gridUnit * 12
+                                readonly property int noteCharacterLimit: 4096
                                 Layout.preferredHeight: Math.min(noteLimit, Math.max(implicitBackgroundHeight, contentHeight + topPadding + bottomPadding))
                                 Layout.maximumHeight: noteLimit
                                 wrapMode: TextEdit.Wrap
                                 clip: true
+                                placeholderText: tx.i18n("Optional comment")
                                 Kirigami.MnemonicData.enabled: false
                                 QQC2.ScrollBar.vertical: QQC2.ScrollBar {
                                     policy: QQC2.ScrollBar.AsNeeded
                                 }
                                 onTextChanged: {
+                                    if (length > noteCharacterLimit) {
+                                        text = text.substring(0, noteCharacterLimit);
+                                        return;
+                                    }
                                     if (root.filling || root.picked.length === 0) {
                                         return;
                                     }
@@ -1145,6 +1185,8 @@ Item {
                     id: restoreRow
                     anchors.right: parent.right
                     anchors.bottom: parent.bottom
+                    anchors.rightMargin: Kirigami.Units.largeSpacing
+                    anchors.bottomMargin: Kirigami.Units.smallSpacing
                     QQC2.Button {
                         text: tx.i18n("Restore")
                         icon.name: "edit-undo"
@@ -1197,6 +1239,22 @@ Item {
         anchors.centerIn: parent
         width: Kirigami.Units.gridUnit * 22
 
+        function validForm() {
+            return addName.text.trim().length > 0
+                && addServer.text.trim().length > 0
+                && addPort.value >= 1
+                && addPort.value <= 65535;
+        }
+
+        function refreshOk() {
+            const button = standardButton(QQC2.Dialog.Ok);
+            if (button) {
+                button.enabled = validForm();
+            }
+        }
+
+        onOpened: Qt.callLater(refreshOk)
+
         contentItem: ColumnLayout {
             spacing: Kirigami.Units.smallSpacing
 
@@ -1204,6 +1262,9 @@ Item {
                 id: addName
                 Layout.fillWidth: true
                 placeholderText: tx.i18n("Name")
+                maximumLength: 128
+                inputMethodHints: Qt.ImhNoPredictiveText
+                onTextChanged: addDialog.refreshOk()
             }
             QQC2.ComboBox {
                 Kirigami.MnemonicData.enabled: false
@@ -1215,26 +1276,44 @@ Item {
                 id: addServer
                 Layout.fillWidth: true
                 placeholderText: tx.i18n("Server")
+                maximumLength: 255
+                inputMethodHints: Qt.ImhUrlCharactersOnly | Qt.ImhNoAutoUppercase
+                onTextChanged: addDialog.refreshOk()
             }
             QQC2.SpinBox {
                 id: addPort
                 Layout.fillWidth: true
                 from: 1
                 to: 65535
+                stepSize: 1
                 value: 443
                 editable: true
+                inputMethodHints: Qt.ImhDigitsOnly
             }
             QQC2.TextField {
                 id: addSecret
                 Layout.fillWidth: true
                 echoMode: TextInput.Password
                 placeholderText: tx.i18n("Password")
+                maximumLength: 512
+            }
+            QQC2.Label {
+                visible: addName.text.trim().length === 0 || addServer.text.trim().length === 0
+                text: tx.i18n("A route needs a name and a server.")
+                color: Kirigami.Theme.negativeTextColor
+                font: Kirigami.Theme.smallFont
+                wrapMode: Text.WordWrap
+                Layout.fillWidth: true
+                Kirigami.MnemonicData.enabled: false
             }
         }
 
         onAccepted: {
-            if (kcm.client.addRoute(root.selectedGroup, addName.text, addKind.currentText, addServer.text, addPort.value, addSecret.text)) {
-                root.picked = addName.text;
+            if (!validForm()) {
+                return;
+            }
+            if (kcm.client.addRoute(root.selectedGroup, addName.text.trim(), addKind.currentText, addServer.text.trim(), addPort.value, addSecret.text)) {
+                root.picked = addName.text.trim();
                 root.showPicked();
             }
         }

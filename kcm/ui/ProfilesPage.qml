@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-FileCopyrightText: 2026 clash-kde contributors
+
 import QtQuick
 import QtQuick.Controls as QQC2
 import QtQuick.Dialogs
@@ -106,8 +109,24 @@ Item {
         padding: Kirigami.Units.largeSpacing
         implicitWidth: Kirigami.Units.gridUnit * 24
 
+        function validUrl(text) {
+            return /^https?:\/\/\S+$/.test(text.trim());
+        }
+
+        function refreshOk() {
+            const button = standardButton(QQC2.Dialog.Ok);
+            if (button) {
+                button.enabled = validUrl(urlField.text);
+            }
+        }
+
+        onOpened: Qt.callLater(refreshOk)
+
         onAccepted: {
-            kcm.client.addSubscription(nameField.text, urlField.text);
+            if (!validUrl(urlField.text)) {
+                return;
+            }
+            kcm.client.addSubscription(nameField.text, urlField.text.trim());
             nameField.text = "";
             urlField.text = "";
         }
@@ -117,12 +136,29 @@ Item {
                 id: nameField
                 Kirigami.FormData.label: tx.i18n("Name")
                 placeholderText: tx.i18n("Optional")
+                maximumLength: 128
+                inputMethodHints: Qt.ImhNoPredictiveText
             }
             QQC2.TextField {
                 id: urlField
                 Kirigami.FormData.label: tx.i18n("URL")
                 placeholderText: "https://"
                 implicitWidth: Kirigami.Units.gridUnit * 18
+                maximumLength: 2048
+                inputMethodHints: Qt.ImhUrlCharactersOnly | Qt.ImhNoAutoUppercase
+                validator: RegularExpressionValidator {
+                    regularExpression: /^https?:\/\/\S+$/
+                }
+                onTextChanged: addDialog.refreshOk()
+            }
+            QQC2.Label {
+                visible: urlField.text.length > 0 && !urlField.acceptableInput
+                text: tx.i18n("Enter a complete http:// or https:// URL without spaces.")
+                color: Kirigami.Theme.negativeTextColor
+                font: Kirigami.Theme.smallFont
+                wrapMode: Text.WordWrap
+                Layout.fillWidth: true
+                Kirigami.MnemonicData.enabled: false
             }
         }
     }
@@ -136,18 +172,57 @@ Item {
         padding: Kirigami.Units.largeSpacing
         implicitWidth: Kirigami.Units.gridUnit * 24
 
-        onAccepted: kcm.client.setProfileMeta(profileId, metaName.text, metaUrl.text)
+        function validUrl(text) {
+            const value = text.trim();
+            return value.length === 0 || /^https?:\/\/\S+$/.test(value);
+        }
+
+        function refreshOk() {
+            const button = standardButton(QQC2.Dialog.Ok);
+            if (button) {
+                button.enabled = metaName.text.trim().length > 0 && validUrl(metaUrl.text);
+            }
+        }
+
+        onOpened: Qt.callLater(refreshOk)
+
+        onAccepted: {
+            if (metaName.text.trim().length === 0 || !validUrl(metaUrl.text)) {
+                return;
+            }
+            kcm.client.setProfileMeta(profileId, metaName.text.trim(), metaUrl.text.trim());
+        }
 
         contentItem: Kirigami.FormLayout {
             QQC2.TextField {
                 id: metaName
                 Kirigami.FormData.label: tx.i18n("Name")
+                maximumLength: 128
+                inputMethodHints: Qt.ImhNoPredictiveText
+                onTextChanged: metaDialog.refreshOk()
             }
             QQC2.TextField {
                 id: metaUrl
                 Kirigami.FormData.label: tx.i18n("URL")
                 placeholderText: "https://"
                 implicitWidth: Kirigami.Units.gridUnit * 18
+                maximumLength: 2048
+                inputMethodHints: Qt.ImhUrlCharactersOnly | Qt.ImhNoAutoUppercase
+                validator: RegularExpressionValidator {
+                    regularExpression: /^$|^https?:\/\/\S+$/
+                }
+                onTextChanged: metaDialog.refreshOk()
+            }
+            QQC2.Label {
+                visible: metaName.text.length === 0 || (metaUrl.text.length > 0 && !metaUrl.acceptableInput)
+                text: metaName.text.length === 0
+                    ? tx.i18n("A profile name is required.")
+                    : tx.i18n("Enter a complete http:// or https:// URL without spaces, or leave it empty.")
+                color: Kirigami.Theme.negativeTextColor
+                font: Kirigami.Theme.smallFont
+                wrapMode: Text.WordWrap
+                Layout.fillWidth: true
+                Kirigami.MnemonicData.enabled: false
             }
         }
     }
@@ -240,6 +315,7 @@ Item {
                     id: profileSearch
                     Layout.fillWidth: true
                     visible: kcm.client.profiles.length > 0
+                    maximumLength: 128
                     onTextChanged: root.profileQuery = text
                 }
 

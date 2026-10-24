@@ -11,26 +11,53 @@ BuildRequires:  cmake
 BuildRequires:  extra-cmake-modules
 BuildRequires:  gcc
 BuildRequires:  kf6-kcmutils-devel
-BuildRequires:  kf6-kirigami-addons-devel
 BuildRequires:  kf6-kconfig-devel
 BuildRequires:  kf6-kcoreaddons-devel
 BuildRequires:  kf6-ki18n-devel
+BuildRequires:  kf6-kquickcharts-devel
 BuildRequires:  libicu-devel
+BuildRequires:  systemd-rpm-macros
+%if 0%{?suse_version}
+# openSUSE Tumbleweed names; Leap 15.x has Plasma 5 and is not supported.
+BuildRequires:  kf6-kirigami-devel
+BuildRequires:  kirigami-addons6-devel
+BuildRequires:  libplasma6-devel
+BuildRequires:  qt6-base-devel
+BuildRequires:  qt6-declarative-devel
+BuildRequires:  qt6-tools-devel
+BuildRequires:  rust1.99
+%else
+BuildRequires:  kf6-kirigami-addons-devel
 BuildRequires:  libplasma-devel
 BuildRequires:  qt6-qtbase-devel
 BuildRequires:  qt6-qtdeclarative-devel
 BuildRequires:  qt6-qttools-devel
 BuildRequires:  rust
-BuildRequires:  systemd-rpm-macros
+%endif
 
+%if 0%{?suse_version}
+Requires:       dbus-1
+Requires:       kirigami-addons6
+Requires:       kf6-kirigami-imports
+Requires:       kf6-kcmutils-imports
+Requires:       libplasma6-components
+Requires:       qt6-base
+Requires:       qt6-declarative
+Requires:       qt6-declarative-imports
+# Supplies /usr/share/v2ray/geoip.dat and geosite.dat. The service switches to
+# geodata-mode when no MMDB is available.
+Recommends:     v2ray-core
+%else
 Requires:       dbus
+Requires:       kf6-kirigami-addons
+%endif
 Requires:       kf6-kcmutils
 Requires:       kf6-kirigami
-Requires:       kf6-kirigami-addons
 Requires:       kf6-kquickcharts
-Requires:       mihomo
 Requires:       plasma-workspace
 Requires:       polkit
+# Not in the Fedora repositories; install it from upstream or a COPR.
+Recommends:     mihomo
 
 %description
 Each signed-in account gets its own mihomo process, profiles, and route

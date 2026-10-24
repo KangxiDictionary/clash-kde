@@ -783,3 +783,97 @@ msgstr "更新这个代理集合。"
 
 msgid "Updates this rule set."
 msgstr "更新这个规则集。"
+
+msgid "Diagnostics"
+msgstr "诊断"
+
+msgid "Refresh"
+msgstr "刷新"
+
+msgid "Open log folder"
+msgstr "打开日志文件夹"
+
+msgid "Turn off system proxy"
+msgstr "关闭系统代理"
+
+msgid "Show the recent mihomo log, the service journal, and the paths in use."
+msgstr "显示最近的 mihomo 日志、服务日志和正在使用的路径。"
+
+msgid "Copied."
+msgstr "已复制。"
+
+
+msgid "Press Apply to start or stop the local proxy."
+msgstr "按“应用”来启动或停止本地代理。"
+
+msgid "Press Apply to start or stop the core."
+msgstr "按“应用”来启动或停止内核。"
+
+msgid "Allowed range: 1 to 100 MB per run."
+msgstr "允许范围：每次 1 到 100 MB。"
+
+msgid "How much each speed test downloads through the proxy and directly, between 1 and 100 MB."
+msgstr "每次测速经代理和直接连接各下载多少，范围为 1 到 100 MB。"
+
+msgid "Username and password are both required, and neither may contain a colon."
+msgstr "用户名和密码必须同时填写，且都不能包含冒号。"
+
+msgid "The username cannot contain a colon."
+msgstr "用户名不能包含冒号。"
+
+msgid "The password cannot contain a colon."
+msgstr "密码不能包含冒号。"
+
+msgid "Fill in both the username and the password, or leave both empty."
+msgstr "请同时填写用户名和密码，或两者都留空。"
+
+msgid "Allowed range: 1 to 65535. HTTP and SOCKS share this port."
+msgstr "允许范围：1 到 65535。HTTP 和 SOCKS 共用这个端口。"
+
+msgid "Allowed range: 1 to 65535, and it must differ from the mixed port."
+msgstr "允许范围：1 到 65535，且必须与混合端口不同。"
+
+msgid "The controller port must differ from the mixed port."
+msgstr "控制器端口必须与混合端口不同。"
+
+msgid "A name on PATH or an absolute path to the mihomo binary."
+msgstr "PATH 中的名称或 mihomo 可执行文件的绝对路径。"
+
+msgid "Optional: 1 to 15 letters, digits, underscores or hyphens."
+msgstr "可选：1 到 15 个字母、数字、下划线或连字符。"
+
+msgid "Optional: an absolute path. Leave this empty to use the default override file."
+msgstr "可选：绝对路径。留空则使用默认覆盖文件。"
+
+msgid "The override file must use an absolute path."
+msgstr "覆盖文件必须使用绝对路径。"
+
+msgid "Route name"
+msgstr "路线名称"
+
+msgid "The route name cannot be empty."
+msgstr "路线名称不能为空。"
+
+msgid "Hostname or IP address"
+msgstr "主机名或 IP 地址"
+
+msgid "The server cannot be empty."
+msgstr "服务器不能为空。"
+
+msgid "Optional comment"
+msgstr "可选注释"
+
+msgid "A route needs a name and a server."
+msgstr "路线需要名称和服务器。"
+
+msgid "Enter a complete http:// or https:// URL without spaces."
+msgstr "请输入完整的 http:// 或 https:// 地址，且不能包含空格。"
+
+msgid "A profile name is required."
+msgstr "配置名称不能为空。"
+
+msgid "Enter a complete http:// or https:// URL without spaces, or leave it empty."
+msgstr "请输入完整的 http:// 或 https:// 地址（不能包含空格），或留空。"
+
+msgid "A rule needs a match value unless its type is MATCH."
+msgstr "除非类型是 MATCH，否则规则需要匹配内容。"

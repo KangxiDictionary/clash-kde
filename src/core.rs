@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-FileCopyrightText: 2026 clash-kde contributors
+
 use std::os::unix::process::ExitStatusExt;
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
@@ -115,23 +118,36 @@ pub fn resolve_binary(requested: &str) -> Result<std::path::PathBuf, String> {
 }
 
 pub fn log_tail(path: &Path) -> String {
+    log_tail_lines(path, 8)
+}
+
+pub fn log_tail_lines(path: &Path, count: usize) -> String {
     let Ok(text) = std::fs::read_to_string(path) else {
         return String::new();
     };
-    let lines: Vec<&str> = text.lines().rev().take(8).collect();
+    let lines: Vec<&str> = text.lines().rev().take(count).collect();
     lines.into_iter().rev().collect::<Vec<_>>().join("\n")
 }
 
-pub fn startup_hint(path: &Path) -> String {
+pub fn startup_downloading(path: &Path) -> bool {
     let tail = log_tail(path).to_lowercase();
-    if tail.contains("download")
+    tail.contains("download")
         || tail.contains("can't find mmdb")
         || tail.contains("can't find geosite")
-    {
+}
+
+pub fn startup_hint(path: &Path) -> String {
+    if startup_downloading(path) {
         "正在下载地理数据".to_string()
     } else {
         "正在启动内核".to_string()
     }
+}
+
+/// True when a listener can be created on the loopback port. Used before
+/// spawning mihomo so a port conflict is reported instead of timing out.
+pub fn port_available(port: u16) -> bool {
+    std::net::TcpListener::bind(("127.0.0.1", port)).is_ok()
 }
 
 pub fn tun_listen_error(path: &Path) -> Option<String> {
@@ -157,6 +173,43 @@ const GEODATA_FILES: [&str; 4] = ["country.mmdb", "geoip.metadb", "geosite.dat",
 
 pub fn seed_geodata(runtime: &Path) {
     seed_geodata_from(runtime, &geodata_roots());
+}
+
+/// The geodata files that could be copied from another installation. The
+/// diagnostics panel uses this to show why a first start may download.
+pub fn geodata_sources() -> Vec<(&'static str, Option<PathBuf>)> {
+    let roots = geodata_roots();
+    GEODATA_FILES
+        .iter()
+        .map(|name| {
+            let found = roots.iter().find_map(|root| {
+                let candidate = root.join(name);
+                let meta = std::fs::metadata(&candidate).ok()?;
+                (meta.is_file() && meta.len() >= 1024).then_some(candidate)
+            });
+            (*name, found)
+        })
+        .collect()
+}
+
+/// How the current files can satisfy mihomo's geodata needs.
+///
+/// `mmdb` uses country.mmdb/geoip.metadb (mihomo's default), `dat` uses the
+/// v2ray-style geoip.dat/geosite.dat with `geodata-mode: true`, and `download`
+/// means mihomo will try to fetch them on first start.
+pub fn geodata_mode(sources: &[(&'static str, Option<PathBuf>)]) -> &'static str {
+    let has = |name: &str| {
+        sources
+            .iter()
+            .any(|(item, path)| *item == name && path.is_some())
+    };
+    if has("country.mmdb") || has("geoip.metadb") {
+        "mmdb"
+    } else if has("geoip.dat") && has("geosite.dat") {
+        "dat"
+    } else {
+        "download"
+    }
 }
 
 fn geodata_roots() -> Vec<PathBuf> {
@@ -286,5 +339,47 @@ mod tests {
             2048
         );
         assert!(!runtime.join("country.mmdb.partial").exists());
+    }
+
+    #[test]
+    fn a_listening_port_is_reported_as_unavailable() {
+        let listener = std::net::TcpListener::bind(("127.0.0.1", 0)).unwrap();
+        let port = listener.local_addr().unwrap().port();
+        assert!(!port_available(port));
+        drop(listener);
+        assert!(port_available(port));
+    }
+
+    #[test]
+    fn geodata_mode_prefers_mmdb_then_v2ray_dat() {
+        let path = || Some(PathBuf::from("/tmp/geodata"));
+        let mmdb = [
+            ("country.mmdb", path()),
+            ("geoip.metadb", None),
+            ("geoip.dat", None),
+            ("geosite.dat", None),
+        ];
+        assert_eq!(geodata_mode(&mmdb), "mmdb");
+        let dat = [
+            ("country.mmdb", None),
+            ("geoip.metadb", None),
+            ("geoip.dat", path()),
+            ("geosite.dat", path()),
+        ];
+        assert_eq!(geodata_mode(&dat), "dat");
+        let missing = [
+            ("country.mmdb", None),
+            ("geoip.metadb", None),
+            ("geoip.dat", None),
+            ("geosite.dat", None),
+        ];
+        assert_eq!(geodata_mode(&missing), "download");
+        let partial = [
+            ("country.mmdb", None),
+            ("geoip.metadb", None),
+            ("geoip.dat", None),
+            ("geosite.dat", path()),
+        ];
+        assert_eq!(geodata_mode(&partial), "download");
     }
 }

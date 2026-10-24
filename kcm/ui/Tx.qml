@@ -1,7 +1,27 @@
-import org.kde.ki18n as KI18n
+// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-FileCopyrightText: 2026 clash-kde contributors
 
-KI18n.KI18nContext {
-    translationDomain: "kcm_clashkde"
+import QtQuick
+
+// Translation goes through ClashClient so the page does not need the
+// org.kde.ki18n QML module at runtime. That module is not available in
+// Debian 13 even though KF6 itself is.
+QtObject {
+    function i18n(text) {
+        let args = [];
+        for (let i = 1; i < arguments.length; ++i) {
+            args.push(arguments[i]);
+        }
+        return kcm.client.i18n(text, args);
+    }
+
+    function i18nc(context, text) {
+        let args = [];
+        for (let i = 2; i < arguments.length; ++i) {
+            args.push(arguments[i]);
+        }
+        return kcm.client.i18nc(context, text, args);
+    }
 
     // Grouping, separators, and the decimal mark come from the user's formats.
     function formatNumber(value, decimals) {

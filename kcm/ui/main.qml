@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-FileCopyrightText: 2026 clash-kde contributors
+
 import QtQuick
 import QtQuick.Controls as QQC2
 import QtQuick.Layouts

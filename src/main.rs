@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-FileCopyrightText: 2026 clash-kde contributors
+
 //! Session service that supervises a per-user mihomo process.
 //!
 //! The KDE settings module talks to `org.kde.clashkde` on the session bus.
@@ -9,6 +12,7 @@ mod app;
 mod controller;
 mod core;
 mod dbus_api;
+mod diagnostics;
 mod lan;
 mod paths;
 mod privilege;
@@ -37,8 +41,17 @@ fn main() -> ExitCode {
         return ExitCode::from(code as u8);
     }
     if args.iter().any(|arg| arg == "--help" || arg == "-h") {
-        eprintln!("Usage: clash-kde [--restore-proxy]");
+        eprintln!("Usage: clash-kde [--diagnose | --restore-proxy]");
         return ExitCode::SUCCESS;
+    }
+    if args.iter().any(|arg| arg == "--diagnose") {
+        return match diagnostics::run() {
+            Ok(()) => ExitCode::SUCCESS,
+            Err(error) => {
+                eprintln!("{error}");
+                ExitCode::from(1)
+            }
+        };
     }
     let runtime = tokio::runtime::Builder::new_multi_thread()
         .enable_all()

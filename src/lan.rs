@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-FileCopyrightText: 2026 clash-kde contributors
+
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
@@ -42,6 +45,12 @@ pub fn normalize_auth(username: &str, password: &str) -> Result<(String, String)
     }
     if username.contains(':') || password.contains(':') {
         return Err("局域网账号和密码不能包含冒号".to_string());
+    }
+    if username.chars().count() > 64 {
+        return Err("局域网账号不能超过 64 个字符".to_string());
+    }
+    if password.chars().count() > 128 {
+        return Err("局域网密码不能超过 128 个字符".to_string());
     }
     Ok((username.to_string(), password.to_string()))
 }
@@ -107,5 +116,13 @@ mod tests {
             normalize_auth(" a ", " b ").unwrap(),
             ("a".to_string(), "b".to_string())
         );
+    }
+
+    #[test]
+    fn lan_auth_lengths_are_bounded() {
+        assert!(normalize_auth(&"a".repeat(64), "b").is_ok());
+        assert!(normalize_auth(&"a".repeat(65), "b").is_err());
+        assert!(normalize_auth("a", &"b".repeat(128)).is_ok());
+        assert!(normalize_auth("a", &"b".repeat(129)).is_err());
     }
 }

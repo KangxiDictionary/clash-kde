@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-FileCopyrightText: 2026 clash-kde contributors
+
 import QtQuick
 import QtQuick.Controls as QQC2
 import QtQuick.Layouts
@@ -194,19 +197,28 @@ Flickable {
                 label: tx.i18n("Download size")
                 from: 1
                 to: 100
+                stepSize: 1
+                validator: IntValidator {
+                    bottom: 1
+                    top: 100
+                }
                 textFromValue: function(value, locale) {
                     return tx.i18n("%1 MB", tx.formatNumber(value));
                 }
                 onValueModified: {
-                    if (value !== kcm.client.draftSpeedTestMib) {
-                        kcm.client.draftSpeedTestMib = value;
+                    const bounded = Math.max(1, Math.min(100, value));
+                    if (bounded !== value) {
+                        speedSizeBox.value = bounded;
+                    }
+                    if (bounded !== kcm.client.draftSpeedTestMib) {
+                        kcm.client.draftSpeedTestMib = bounded;
                     }
                 }
                 Kirigami.MnemonicData.enabled: false
 
                 QQC2.ToolTip.visible: hovered
                 QQC2.ToolTip.delay: 700
-                QQC2.ToolTip.text: tx.i18n("How much each speed test downloads through the proxy and directly.")
+                QQC2.ToolTip.text: tx.i18n("How much each speed test downloads through the proxy and directly, between 1 and 100 MB.")
 
                 Component.onCompleted: speedSizeBox.value = kcm.client.draftSpeedTestMib
 
@@ -218,6 +230,10 @@ Flickable {
                         }
                     }
                 }
+            }
+
+            FormCard.FormSectionText {
+                text: tx.i18n("Allowed range: 1 to 100 MB per run.")
             }
         }
 

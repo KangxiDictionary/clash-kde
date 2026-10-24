@@ -35,6 +35,7 @@ class ClashClient : public QObject
     Q_PROPERTY(QString exitRaw READ exitRaw NOTIFY statusChanged)
     Q_PROPERTY(QString activeProfile READ activeProfile NOTIFY statusChanged)
     Q_PROPERTY(QString message READ message NOTIFY statusChanged)
+    Q_PROPERTY(QString phase READ phase NOTIFY statusChanged)
     Q_PROPERTY(bool busy READ busy NOTIFY busyChanged)
     Q_PROPERTY(bool delayTesting READ delayTesting NOTIFY delayTestingChanged)
     Q_PROPERTY(QVariantList profiles READ profiles NOTIFY profilesChanged)
@@ -121,6 +122,7 @@ public:
     QString exitRaw() const;
     QString activeProfile() const;
     QString message() const;
+    QString phase() const;
     bool busy() const;
     bool delayTesting() const;
     QVariantList profiles() const;
@@ -217,6 +219,8 @@ public:
     Q_INVOKABLE QString addressOf(const QString &raw) const;
     Q_INVOKABLE void ensureProxies();
     Q_INVOKABLE void copyText(const QString &text) const;
+    Q_INVOKABLE QString i18n(const QString &text, const QVariantList &args) const;
+    Q_INVOKABLE QString i18nc(const QString &context, const QString &text, const QVariantList &args) const;
     Q_INVOKABLE void showHint(const QString &text);
     Q_INVOKABLE void clearHint();
     Q_INVOKABLE void reloadAccounts();
@@ -234,6 +238,10 @@ public:
     Q_INVOKABLE QString profileBody(const QString &id);
     Q_INVOKABLE QString checkProfileText(const QString &body);
     Q_INVOKABLE QString coreLog() const;
+    Q_INVOKABLE QString serviceLog() const;
+    Q_INVOKABLE QString diagnostics() const;
+    Q_INVOKABLE void restoreSystemProxy();
+    Q_INVOKABLE void openLogFolder();
     Q_INVOKABLE bool openBodyInEditor(const QString &body);
     Q_INVOKABLE void setProfileBody(const QString &id, const QString &body);
     Q_INVOKABLE void setProfileMeta(const QString &id, const QString &name, const QString &url);
@@ -275,7 +283,7 @@ public:
     bool commitSettings();
     void revertDraft();
     void applyDefaultsToDraft();
-    bool draftIsDefaults() const;
+    Q_INVOKABLE bool draftIsDefaults() const;
 
 Q_SIGNALS:
     void statusChanged();
@@ -352,6 +360,7 @@ private:
     class QNetworkAccessManager *speedNam(bool throughProxy);
     void asyncCall(const QString &method, const QVariantList &args, bool refreshProfilesAfter, bool refreshProxiesAfter, bool markBusy = true);
     void accountCall(const QString &method, qulonglong uid);
+    void runRestoreProxyCommand();
 
     QDBusInterface *m_iface = nullptr;
     bool m_coreDesired = false;
@@ -383,6 +392,7 @@ private:
     QString m_exitRegion;
     QString m_activeProfile;
     QString m_message;
+    QString m_phase = QStringLiteral("stopped");
     bool m_busy = false;
     bool m_delayTesting = false;
     bool m_draftDirty = false;

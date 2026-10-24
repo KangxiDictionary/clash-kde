@@ -2,6 +2,7 @@
 name = "clash-kde"
 version = "1.0.3"
 edition = "2024"
+rust-version = "1.85"
 license = "GPL-3.0-or-later"
 description = "Per-user mihomo session service for the KDE System Settings module"
 

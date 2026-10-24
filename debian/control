@@ -32,7 +32,6 @@ Depends:
  ${misc:Depends},
  ${shlibs:Depends},
  dbus,
- mihomo,
  plasma-workspace,
  polkitd | policykit-1,
  qml6-module-org-kde-kcmutils,
@@ -42,8 +41,10 @@ Depends:
  qml6-module-org-kde-quickcharts,
  qml6-module-qtquick,
  qml6-module-qtquick-controls,
+ qml6-module-qtquick-dialogs,
  qml6-module-qtquick-layouts,
 Recommends:
+ mihomo,
  systemd,
 Description: KDE settings page and panel widget for a per-user mihomo proxy
  Each signed-in account gets its own mihomo process, profiles, and route
@@ -51,5 +52,5 @@ Description: KDE settings page and panel widget for a per-user mihomo proxy
  panel widget changes them immediately. The mihomo program itself comes from
  the system package and is not bundled here.
  .
- Plasma 6 is required. On Debian that means Debian 13 or newer, and on
- Ubuntu 25.04 or newer.
+ Plasma 6 and Rust 1.85 or newer are required. On Debian that means
+ Debian 13 or newer, and on Ubuntu 25.10 or newer.

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-FileCopyrightText: 2026 clash-kde contributors
+
 import QtQuick
 import QtQuick.Controls as QQC2
 import QtQuick.Layouts
@@ -8,9 +11,10 @@ import org.kde.quickcharts.controls as ChartsControls
 Item {
     id: root
 
-    readonly property bool progress: kcm.client.message === "正在启动内核" || kcm.client.message === "正在下载地理数据"
-    readonly property bool failed: kcm.client.message.length > 0 && !progress
-    readonly property bool starting: kcm.client.coreDesired && !kcm.client.coreRunning && !failed
+    readonly property bool progress: kcm.client.phase === "starting" || kcm.client.phase === "downloading"
+    readonly property bool failed: kcm.client.phase === "failed" || (kcm.client.message.length > 0 && !progress)
+    readonly property bool starting: kcm.client.phase === "starting" || kcm.client.phase === "downloading"
+                                  || (kcm.client.coreDesired && !kcm.client.coreRunning && !failed)
     property string dismissedMessage: ""
     onFailedChanged: {
         if (!failed) {
@@ -32,6 +36,11 @@ Item {
         }
         const http = kcm.client.listenAddress;
         return http + "\n" + http.replace("http://", "socks5://");
+    }
+
+    function openDiagnostics() {
+        diagnosticEdit.text = kcm.client.diagnostics();
+        diagnosticsDialog.open();
     }
 
     Tx {
@@ -329,13 +338,14 @@ Item {
             showCloseButton: true
             actions: [
                 Kirigami.Action {
-                    text: tx.i18n("View log")
+                    text: tx.i18n("Diagnostics")
                     icon.name: "view-list-text"
-                    onTriggered: {
-                        const log = kcm.client.coreLog();
-                        logView.text = log.length > 0 ? log : tx.i18n("There is no log yet.");
-                        logDialog.open();
-                    }
+                    onTriggered: root.openDiagnostics()
+                },
+                Kirigami.Action {
+                    text: tx.i18n("Turn off system proxy")
+                    icon.name: "network-disconnect"
+                    onTriggered: kcm.client.restoreSystemProxy()
                 }
             ]
             onVisibleChanged: {
@@ -412,6 +422,17 @@ Item {
                     QQC2.ToolTip.text: tx.i18n("Restart the core with the configuration it already has.")
                 }
 
+                QQC2.Button {
+                    Kirigami.MnemonicData.enabled: false
+                    text: tx.i18n("Diagnostics")
+                    icon.name: "view-list-text"
+                    onClicked: root.openDiagnostics()
+
+                    QQC2.ToolTip.visible: hovered
+                    QQC2.ToolTip.delay: 700
+                    QQC2.ToolTip.text: tx.i18n("Show the recent mihomo log, the service journal, and the paths in use.")
+                }
+
                 QQC2.Switch {
                     Kirigami.MnemonicData.enabled: false
                     checked: kcm.client.draftCoreDesired
@@ -423,9 +444,16 @@ Item {
 
                     QQC2.ToolTip.visible: hovered
                     QQC2.ToolTip.delay: 700
-                    QQC2.ToolTip.text: tx.i18n("This switch only starts the local proxy.")
+                    QQC2.ToolTip.text: tx.i18n("Press Apply to start or stop the local proxy.")
                 }
             }
+        }
+
+        Kirigami.InlineMessage {
+            Layout.fillWidth: true
+            visible: kcm.client.draftCoreDesired !== kcm.client.coreDesired
+            type: Kirigami.MessageType.Information
+            text: tx.i18n("Press Apply to start or stop the core.")
         }
 
         RowLayout {
@@ -885,42 +913,77 @@ Item {
     }
 
     QQC2.Dialog {
-        id: logDialog
-        title: tx.i18n("Core log")
+        id: diagnosticsDialog
+        title: tx.i18n("Diagnostics")
         modal: true
         standardButtons: QQC2.Dialog.Close
         padding: Kirigami.Units.largeSpacing
-        implicitWidth: Kirigami.Units.gridUnit * 40
-        implicitHeight: Kirigami.Units.gridUnit * 28
+        implicitWidth: Kirigami.Units.gridUnit * 52
+        implicitHeight: Kirigami.Units.gridUnit * 36
 
-        contentItem: Item {
+        contentItem: ColumnLayout {
+            spacing: Kirigami.Units.smallSpacing
+
             Flickable {
-                id: logFlick
-                anchors.fill: parent
+                id: diagnosticFlick
+                Layout.fillWidth: true
+                Layout.fillHeight: true
                 clip: true
                 contentWidth: width
-                contentHeight: logView.height
+                contentHeight: diagnosticEdit.paintedHeight + Kirigami.Units.smallSpacing * 2
                 boundsBehavior: Flickable.StopAtBounds
                 QQC2.ScrollBar.vertical: QQC2.ScrollBar {
                     policy: QQC2.ScrollBar.AsNeeded
                 }
 
-                QQC2.TextArea {
-                    id: logView
+                TextEdit {
+                    id: diagnosticEdit
+                    x: Kirigami.Units.smallSpacing
+                    y: Kirigami.Units.smallSpacing
+                    width: diagnosticFlick.width - Kirigami.Units.smallSpacing * 2
+                    height: paintedHeight
                     readOnly: true
                     selectByMouse: true
-                    wrapMode: TextEdit.Wrap
-                    width: logFlick.width
-                    height: Math.max(logFlick.height, contentHeight)
-                    padding: Kirigami.Units.smallSpacing
+                    wrapMode: TextEdit.WrapAtWordBoundaryOrAnywhere
+                    textFormat: TextEdit.PlainText
+                    font.family: "monospace"
+                    color: Kirigami.Theme.textColor
+                }
+            }
 
-                    WheelHandler {
-                        onWheel: function(event) {
-                            const maxY = Math.max(0, logFlick.contentHeight - logFlick.height);
-                            logFlick.contentY = Math.max(0, Math.min(maxY, logFlick.contentY - event.angleDelta.y));
-                            event.accepted = true;
-                        }
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: Kirigami.Units.smallSpacing
+
+                QQC2.Button {
+                    text: tx.i18n("Refresh")
+                    icon.name: "view-refresh"
+                    onClicked: diagnosticEdit.text = kcm.client.diagnostics()
+                }
+
+                QQC2.Button {
+                    text: tx.i18n("Copy")
+                    icon.name: "edit-copy"
+                    onClicked: {
+                        kcm.client.copyText(diagnosticEdit.text);
+                        kcm.client.showHint(tx.i18n("Copied."));
                     }
+                }
+
+                QQC2.Button {
+                    text: tx.i18n("Open log folder")
+                    icon.name: "folder-open"
+                    onClicked: kcm.client.openLogFolder()
+                }
+
+                Item {
+                    Layout.fillWidth: true
+                }
+
+                QQC2.Button {
+                    text: tx.i18n("Turn off system proxy")
+                    icon.name: "network-disconnect"
+                    onClicked: kcm.client.restoreSystemProxy()
                 }
             }
         }

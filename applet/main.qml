@@ -21,9 +21,11 @@ PlasmoidItem {
     preferredRepresentation: compactRepresentation
     Plasmoid.icon: "network-vpn"
 
+    signal dismissRouteMenu
+
     onExpandedChanged: {
         if (!expanded) {
-            popupRoot.closeRouteMenu();
+            root.dismissRouteMenu();
         }
     }
 
@@ -319,6 +321,13 @@ PlasmoidItem {
 
     fullRepresentation: Item {
         id: popupRoot
+
+        Connections {
+            target: root
+            function onDismissRouteMenu() {
+                popupRoot.closeRouteMenu();
+            }
+        }
 
         readonly property real contentHeight: popupColumn.implicitHeight + Kirigami.Units.largeSpacing * 2
         readonly property real popupLimit: {

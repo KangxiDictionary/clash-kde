@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-FileCopyrightText: 2026 clash-kde contributors
+
 import QtQuick
 import QtQuick.Controls as QQC2
 import QtQuick.Layouts
@@ -221,7 +224,17 @@ Flickable {
                     visible: kcm.client.draftAllowLan
                     label: tx.i18n("Username")
                     enabled: kcm.client.lanAllowed
+                    maximumLength: 64
+                    inputMethodHints: Qt.ImhNoPredictiveText
                     text: kcm.client.draftLanUsername
+                    readonly property bool hasColon: text.indexOf(":") !== -1
+                    readonly property bool incomplete: (text.length > 0) !== (kcm.client.draftLanPassword.length > 0)
+                    status: hasColon || incomplete ? Kirigami.MessageType.Error : Kirigami.MessageType.Information
+                    statusMessage: hasColon
+                        ? tx.i18n("The username cannot contain a colon.")
+                        : incomplete
+                            ? tx.i18n("Fill in both the username and the password, or leave both empty.")
+                            : ""
                     onTextChanged: {
                         if (text !== kcm.client.draftLanUsername) {
                             kcm.client.draftLanUsername = text;
@@ -237,13 +250,27 @@ Flickable {
                     visible: kcm.client.draftAllowLan
                     label: tx.i18n("Password")
                     enabled: kcm.client.lanAllowed
+                    maximumLength: 128
                     echoMode: TextInput.Password
                     text: kcm.client.draftLanPassword
+                    readonly property bool hasColon: text.indexOf(":") !== -1
+                    readonly property bool incomplete: (text.length > 0) !== (kcm.client.draftLanUsername.length > 0)
+                    status: hasColon || incomplete ? Kirigami.MessageType.Error : Kirigami.MessageType.Information
+                    statusMessage: hasColon
+                        ? tx.i18n("The password cannot contain a colon.")
+                        : incomplete
+                            ? tx.i18n("Fill in both the username and the password, or leave both empty.")
+                            : ""
                     onTextChanged: {
                         if (text !== kcm.client.draftLanPassword) {
                             kcm.client.draftLanPassword = text;
                         }
                     }
+                }
+
+                FormCard.FormSectionText {
+                    visible: kcm.client.draftAllowLan
+                    text: tx.i18n("Username and password are both required, and neither may contain a colon.")
                 }
 
                 FormCard.FormDelegateSeparator {}
@@ -268,7 +295,8 @@ Flickable {
                     label: tx.i18n("Mixed port")
                     from: 1
                     to: 65535
-                    value: kcm.client.draftMixedPort
+                    stepSize: 1
+                        value: kcm.client.draftMixedPort
                     onValueModified: kcm.client.draftMixedPort = value
 
                     QQC2.ToolTip.visible: hovered
@@ -282,7 +310,13 @@ Flickable {
                     label: tx.i18n("Controller port")
                     from: 1
                     to: 65535
-                    value: kcm.client.draftControllerPort
+                    stepSize: 1
+                        value: kcm.client.draftControllerPort
+                    readonly property bool sameAsMixed: value === kcm.client.draftMixedPort
+                    status: sameAsMixed ? Kirigami.MessageType.Error : Kirigami.MessageType.Information
+                    statusMessage: sameAsMixed
+                        ? tx.i18n("The controller port must differ from the mixed port.")
+                        : ""
                     onValueModified: kcm.client.draftControllerPort = value
 
                     QQC2.ToolTip.visible: hovered
@@ -290,10 +324,17 @@ Flickable {
                     QQC2.ToolTip.text: tx.i18n("This page talks to the controller, which listens only on this computer.")
                 }
 
+                FormCard.FormSectionText {
+                    text: tx.i18n("Allowed range: 1 to 65535, and it must differ from the mixed port.")
+                }
+
                 FormCard.FormDelegateSeparator {}
 
                 FormCard.FormTextFieldDelegate {
                     label: tx.i18n("mihomo executable")
+                    maximumLength: 1024
+                    placeholderText: "mihomo"
+                    inputMethodHints: Qt.ImhNoPredictiveText
                     text: kcm.client.draftMihomoPath
                     onTextChanged: {
                         if (text !== kcm.client.draftMihomoPath) {
@@ -312,6 +353,10 @@ Flickable {
                     label: tx.i18n("TUN device")
                     text: kcm.client.draftTunDevice
                     maximumLength: 15
+                    inputMethodHints: Qt.ImhNoPredictiveText
+                    validator: RegularExpressionValidator {
+                        regularExpression: /^[A-Za-z0-9_-]{0,15}$/
+                    }
                     onTextChanged: {
                         if (text !== kcm.client.draftTunDevice) {
                             kcm.client.draftTunDevice = text;
@@ -328,7 +373,15 @@ Flickable {
                 FormCard.FormTextFieldDelegate {
                     id: overrideField
                     label: tx.i18n("Override file")
+                    maximumLength: 4096
+                    placeholderText: kcm.client.overridePath
+                    inputMethodHints: Qt.ImhUrlCharactersOnly
                     text: kcm.client.draftOverridePath
+                    readonly property bool relativePath: text.length > 0 && !text.startsWith("/")
+                    status: relativePath ? Kirigami.MessageType.Error : Kirigami.MessageType.Information
+                    statusMessage: relativePath
+                        ? tx.i18n("The override file must use an absolute path.")
+                        : ""
                     onTextChanged: {
                         if (text !== kcm.client.draftOverridePath) {
                             kcm.client.draftOverridePath = text;

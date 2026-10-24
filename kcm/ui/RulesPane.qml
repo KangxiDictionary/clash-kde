@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-FileCopyrightText: 2026 clash-kde contributors
+
 import QtQuick
 import QtQuick.Controls as QQC2
 import QtQuick.Layouts
@@ -595,6 +598,8 @@ Item {
                             id: rulePayload
                             Layout.fillWidth: true
                             enabled: ruleFields.editable && root.currentType() !== "MATCH"
+                            maximumLength: 512
+                            inputMethodHints: Qt.ImhNoPredictiveText
                             Kirigami.MnemonicData.enabled: false
                             onTextChanged: root.pushRule()
                         }
@@ -661,15 +666,21 @@ Item {
                             visible: root.selectedSource.length > 0
                             Layout.fillWidth: true
                             readonly property real noteLimit: Kirigami.Units.gridUnit * 12
+                            readonly property int noteCharacterLimit: 4096
                             Layout.preferredHeight: Math.min(noteLimit, Math.max(implicitBackgroundHeight, contentHeight + topPadding + bottomPadding))
                             Layout.maximumHeight: noteLimit
                             wrapMode: TextEdit.Wrap
                             clip: true
+                            placeholderText: tx.i18n("Optional comment")
                             Kirigami.MnemonicData.enabled: false
                             QQC2.ScrollBar.vertical: QQC2.ScrollBar {
                                 policy: QQC2.ScrollBar.AsNeeded
                             }
                             onTextChanged: {
+                                if (length > noteCharacterLimit) {
+                                    text = text.substring(0, noteCharacterLimit);
+                                    return;
+                                }
                                 if (root.filling || root.noteKey().length === 0) {
                                     return;
                                 }
@@ -715,6 +726,20 @@ Item {
         anchors.centerIn: parent
         width: Kirigami.Units.gridUnit * 24
 
+        function validForm() {
+            const type = root.ruleTypes[addKind.currentIndex].value;
+            return type === "MATCH" || addPayload.text.trim().length > 0;
+        }
+
+        function refreshOk() {
+            const button = standardButton(QQC2.Dialog.Ok);
+            if (button) {
+                button.enabled = validForm();
+            }
+        }
+
+        onOpened: Qt.callLater(refreshOk)
+
         contentItem: ColumnLayout {
             spacing: Kirigami.Units.smallSpacing
 
@@ -724,12 +749,25 @@ Item {
                 Layout.fillWidth: true
                 model: root.ruleTypes
                 textRole: "label"
+                onActivated: addRuleDialog.refreshOk()
             }
             QQC2.TextField {
                 id: addPayload
                 Layout.fillWidth: true
                 enabled: root.ruleTypes[addKind.currentIndex].value !== "MATCH"
                 placeholderText: tx.i18n("Match")
+                maximumLength: 512
+                inputMethodHints: Qt.ImhNoPredictiveText
+                Kirigami.MnemonicData.enabled: false
+                onTextChanged: addRuleDialog.refreshOk()
+            }
+            QQC2.Label {
+                visible: root.ruleTypes[addKind.currentIndex].value !== "MATCH" && addPayload.text.trim().length === 0
+                text: tx.i18n("A rule needs a match value unless its type is MATCH.")
+                color: Kirigami.Theme.negativeTextColor
+                font: Kirigami.Theme.smallFont
+                wrapMode: Text.WordWrap
+                Layout.fillWidth: true
                 Kirigami.MnemonicData.enabled: false
             }
             QQC2.ComboBox {
@@ -741,6 +779,9 @@ Item {
         }
 
         onAccepted: {
+            if (!validForm()) {
+                return;
+            }
             const type = root.ruleTypes[addKind.currentIndex].value;
             if (kcm.client.addOwnRule(type, addPayload.text, addTarget.currentText)) {
                 root.selectedSource = "own";

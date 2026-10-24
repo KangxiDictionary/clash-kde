@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-FileCopyrightText: 2026 clash-kde contributors
+
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -411,6 +414,15 @@ pub fn write_runtime_config(paths: &Paths, settings: &Settings) -> Result<(), St
     let names = crate::rules::policy_names(&config);
     crate::rules::validate_rules(&own, &names)?;
     crate::rules::insert_own_rules(&mut config, &own);
+    // openSUSE's mihomo package does not ship an MMDB. If v2ray-core supplied
+    // geoip.dat/geosite.dat, use those instead of waiting for a download.
+    let geodata = crate::core::geodata_sources();
+    if crate::core::geodata_mode(&geodata) == "dat" {
+        if let Value::Mapping(map) = &mut config {
+            map.insert(Value::String("geodata-mode".into()), Value::Bool(true));
+        }
+        tracing::info!("没有 MMDB，使用 geoip.dat/geosite.dat 作为地理数据");
+    }
     let text =
         serde_yaml::to_string(&config).map_err(|error| format!("无法生成运行配置: {error}"))?;
     fs::create_dir_all(paths.runtime_dir()).map_err(|error| error.to_string())?;
@@ -610,6 +622,9 @@ fn checked_route(fields: &RouteFields) -> Result<RouteFields, String> {
     if name.is_empty() || reserved_route(name) {
         return Err("路线名称不能是空的或内置名称".to_string());
     }
+    if name.chars().count() > 128 {
+        return Err("路线名称不能超过 128 个字符".to_string());
+    }
     let kind = fields.kind.trim().to_ascii_lowercase();
     if !matches!(kind.as_str(), "http" | "socks5" | "ss" | "vmess" | "trojan") {
         return Err("不支持这种路线类型".to_string());
@@ -617,6 +632,12 @@ fn checked_route(fields: &RouteFields) -> Result<RouteFields, String> {
     let server = fields.server.trim();
     if server.is_empty() {
         return Err("服务器不能为空".to_string());
+    }
+    if server.chars().count() > 255 {
+        return Err("服务器地址不能超过 255 个字符".to_string());
+    }
+    if fields.secret.chars().count() > 512 {
+        return Err("密码或 UUID 不能超过 512 个字符".to_string());
     }
     if fields.port == 0 {
         return Err("端口无效".to_string());

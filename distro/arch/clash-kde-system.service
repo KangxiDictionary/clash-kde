@@ -1,6 +1,6 @@
 [Unit]
 Description=Clash KDE privileged helper
-After=polkit.service
+After=polkit.service dbus.service
 
 [Service]
 Type=dbus

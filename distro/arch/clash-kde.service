@@ -6,6 +6,9 @@ After=graphical-session.target dbus.service
 Type=dbus
 BusName=org.kde.clashkde
 ExecStart=/usr/bin/clash-kde
+# If the service crashes or is stopped, never leave the desktop proxy pointing
+# at a dead port. This also runs when systemd restarts the service.
+ExecStopPost=-/usr/bin/clash-kde --restore-proxy
 Restart=on-failure
 RestartSec=2
 TimeoutStopSec=15

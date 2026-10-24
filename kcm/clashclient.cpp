@@ -4,7 +4,10 @@
 #include "clashclient.h"
 #include "regionlabel.h"
 
+#include <KLocalizedString>
+
 #include <QDBusConnection>
+#include <QDBusConnectionInterface>
 #include <QDBusInterface>
 #include <QDBusPendingCallWatcher>
 #include <QDBusPendingReply>
@@ -12,11 +15,13 @@
 #include <QDateTime>
 #include <QDir>
 #include <QFile>
+#include <QHostAddress>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QProcess>
 #include <QStandardPaths>
+#include <QTcpServer>
 #include <QTemporaryFile>
 #include <QTimer>
 #include <QClipboard>
@@ -108,6 +113,79 @@ bool ufwEnabled()
     }
     return false;
 }
+
+QString dataHome()
+{
+    QString path = QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation);
+    if (path.isEmpty()) {
+        path = QDir::homePath() + QStringLiteral("/.local/share");
+    }
+    return path;
+}
+
+QString configHome()
+{
+    QString path = QStandardPaths::writableLocation(QStandardPaths::GenericConfigLocation);
+    if (path.isEmpty()) {
+        path = QDir::homePath() + QStringLiteral("/.config");
+    }
+    return path;
+}
+
+QString clashConfigDir()
+{
+    return configHome() + QStringLiteral("/clash-kde");
+}
+
+QString runtimeDirectory()
+{
+    return dataHome() + QStringLiteral("/clash-kde/runtime");
+}
+
+QString pathState(const QString &path)
+{
+    const QFileInfo info(path);
+    if (!info.exists()) {
+        return path + QStringLiteral(" (missing)");
+    }
+    return QStringLiteral("%1 (%2 bytes)").arg(path).arg(info.size());
+}
+
+QString tailFile(const QString &path, qint64 keep)
+{
+    QFile file(path);
+    if (!file.open(QIODevice::ReadOnly)) {
+        return {};
+    }
+    if (file.size() > keep) {
+        file.seek(file.size() - keep);
+        file.readLine();
+    }
+    return QString::fromUtf8(file.readAll());
+}
+
+QString geodataSearchPath(const QString &name)
+{
+    const QStringList roots = {
+        configHome() + QStringLiteral("/mihomo"),
+        configHome() + QStringLiteral("/mihomo-party/work"),
+        configHome() + QStringLiteral("/clash"),
+        configHome() + QStringLiteral("/clash-meta"),
+        dataHome() + QStringLiteral("/mihomo"),
+        dataHome() + QStringLiteral("/clash"),
+        dataHome() + QStringLiteral("/clash-meta"),
+        QStringLiteral("/usr/share/mihomo"),
+        QStringLiteral("/usr/share/clash"),
+        QStringLiteral("/usr/share/v2ray"),
+    };
+    for (const QString &root : roots) {
+        const QFileInfo info(root + QLatin1Char('/') + name);
+        if (info.isFile() && info.size() >= 1024) {
+            return info.absoluteFilePath();
+        }
+    }
+    return {};
+}
 }
 
 ClashClient::ClashClient(QObject *parent)
@@ -181,6 +259,7 @@ QString ClashClient::exitRegion() const { return formatExitRegion(m_exitRegion, 
 QString ClashClient::exitRaw() const { return m_exitRegion; }
 QString ClashClient::activeProfile() const { return m_activeProfile; }
 QString ClashClient::message() const { return m_message; }
+QString ClashClient::phase() const { return m_phase; }
 bool ClashClient::busy() const { return m_busy; }
 bool ClashClient::delayTesting() const { return m_delayTesting; }
 QVariantList ClashClient::profiles() const { return m_profiles; }
@@ -587,6 +666,30 @@ void ClashClient::copyText(const QString &text) const
     QGuiApplication::clipboard()->setText(value);
 }
 
+QString ClashClient::i18n(const QString &text, const QVariantList &args) const
+{
+    // Do the substitution inside KI18n. Calling toString() first would turn
+    // %1 into {1i18n_ARGUMENT_MISSING} before QML could apply the arguments.
+    KLocalizedString message = ki18nd("kcm_clashkde", text.toUtf8().constData());
+    for (const QVariant &arg : args) {
+        message = message.subs(arg.toString());
+    }
+    return message.toString();
+}
+
+QString ClashClient::i18nc(const QString &context, const QString &text, const QVariantList &args) const
+{
+    KLocalizedString message = ki18ndc(
+        "kcm_clashkde",
+        context.toUtf8().constData(),
+        text.toUtf8().constData()
+    );
+    for (const QVariant &arg : args) {
+        message = message.subs(arg.toString());
+    }
+    return message.toString();
+}
+
 void ClashClient::reloadAccounts()
 {
     setBusy(true);
@@ -703,16 +806,208 @@ QString ClashClient::checkProfileText(const QString &body)
 
 QString ClashClient::coreLog() const
 {
-    QFile file(QDir::homePath() + QStringLiteral("/.local/share/clash-kde/runtime/mihomo.log"));
-    if (!file.open(QIODevice::ReadOnly)) {
-        return {};
+    return tailFile(runtimeDirectory() + QStringLiteral("/mihomo.log"), 48 * 1024);
+}
+
+QString ClashClient::serviceLog() const
+{
+    const QString journalctl = QStandardPaths::findExecutable(QStringLiteral("journalctl"));
+    if (journalctl.isEmpty()) {
+        return QStringLiteral("journalctl was not found.");
     }
-    constexpr qint64 keep = 48 * 1024;
-    if (file.size() > keep) {
-        file.seek(file.size() - keep);
-        file.readLine();
+    QProcess process;
+    process.start(journalctl, {
+        QStringLiteral("--user"),
+        QStringLiteral("-u"),
+        QStringLiteral("clash-kde.service"),
+        QStringLiteral("-n"),
+        QStringLiteral("200"),
+        QStringLiteral("--no-pager"),
+        QStringLiteral("-o"),
+        QStringLiteral("short-iso"),
+    });
+    if (!process.waitForFinished(3000)) {
+        process.kill();
+        process.waitForFinished(500);
+        return QStringLiteral("journalctl did not finish in time.");
     }
-    return QString::fromUtf8(file.readAll());
+    QString text = QString::fromUtf8(process.readAllStandardOutput()).trimmed();
+    if (text.isEmpty()) {
+        text = QString::fromUtf8(process.readAllStandardError()).trimmed();
+    }
+    if (text.isEmpty()) {
+        text = QStringLiteral("No journal entries for clash-kde.service.");
+    }
+    return text;
+}
+
+QString ClashClient::diagnostics() const
+{
+    const auto yesNo = [](bool value) {
+        return value ? QStringLiteral("true") : QStringLiteral("false");
+    };
+    QStringList lines;
+    lines << QStringLiteral("clash-kde diagnostics");
+    lines << QStringLiteral("generated: %1").arg(QDateTime::currentDateTime().toString(Qt::ISODate));
+    lines << QString();
+    lines << QStringLiteral("== service ==");
+    lines << QStringLiteral("phase: %1").arg(m_phase);
+    lines << QStringLiteral("core_desired: %1   core_running: %2").arg(yesNo(m_coreDesired), yesNo(m_coreRunning));
+    lines << QStringLiteral("system_proxy_enabled: %1   applied: %2").arg(yesNo(m_systemProxyEnabled), yesNo(m_systemProxyApplied));
+    lines << QStringLiteral("tun_enabled: %1   machine: %2").arg(yesNo(m_tunEnabled), yesNo(m_tunMachine));
+    lines << QStringLiteral("mode: %1   mixed_port: %2   controller_port: %3").arg(m_mode).arg(m_mixedPort).arg(m_controllerPort);
+    lines << QStringLiteral("kde_proxy: %1   gnome_proxy: %2").arg(m_kdeProxy, m_gnomeProxy);
+    lines << QStringLiteral("message: %1").arg(m_message.isEmpty() ? QStringLiteral("(empty)") : m_message);
+    lines << QString();
+    lines << QStringLiteral("== paths ==");
+    lines << QStringLiteral("config dir: %1").arg(pathState(clashConfigDir()));
+    lines << QStringLiteral("settings:   %1").arg(pathState(clashConfigDir() + QStringLiteral("/config.toml")));
+    lines << QStringLiteral("override:   %1").arg(pathState(m_overridePath.isEmpty() ? clashConfigDir() + QStringLiteral("/override.yaml") : m_overridePath));
+    lines << QStringLiteral("runtime:    %1").arg(pathState(runtimeDirectory()));
+    lines << QStringLiteral("runtime cfg:%1").arg(pathState(runtimeDirectory() + QStringLiteral("/config.yaml")));
+    lines << QStringLiteral("mihomo log: %1").arg(pathState(runtimeDirectory() + QStringLiteral("/mihomo.log")));
+    lines << QStringLiteral("proxy flag: %1").arg(pathState(clashConfigDir() + QStringLiteral("/proxy-applied")));
+    lines << QStringLiteral("proxy left: %1").arg(pathState(clashConfigDir() + QStringLiteral("/proxy-left")));
+    lines << QString();
+    lines << QStringLiteral("== mihomo ==");
+    lines << QStringLiteral("setting: %1").arg(m_mihomoPath);
+    QString resolved = m_mihomoPath.contains(QLatin1Char('/'))
+        ? m_mihomoPath
+        : QStandardPaths::findExecutable(m_mihomoPath);
+    if (resolved.isEmpty()) {
+        lines << QStringLiteral("resolved: NOT FOUND");
+    } else {
+        lines << QStringLiteral("resolved: %1").arg(resolved);
+        QProcess version;
+        version.start(resolved, {QStringLiteral("-v")});
+        if (version.waitForFinished(2000)) {
+            QString text = QString::fromUtf8(version.readAllStandardOutput()).trimmed();
+            if (text.isEmpty()) {
+                text = QString::fromUtf8(version.readAllStandardError()).trimmed();
+            }
+            if (!text.isEmpty()) {
+                lines << QStringLiteral("version: %1").arg(text);
+            }
+        }
+    }
+    lines << QString();
+    lines << QStringLiteral("== geodata ==");
+    const QStringList geodata = {
+        QStringLiteral("country.mmdb"),
+        QStringLiteral("geoip.metadb"),
+        QStringLiteral("geosite.dat"),
+        QStringLiteral("geoip.dat"),
+    };
+    const bool hasMmdb = !geodataSearchPath(QStringLiteral("country.mmdb")).isEmpty()
+        || !geodataSearchPath(QStringLiteral("geoip.metadb")).isEmpty();
+    const bool hasDat = !geodataSearchPath(QStringLiteral("geoip.dat")).isEmpty()
+        && !geodataSearchPath(QStringLiteral("geosite.dat")).isEmpty();
+    lines << QStringLiteral("mode: %1").arg(hasMmdb ? QStringLiteral("country.mmdb/geoip.metadb")
+                                    : hasDat ? QStringLiteral("geoip.dat/geosite.dat (geodata-mode: true)")
+                                             : QStringLiteral("download (no local MMDB or v2ray dat files)"));
+    for (const QString &name : geodata) {
+        const QString found = geodataSearchPath(name);
+        lines << QStringLiteral("%1: %2").arg(name, found.isEmpty() ? QStringLiteral("not found") : found);
+    }
+    lines << QString();
+    lines << QStringLiteral("== ports ==");
+    const auto probePort = [](int port) {
+        QTcpServer server;
+        const bool free = server.listen(QHostAddress::LocalHost, static_cast<quint16>(port));
+        server.close();
+        return free ? QStringLiteral("free") : QStringLiteral("IN USE");
+    };
+    lines << QStringLiteral("mixed %1: %2").arg(m_mixedPort).arg(probePort(m_mixedPort));
+    lines << QStringLiteral("controller %1: %2").arg(m_controllerPort).arg(probePort(m_controllerPort));
+    if (m_coreRunning) {
+        lines << QStringLiteral("(the running core normally owns these ports)");
+    }
+    QProcess systemService;
+    systemService.start(QStringLiteral("systemctl"), {QStringLiteral("is-active"), QStringLiteral("mihomo.service")});
+    QString systemState = QStringLiteral("unknown");
+    if (systemService.waitForFinished(1500)) {
+        systemState = QString::fromUtf8(systemService.readAllStandardOutput()).trimmed();
+    }
+    if (systemState.isEmpty()) {
+        systemState = QStringLiteral("unknown");
+    }
+    lines << QStringLiteral("system mihomo.service: %1").arg(systemState);
+    if (systemState == QStringLiteral("active")) {
+        lines << QStringLiteral("(it normally uses 7890/9090; run: sudo systemctl disable --now mihomo, or choose other ports)");
+    }
+    lines << QString();
+    lines << QStringLiteral("== mihomo log ==");
+    const QString log = coreLog();
+    lines << (log.isEmpty() ? QStringLiteral("(no log yet)") : log.trimmed());
+    lines << QString();
+    lines << QStringLiteral("== service journal ==");
+    lines << serviceLog();
+    return lines.join(QLatin1Char('\n'));
+}
+
+void ClashClient::openLogFolder()
+{
+    QDir dir(runtimeDirectory());
+    if (!dir.exists() && !dir.mkpath(QStringLiteral("."))) {
+        reportError(QStringLiteral("无法创建日志目录: %1").arg(dir.absolutePath()));
+        return;
+    }
+    QDesktopServices::openUrl(QUrl::fromLocalFile(dir.absolutePath()));
+}
+
+void ClashClient::restoreSystemProxy()
+{
+    QDBusReply<bool> registered;
+    if (auto *bus = QDBusConnection::sessionBus().interface()) {
+        registered = bus->isServiceRegistered(QStringLiteral("org.kde.clashkde"));
+    }
+    if (registered.isValid() && registered.value()) {
+        setBusy(true);
+        auto *watcher = new QDBusPendingCallWatcher(m_iface->asyncCall(QStringLiteral("SetSystemProxy"), false), this);
+        connect(watcher, &QDBusPendingCallWatcher::finished, this, [this](QDBusPendingCallWatcher *call) {
+            call->deleteLater();
+            setBusy(false);
+            const QDBusPendingReply<> reply = *call;
+            if (reply.isValid()) {
+                showHint(QStringLiteral("系统代理已关闭。"));
+                refreshStatus();
+                return;
+            }
+            runRestoreProxyCommand();
+        });
+        return;
+    }
+    runRestoreProxyCommand();
+}
+
+void ClashClient::runRestoreProxyCommand()
+{
+    QString exe = QStandardPaths::findExecutable(QStringLiteral("clash-kde"));
+    if (exe.isEmpty()) {
+        exe = QStringLiteral("/usr/bin/clash-kde");
+    }
+    if (!QFileInfo(exe).isExecutable()) {
+        reportError(QStringLiteral("找不到 clash-kde，无法自动恢复代理。请手动执行：kwriteconfig6 --file ~/.config/kioslaverc --group \"Proxy Settings\" --key ProxyType 0"));
+        return;
+    }
+    QProcess process;
+    process.start(exe, {QStringLiteral("--restore-proxy")});
+    if (!process.waitForStarted(2000)) {
+        reportError(QStringLiteral("无法执行 clash-kde --restore-proxy。"));
+        return;
+    }
+    if (!process.waitForFinished(5000)) {
+        process.kill();
+        reportError(QStringLiteral("clash-kde --restore-proxy 超时。"));
+        return;
+    }
+    if (process.exitStatus() != QProcess::NormalExit || process.exitCode() != 0) {
+        const QString error = QString::fromUtf8(process.readAllStandardError()).trimmed();
+        reportError(error.isEmpty() ? QStringLiteral("clash-kde --restore-proxy 失败。") : error);
+        return;
+    }
+    showHint(QStringLiteral("系统代理已关闭。"));
+    refreshStatus();
 }
 
 bool ClashClient::openBodyInEditor(const QString &body)
@@ -2491,6 +2786,12 @@ void ClashClient::applyStatus(const QVariantMap &status)
     if (message.startsWith(dbusPrefix)) {
         message = message.mid(dbusPrefix.size());
     }
+    QString phase = status.value(QStringLiteral("phase")).toString();
+    if (phase.isEmpty()) {
+        // Older services do not send phase; keep the UI useful during upgrades.
+        phase = coreRunning ? QStringLiteral("running")
+                            : (coreDesired ? QStringLiteral("starting") : QStringLiteral("stopped"));
+    }
     if (m_coreDesired == coreDesired && m_coreRunning == coreRunning && m_systemProxyEnabled == systemProxyEnabled
         && m_systemProxyApplied == systemProxyApplied && m_tunEnabled == tunEnabled && m_tunMachine == tunMachine
         && m_kdeProxy == kdeProxy && m_gnomeProxy == gnomeProxy && m_mode == mode && m_listenHost == listenHost
@@ -2502,7 +2803,7 @@ void ClashClient::applyStatus(const QVariantMap &status)
         && m_autoTestDelay == autoTestDelay && m_blurIp == blurIp && m_compact == compact
         && m_showWidgetHint == showWidgetHint && m_speedTestMib == speedTestMib && m_allowLan == allowLan
         && m_lanUsername == lanUsername && m_lanPassword == lanPassword && m_lanAllowed == lanAllowed
-        && m_message == message) {
+        && m_message == message && m_phase == phase) {
         if (!coreRunning && !m_connections.isEmpty()) {
             m_connections.clear();
             Q_EMIT connectionsChanged();
@@ -2548,6 +2849,7 @@ void ClashClient::applyStatus(const QVariantMap &status)
     m_lanPassword = lanPassword;
     m_lanAllowed = lanAllowed;
     m_message = message;
+    m_phase = phase;
     const bool releasedOutside = proxyWasEnabled && !m_systemProxyEnabled;
     if (!m_draftDirty && !draftMatchesLive()) {
         copyLiveToDraft();

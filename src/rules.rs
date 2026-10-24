@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-FileCopyrightText: 2026 clash-kde contributors
+
 use std::collections::BTreeSet;
 use std::fs;
 use std::net::IpAddr;
@@ -328,6 +331,12 @@ fn check_shape(rule: &OwnRule) -> Result<(), String> {
     }
     if rule.payload.contains([',', '\n', '\r']) || rule.target.contains([',', '\n', '\r']) {
         return Err("匹配内容不能包含逗号".to_string());
+    }
+    if rule.payload.chars().count() > 512 {
+        return Err("匹配内容太长".to_string());
+    }
+    if rule.target.chars().count() > 128 {
+        return Err("目标名称太长".to_string());
     }
     if rule.kind == "MATCH" {
         if rule.target.is_empty() {
@@ -681,5 +690,24 @@ mod tests {
         )
         .unwrap_err();
         assert_eq!(error, "第 1 行：目标不能为空");
+    }
+
+    #[test]
+    fn rule_fields_are_length_bounded() {
+        let names = BTreeSet::from(["DIRECT".to_string()]);
+        let long_payload = OwnRule {
+            kind: "DOMAIN".into(),
+            payload: "a".repeat(513),
+            target: "DIRECT".into(),
+            enabled: true,
+        };
+        assert!(validate_rules(&[long_payload], &names).is_err());
+        let long_target = OwnRule {
+            kind: "DOMAIN".into(),
+            payload: "example.com".into(),
+            target: "a".repeat(129),
+            enabled: true,
+        };
+        assert!(validate_rules(&[long_target], &names).is_err());
     }
 }
