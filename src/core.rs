@@ -144,10 +144,11 @@ pub fn startup_hint(path: &Path) -> String {
     }
 }
 
-/// True when a listener can be created on the loopback port. Used before
-/// spawning mihomo so a port conflict is reported instead of timing out.
-pub fn port_available(port: u16) -> bool {
-    std::net::TcpListener::bind(("127.0.0.1", port)).is_ok()
+/// True when a listener can be created on `host`. Used before spawning mihomo
+/// so a port conflict is reported instead of timing out. The mixed port uses
+/// 0.0.0.0 when LAN access is enabled and 127.0.0.1 otherwise.
+pub fn port_available(host: &str, port: u16) -> bool {
+    std::net::TcpListener::bind((host, port)).is_ok()
 }
 
 pub fn tun_listen_error(path: &Path) -> Option<String> {
@@ -345,9 +346,9 @@ mod tests {
     fn a_listening_port_is_reported_as_unavailable() {
         let listener = std::net::TcpListener::bind(("127.0.0.1", 0)).unwrap();
         let port = listener.local_addr().unwrap().port();
-        assert!(!port_available(port));
+        assert!(!port_available("127.0.0.1", port));
         drop(listener);
-        assert!(port_available(port));
+        assert!(port_available("127.0.0.1", port));
     }
 
     #[test]

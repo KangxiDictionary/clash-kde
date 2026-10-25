@@ -136,7 +136,8 @@ Item {
     }
 
     function formatLatency(ms) {
-        if (ms < 0) {
+        // 0 means no latency sample was received; -1 means the probe failed.
+        if (ms <= 0) {
             return "—";
         }
         return tx.i18n("%1 ms", tx.formatNumber(ms));

@@ -1642,13 +1642,16 @@ impl App {
         // mihomo exits immediately when another program (often mihomo-party)
         // still owns one of its ports. Check before launching so the UI gets a
         // useful message instead of a timeout.
+        let lan_open = crate::lan::permitted(&crate::lan::policy_dir(), crate::lan::current_uid())
+            && settings.allow_lan;
+        let mixed_host = if lan_open { "0.0.0.0" } else { "127.0.0.1" };
         let mut busy = Vec::new();
         for attempt in 0..10 {
             busy.clear();
-            if !core::port_available(settings.mixed_port) {
+            if !core::port_available(mixed_host, settings.mixed_port) {
                 busy.push(format!("混合端口 {}", settings.mixed_port));
             }
-            if !core::port_available(settings.controller_port) {
+            if !core::port_available("127.0.0.1", settings.controller_port) {
                 busy.push(format!("控制器端口 {}", settings.controller_port));
             }
             if busy.is_empty() {

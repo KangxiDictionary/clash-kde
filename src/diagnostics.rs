@@ -276,12 +276,16 @@ fn report(paths: &Paths, settings: &Settings) -> String {
     let _ = writeln!(out);
 
     let _ = writeln!(out, "== ports ==");
-    let mixed_free = core::port_available(settings.mixed_port);
-    let controller_free = core::port_available(settings.controller_port);
+    let lan_open = crate::lan::permitted(&crate::lan::policy_dir(), crate::lan::current_uid())
+        && settings.allow_lan;
+    let mixed_host = if lan_open { "0.0.0.0" } else { "127.0.0.1" };
+    let mixed_free = core::port_available(mixed_host, settings.mixed_port);
+    let controller_free = core::port_available("127.0.0.1", settings.controller_port);
     let _ = writeln!(
         out,
-        "mixed {}: {}",
+        "mixed {} ({}): {}",
         settings.mixed_port,
+        mixed_host,
         if mixed_free { "free" } else { "IN USE" }
     );
     let _ = writeln!(

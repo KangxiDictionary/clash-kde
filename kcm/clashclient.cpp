@@ -2518,7 +2518,9 @@ bool ClashClient::commitSettings()
         }
     }
     const bool personalOn = m_tunEnabled && !m_tunMachine;
-    if (draftDevice != m_tunDevice || (m_draftTunEnabled && !personalOn)) {
+    const bool tunTurningOn = m_draftTunEnabled && !personalOn;
+    const bool deviceChangedWhileOn = m_draftTunEnabled && draftDevice != m_tunDevice;
+    if (tunTurningOn || deviceChangedWhileOn) {
         const QDBusReply<void> auth = m_admin->call(QStringLiteral("AuthorizeTun"));
         if (!auth.isValid()) {
             return failed(auth.error());

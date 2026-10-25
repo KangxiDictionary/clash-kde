@@ -116,6 +116,7 @@ impl Controller {
             .ok()
             .and_then(|value| value.get("delay").and_then(Value::as_i64))
             .filter(|delay| *delay > 0)
+            // 0 is the QML "Timeout" sentinel; -1 is "Not tested".
             .unwrap_or(0)
     }
 
