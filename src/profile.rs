@@ -11,6 +11,7 @@ use serde_yaml::{Mapping, Value};
 use crate::controller::{ProxyGroup, ProxyNode};
 use crate::paths::Paths;
 use crate::state::{Settings, write_private};
+use crate::tun::{self, TunOptions};
 
 const OVERRIDE_TEMPLATE: &str = "\
 # 这里的内容会合并到订阅之上。
@@ -239,45 +240,18 @@ pub fn prepare_runtime_config(
         let uid = unsafe { libc::getuid() };
         map.insert(
             Value::String("tun".into()),
-            enabled_tun(uid, &settings.tun_device, settings.tun_machine),
+            tun::config(
+                uid,
+                &settings.tun_device,
+                settings.tun_machine,
+                &TunOptions::from(settings),
+            ),
         );
         // 系统代理把域名交给内核。TUN 截到的是 IP，域名规则对不上，
         // 握手会打到错误的地址。嗅探 TLS 里的域名后再解析，才和系统代理同一条路。
         map.insert(Value::String("sniffer".into()), tun_sniffer());
     }
     config
-}
-
-fn enabled_tun(uid: u32, device: &str, machine: bool) -> Value {
-    let hijack = vec![
-        Value::String("any:53".into()),
-        Value::String("tcp://any:53".into()),
-    ];
-    let include = vec![Value::Number(uid.into())];
-
-    let mut tun = Mapping::new();
-    tun.insert(Value::String("enable".into()), Value::Bool(true));
-    tun.insert(Value::String("stack".into()), Value::String("mixed".into()));
-    // 默认 9000 会让客户端一次发出超过路径能承载的握手包，Google 的 TLS 会停在这里。
-    tun.insert(Value::String("mtu".into()), Value::Number(1500.into()));
-    tun.insert(Value::String("auto-route".into()), Value::Bool(true));
-    tun.insert(Value::String("auto-redirect".into()), Value::Bool(true));
-    tun.insert(
-        Value::String("auto-detect-interface".into()),
-        Value::Bool(true),
-    );
-    tun.insert(Value::String("strict-route".into()), Value::Bool(true));
-    tun.insert(Value::String("dns-hijack".into()), Value::Sequence(hijack));
-    if !machine {
-        tun.insert(
-            Value::String("include-uid".into()),
-            Value::Sequence(include),
-        );
-    }
-    if !device.is_empty() {
-        tun.insert(Value::String("device".into()), Value::String(device.into()));
-    }
-    Value::Mapping(tun)
 }
 
 fn tun_sniffer() -> Value {
@@ -952,6 +926,20 @@ mod tests {
             Some(true)
         );
         assert_eq!(tun.get("strict-route").and_then(Value::as_bool), Some(true));
+        let excluded = tun
+            .get("route-exclude-address")
+            .and_then(Value::as_sequence)
+            .expect("route exclusions");
+        assert!(
+            excluded
+                .iter()
+                .any(|item| item.as_str() == Some("100.64.0.0/10"))
+        );
+        assert!(
+            excluded
+                .iter()
+                .any(|item| item.as_str() == Some("192.168.0.0/16"))
+        );
         assert!(tun.get("device").is_none());
         settings.tun_device = "clash0".into();
         let again = serde_yaml::from_str(

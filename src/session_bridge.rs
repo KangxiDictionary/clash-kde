@@ -117,6 +117,15 @@ async fn live_status() -> Option<SlimStatus> {
             .get("tun_enabled")
             .and_then(|item| item.as_bool())
             .unwrap_or(false),
+        tun_machine: value
+            .get("tun_machine")
+            .and_then(|item| item.as_bool())
+            .unwrap_or(false),
+        exit_region: value
+            .get("exit_region")
+            .and_then(|item| item.as_str())
+            .unwrap_or("")
+            .to_string(),
         system_proxy_enabled: value
             .get("system_proxy_enabled")
             .and_then(|item| item.as_bool())
@@ -139,6 +148,8 @@ fn saved_status(account: &Account) -> SlimStatus {
     SlimStatus {
         core_running: false,
         tun_enabled: settings.tun_enabled,
+        tun_machine: settings.tun_machine,
+        exit_region: String::new(),
         system_proxy_enabled: settings.system_proxy_enabled,
         mode: settings.mode,
     }
@@ -180,6 +191,8 @@ async fn reload_runtime() -> Result<(), String> {
 struct SlimStatus {
     core_running: bool,
     tun_enabled: bool,
+    tun_machine: bool,
+    exit_region: String,
     system_proxy_enabled: bool,
     mode: String,
 }

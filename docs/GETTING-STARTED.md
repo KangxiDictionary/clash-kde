@@ -100,7 +100,11 @@ through polkit. The root-owned `/usr/bin/mihomo` is required; a user-owned
 binary is refused.
 
 TUN does not modify firewall rules. If a firewall is active, the Status page
-warns that it may drop TUN traffic.
+warns that it may drop TUN traffic. The TUN configuration excludes Tailscale
+(`100.64.0.0/10` and `fd7a:115c:a1e0::/48`) and private LAN ranges, so those
+destinations keep their own routes. If traffic still leaves through the
+physical interface, run `clash-kde --diagnose` and check the `tun` section:
+`route ready` must be `yes`.
 
 Whole-computer capture is on the **Other** page and requires administrator
 authentication.

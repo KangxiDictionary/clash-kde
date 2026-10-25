@@ -240,6 +240,10 @@ bool ClashClient::systemProxyEnabled() const { return m_systemProxyEnabled; }
 bool ClashClient::systemProxyApplied() const { return m_systemProxyApplied; }
 bool ClashClient::tunEnabled() const { return m_tunEnabled; }
 bool ClashClient::tunMachine() const { return m_tunMachine; }
+bool ClashClient::tunRouteReady() const { return m_tunRouteReady; }
+bool ClashClient::tunRouteKnown() const { return m_tunRouteKnown; }
+QString ClashClient::tunRouteDetail() const { return m_tunRouteDetail; }
+qlonglong ClashClient::tunRouteCheckedAt() const { return m_tunRouteCheckedAt; }
 QString ClashClient::kdeProxy() const { return m_kdeProxy; }
 QString ClashClient::gnomeProxy() const { return m_gnomeProxy; }
 bool ClashClient::accountsUnlocked() const { return m_accountsUnlocked; }
@@ -855,6 +859,14 @@ QString ClashClient::diagnostics() const
     lines << QStringLiteral("core_desired: %1   core_running: %2").arg(yesNo(m_coreDesired), yesNo(m_coreRunning));
     lines << QStringLiteral("system_proxy_enabled: %1   applied: %2").arg(yesNo(m_systemProxyEnabled), yesNo(m_systemProxyApplied));
     lines << QStringLiteral("tun_enabled: %1   machine: %2").arg(yesNo(m_tunEnabled), yesNo(m_tunMachine));
+    lines << QStringLiteral("tun_route_ready: %1   known: %2   detail: %3").arg(
+        yesNo(m_tunRouteReady),
+        yesNo(m_tunRouteKnown),
+        m_tunRouteDetail.isEmpty() ? QStringLiteral("(empty)") : m_tunRouteDetail);
+    lines << QStringLiteral("tun_route_checked: %1").arg(
+        m_tunRouteCheckedAt > 0
+            ? QDateTime::fromSecsSinceEpoch(m_tunRouteCheckedAt).toString(Qt::ISODate)
+            : QStringLiteral("never"));
     lines << QStringLiteral("mode: %1   mixed_port: %2   controller_port: %3").arg(m_mode).arg(m_mixedPort).arg(m_controllerPort);
     lines << QStringLiteral("kde_proxy: %1   gnome_proxy: %2").arg(m_kdeProxy, m_gnomeProxy);
     lines << QStringLiteral("message: %1").arg(m_message.isEmpty() ? QStringLiteral("(empty)") : m_message);
@@ -2744,6 +2756,14 @@ void ClashClient::applyStatus(const QVariantMap &status)
     const bool systemProxyApplied = status.value(QStringLiteral("system_proxy_applied")).toBool();
     const bool tunEnabled = status.value(QStringLiteral("tun_enabled")).toBool();
     const bool tunMachine = status.value(QStringLiteral("tun_machine")).toBool();
+    const bool tunRouteReady = status.contains(QStringLiteral("tun_route_ready"))
+        ? status.value(QStringLiteral("tun_route_ready")).toBool()
+        : true;
+    const bool tunRouteKnown = status.contains(QStringLiteral("tun_route_known"))
+        ? status.value(QStringLiteral("tun_route_known")).toBool()
+        : true;
+    const QString tunRouteDetail = status.value(QStringLiteral("tun_route_detail")).toString();
+    const qlonglong tunRouteCheckedAt = status.value(QStringLiteral("tun_route_checked_at")).toLongLong();
     QString kdeProxy = status.value(QStringLiteral("kde_proxy")).toString();
     if (kdeProxy.isEmpty()) {
         kdeProxy = QStringLiteral("off");
@@ -2794,6 +2814,8 @@ void ClashClient::applyStatus(const QVariantMap &status)
     }
     if (m_coreDesired == coreDesired && m_coreRunning == coreRunning && m_systemProxyEnabled == systemProxyEnabled
         && m_systemProxyApplied == systemProxyApplied && m_tunEnabled == tunEnabled && m_tunMachine == tunMachine
+        && m_tunRouteReady == tunRouteReady && m_tunRouteKnown == tunRouteKnown
+        && m_tunRouteDetail == tunRouteDetail && m_tunRouteCheckedAt == tunRouteCheckedAt
         && m_kdeProxy == kdeProxy && m_gnomeProxy == gnomeProxy && m_mode == mode && m_listenHost == listenHost
         && m_mixedPort == mixedPort && m_controllerPort == controllerPort && m_mihomoPath == mihomoPath
         && m_overridePath == overridePath && m_overrideDefault == overrideDefault && m_tunDevice == tunDevice
@@ -2820,6 +2842,10 @@ void ClashClient::applyStatus(const QVariantMap &status)
     m_systemProxyApplied = systemProxyApplied;
     m_tunEnabled = tunEnabled;
     m_tunMachine = tunMachine;
+    m_tunRouteReady = tunRouteReady;
+    m_tunRouteKnown = tunRouteKnown;
+    m_tunRouteDetail = tunRouteDetail;
+    m_tunRouteCheckedAt = tunRouteCheckedAt;
     m_kdeProxy = kdeProxy;
     m_gnomeProxy = gnomeProxy;
     m_mode = mode;

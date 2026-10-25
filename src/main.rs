@@ -21,6 +21,7 @@ mod proxy_settings;
 mod rules;
 mod session_bridge;
 mod state;
+mod tun;
 
 use std::process::ExitCode;
 

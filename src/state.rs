@@ -4,6 +4,7 @@
 use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde::{Deserialize, Serialize};
 
@@ -33,6 +34,14 @@ pub struct Settings {
     pub tun_enabled: bool,
     #[serde(default)]
     pub tun_machine: bool,
+    #[serde(default = "default_tun_route_table")]
+    pub tun_route_table: u32,
+    #[serde(default = "default_tun_rule_index")]
+    pub tun_rule_index: u32,
+    #[serde(default = "default_tun_exclude_private")]
+    pub tun_exclude_private: bool,
+    #[serde(default = "default_tun_health_secs")]
+    pub tun_health_secs: u32,
     #[serde(default)]
     pub sort_global: bool,
     #[serde(default = "default_sort_mode")]
@@ -87,6 +96,22 @@ fn default_speed_test_mib() -> u32 {
     20
 }
 
+fn default_tun_route_table() -> u32 {
+    crate::tun::DEFAULT_ROUTE_TABLE
+}
+
+fn default_tun_rule_index() -> u32 {
+    crate::tun::DEFAULT_RULE_INDEX
+}
+
+fn default_tun_exclude_private() -> bool {
+    true
+}
+
+fn default_tun_health_secs() -> u32 {
+    crate::tun::DEFAULT_HEALTH_SECS
+}
+
 fn default_mode() -> String {
     "rule".to_string()
 }
@@ -117,6 +142,10 @@ impl Default for Settings {
             selections: BTreeMap::new(),
             tun_enabled: false,
             tun_machine: false,
+            tun_route_table: default_tun_route_table(),
+            tun_rule_index: default_tun_rule_index(),
+            tun_exclude_private: default_tun_exclude_private(),
+            tun_health_secs: default_tun_health_secs(),
             sort_global: false,
             sort_mode: default_sort_mode(),
             show_unreachable: default_show_unreachable(),
@@ -141,11 +170,29 @@ impl Settings {
         if !path.exists() {
             return Ok(Self::default());
         }
-        let text = fs::read_to_string(path)?;
-        let mut settings: Self = toml::from_str(&text).unwrap_or_else(|error| {
-            tracing::warn!("忽略无法解析的配置，改用默认值: {error}");
-            Self::default()
-        });
+        let text = fs::read_to_string(&path)?;
+        let mut settings: Self = match toml::from_str(&text) {
+            Ok(settings) => settings,
+            Err(error) => {
+                // A corrupt config must not be silently replaced by defaults:
+                // keep a copy next to it so mihomo_path, active_profile, and
+                // the TUN keys can be recovered by hand.
+                let stamp = SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .map_or(0, |duration| duration.as_millis());
+                let backup = path.with_file_name(format!("config.toml.broken-{stamp}"));
+                match fs::copy(path, &backup) {
+                    Ok(_) => {
+                        tracing::error!("配置文件无法解析，已备份到 {}: {error}", backup.display())
+                    }
+                    Err(copy_error) => tracing::error!(
+                        "配置文件无法解析，备份到 {} 也失败（{copy_error}）: {error}",
+                        backup.display()
+                    ),
+                }
+                Self::default()
+            }
+        };
         if !matches!(settings.mode.as_str(), "rule" | "global" | "direct") {
             settings.mode = default_mode();
         }
@@ -160,6 +207,15 @@ impl Settings {
         }
         if !(1..=100).contains(&settings.speed_test_mib) {
             settings.speed_test_mib = default_speed_test_mib();
+        }
+        if !(1..=2_147_483_647).contains(&settings.tun_route_table) {
+            settings.tun_route_table = default_tun_route_table();
+        }
+        if !(1..=32765).contains(&settings.tun_rule_index) {
+            settings.tun_rule_index = default_tun_rule_index();
+        }
+        if !(1..=60).contains(&settings.tun_health_secs) {
+            settings.tun_health_secs = default_tun_health_secs();
         }
         settings.tun_device = normalize_tun_device(&settings.tun_device).unwrap_or_default();
         settings.override_path =
@@ -347,6 +403,80 @@ mod tests {
         let error = normalize_override_path(&paths, dir.to_str().unwrap()).unwrap_err();
         assert!(error.contains("文件夹"));
         let _ = fs::remove_dir(&dir);
+    }
+
+    #[test]
+    fn corrupt_settings_are_backed_up_before_defaults_are_used() {
+        let dir =
+            std::env::temp_dir().join(format!("clash-kde-settings-{}-broken", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        let paths = Paths {
+            config_dir: dir.clone(),
+            data_dir: dir.join("data"),
+            kioslaverc: dir.join("kioslaverc"),
+        };
+        fs::write(paths.settings_file(), "mihomo_path = [unterminated\n").unwrap();
+        let settings = Settings::load(&paths).unwrap();
+        assert_eq!(settings.mihomo_path, "mihomo");
+        let backups: Vec<_> = fs::read_dir(&dir)
+            .unwrap()
+            .flatten()
+            .filter(|entry| {
+                entry
+                    .file_name()
+                    .to_string_lossy()
+                    .starts_with("config.toml.broken-")
+            })
+            .collect();
+        assert_eq!(backups.len(), 1);
+        assert_eq!(
+            fs::read_to_string(backups[0].path()).unwrap(),
+            "mihomo_path = [unterminated\n"
+        );
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn tun_route_settings_have_defaults_and_are_validated() {
+        let missing: Settings = toml::from_str("core_desired = false\n").unwrap();
+        assert_eq!(missing.tun_route_table, 2022);
+        assert_eq!(missing.tun_rule_index, 9000);
+        assert!(missing.tun_exclude_private);
+        assert_eq!(missing.tun_health_secs, 5);
+
+        let dir = std::env::temp_dir().join(format!(
+            "clash-kde-settings-{}-tun-route",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        let paths = Paths {
+            config_dir: dir.clone(),
+            data_dir: dir.join("data"),
+            kioslaverc: dir.join("kioslaverc"),
+        };
+        fs::write(
+            paths.settings_file(),
+            "tun_route_table = 0\ntun_rule_index = 32766\ntun_health_secs = 0\n",
+        )
+        .unwrap();
+        let settings = Settings::load(&paths).unwrap();
+        assert_eq!(settings.tun_route_table, 2022);
+        assert_eq!(settings.tun_rule_index, 9000);
+        assert_eq!(settings.tun_health_secs, 5);
+
+        fs::write(
+            paths.settings_file(),
+            "tun_route_table = 4040\ntun_rule_index = 9100\ntun_exclude_private = false\ntun_health_secs = 10\n",
+        )
+        .unwrap();
+        let settings = Settings::load(&paths).unwrap();
+        assert_eq!(settings.tun_route_table, 4040);
+        assert_eq!(settings.tun_rule_index, 9100);
+        assert!(!settings.tun_exclude_private);
+        assert_eq!(settings.tun_health_secs, 10);
+        let _ = fs::remove_dir_all(&dir);
     }
 
     #[test]

@@ -1,7 +1,7 @@
 # Maintainer: clash-kde contributors
 pkgname=clash-kde
 pkgver=1.0.3
-pkgrel=7
+pkgrel=11
 pkgdesc='KDE System Settings module and panel widget for a per-user mihomo proxy'
 arch=('x86_64' 'aarch64')
 url='https://github.com/KangxiDictionary/clash-kde'

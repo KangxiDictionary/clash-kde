@@ -45,6 +45,30 @@ The RPM spec selects SUSE package names when `%{?suse_version}` is set. It pins
 `rust1.99` because that is the versioned Rust package in Tumbleweed; update the
 BuildRequires when Tumbleweed moves to another `rust1.x`.
 
+## TUN routing
+
+TUN route layout is configurable in `~/.config/clash-kde/config.toml`:
+
+- `tun_route_table` (default 2022) and `tun_rule_index` (default 9000) are
+  written as mihomo's `iproute2-table-index` / `iproute2-rule-index`.
+- `tun_exclude_private` (default true) keeps Tailscale, private LAN, IPv4
+  link-local, and IPv6 link-local traffic out of TUN.
+- `tun_health_secs` (default 5) controls the running route-health probe.
+
+The probe currently checks **IPv4 only** (`ip -4 rule show` and
+`ip -4 route show table ...`). It requires `iproute2`; if `ip` is unavailable,
+the route is reported as unknown rather than failed. A route is considered
+ready when the configured rule exists and the table has either a `default`
+route or the `0.0.0.0/1` + `128.0.0.0/1` pair. The service waits up to 30
+seconds at startup and rechecks periodically; a lost route is shown in the
+Status page and in `clash-kde --diagnose`.
+
+Authorization is stored per UID under `/var/lib/clash-kde/tun`. It is removed
+when TUN is turned off, not by a normal service shutdown, so a later login can
+restore a previously enabled TUN. While the grant exists, any process running
+as the same UID can call `SpawnTun`; this matches the per-user threat model and
+should be reviewed before granting TUN to a shared account.
+
 ## Freedesktop / Linux standards
 
 | Standard | Status | Notes |

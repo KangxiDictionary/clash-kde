@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2026 clash-kde contributors
 
 use std::sync::Arc;
+use std::time::Duration;
 
 use tokio::signal::unix::{SignalKind, signal};
 use zbus::fdo;
@@ -410,6 +411,9 @@ pub async fn run() -> Result<(), String> {
 
     app.restore_desired().await;
 
+    let mut tun_health =
+        tokio::time::interval(Duration::from_secs(app.tun_health_interval_secs().await));
+    tun_health.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
     let mut exits = app.take_exit_notices().await;
     let mut terminate = signal(SignalKind::terminate()).map_err(|error| error.to_string())?;
     let mut interrupt = signal(SignalKind::interrupt()).map_err(|error| error.to_string())?;
@@ -417,6 +421,9 @@ pub async fn run() -> Result<(), String> {
         tokio::select! {
             _ = terminate.recv() => break,
             _ = interrupt.recv() => break,
+            _ = tun_health.tick() => {
+                app.refresh_tun_health().await;
+            }
             notice = exits.recv() => {
                 if let Some(notice) = notice {
                     app.on_core_exit(notice).await;

@@ -19,6 +19,10 @@ class ClashClient : public QObject
     Q_PROPERTY(bool systemProxyApplied READ systemProxyApplied NOTIFY statusChanged)
     Q_PROPERTY(bool tunEnabled READ tunEnabled NOTIFY statusChanged)
     Q_PROPERTY(bool tunMachine READ tunMachine NOTIFY statusChanged)
+    Q_PROPERTY(bool tunRouteReady READ tunRouteReady NOTIFY statusChanged)
+    Q_PROPERTY(bool tunRouteKnown READ tunRouteKnown NOTIFY statusChanged)
+    Q_PROPERTY(QString tunRouteDetail READ tunRouteDetail NOTIFY statusChanged)
+    Q_PROPERTY(qlonglong tunRouteCheckedAt READ tunRouteCheckedAt NOTIFY statusChanged)
     Q_PROPERTY(QString kdeProxy READ kdeProxy NOTIFY statusChanged)
     Q_PROPERTY(QString gnomeProxy READ gnomeProxy NOTIFY statusChanged)
     Q_PROPERTY(bool accountsUnlocked READ accountsUnlocked NOTIFY accountsChanged)
@@ -106,6 +110,10 @@ public:
     bool systemProxyApplied() const;
     bool tunEnabled() const;
     bool tunMachine() const;
+    bool tunRouteReady() const;
+    bool tunRouteKnown() const;
+    QString tunRouteDetail() const;
+    qlonglong tunRouteCheckedAt() const;
     QString kdeProxy() const;
     QString gnomeProxy() const;
     bool accountsUnlocked() const;
@@ -369,6 +377,10 @@ private:
     bool m_systemProxyApplied = false;
     bool m_tunEnabled = false;
     bool m_tunMachine = false;
+    bool m_tunRouteReady = true;
+    bool m_tunRouteKnown = true;
+    QString m_tunRouteDetail;
+    qlonglong m_tunRouteCheckedAt = 0;
     QString m_kdeProxy = QStringLiteral("off");
     QString m_gnomeProxy = QStringLiteral("off");
     bool m_accountsUnlocked = false;

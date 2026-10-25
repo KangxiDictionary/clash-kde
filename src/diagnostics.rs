@@ -9,13 +9,16 @@
 //! and journalctl, so it also works from a TTY after a failed login start.
 
 use std::fmt::Write as _;
+use std::path::Path;
 use std::process::Command;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::core;
 use crate::paths::Paths;
 use crate::profile;
 use crate::rules;
 use crate::state::{self, Settings};
+use crate::tun::{self, TunOptions};
 
 pub fn run() -> Result<(), String> {
     let paths = Paths::from_env();
@@ -196,6 +199,82 @@ fn report(paths: &Paths, settings: &Settings) -> String {
     }
     let _ = writeln!(out);
 
+    let _ = writeln!(out, "== tun ==");
+    let options = TunOptions::from(settings);
+    let _ = writeln!(
+        out,
+        "enabled: {}   machine: {}   table: {}   rule: {}   exclude_private: {}   health: {}s",
+        settings.tun_enabled,
+        settings.tun_machine,
+        options.route_table,
+        options.rule_index,
+        options.exclude_private,
+        options.health_secs
+    );
+    let _ = writeln!(
+        out,
+        "links: {}",
+        command_text(
+            tun::ip_program(),
+            &["-brief", "link", "show", "type", "tun"]
+        )
+    );
+    let health = settings.tun_enabled.then(|| tun::probe(&options));
+    let _ = writeln!(
+        out,
+        "route ready: {}",
+        match &health {
+            None => "n/a (TUN off)".to_string(),
+            Some(health) if !health.known => format!("unknown ({})", health.detail),
+            Some(health) if health.ready => format!("yes ({})", health.detail),
+            Some(health) => format!("no ({})", health.detail),
+        }
+    );
+    let table = options.route_table.to_string();
+    let rule_prefix = format!("{}:", options.rule_index);
+    let rules = command_text(tun::ip_program(), &["-4", "rule", "show"])
+        .lines()
+        .filter(|line| {
+            let line = line.trim_start();
+            let lookup_table = line
+                .split_whitespace()
+                .collect::<Vec<_>>()
+                .windows(2)
+                .any(|pair| pair[0] == "lookup" && pair[1] == table.as_str());
+            line.starts_with(&rule_prefix) || lookup_table
+        })
+        .collect::<Vec<_>>()
+        .join(" | ");
+    let _ = writeln!(
+        out,
+        "rules: {}",
+        if rules.is_empty() { "(none)" } else { &rules }
+    );
+    let _ = writeln!(out, "probe: live IPv4 check at {}", now_text());
+    let _ = writeln!(
+        out,
+        "table {table}: {}",
+        command_text(tun::ip_program(), &["-4", "route", "show", "table", &table])
+    );
+    let _ = writeln!(
+        out,
+        "firewalld: {}   ufw: {}   tailscale0: {}",
+        command_state("systemctl", &["is-active", "firewalld"]),
+        command_state("systemctl", &["is-active", "ufw"]),
+        if Path::new("/sys/class/net/tailscale0").exists() {
+            "present"
+        } else {
+            "absent"
+        }
+    );
+    if settings.tun_enabled && !health.as_ref().is_some_and(|health| health.ready) {
+        let _ = writeln!(
+            out,
+            "  (TUN is on but its routes are missing; check UFW/firewalld and Tailscale)"
+        );
+    }
+    let _ = writeln!(out);
+
     let _ = writeln!(out, "== ports ==");
     let mixed_free = core::port_available(settings.mixed_port);
     let controller_free = core::port_available(settings.controller_port);
@@ -301,6 +380,22 @@ fn existence(path: &std::path::Path) -> String {
     }
 }
 
+fn command_text(program: &str, args: &[&str]) -> String {
+    match Command::new(program).args(args).output() {
+        Ok(output) => {
+            let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
+            if !stdout.is_empty() {
+                stdout
+            } else if output.status.success() {
+                "(empty)".to_string()
+            } else {
+                format!("exit {}", output.status)
+            }
+        }
+        Err(error) => format!("not available ({error})"),
+    }
+}
+
 fn command_state(program: &str, args: &[&str]) -> String {
     match Command::new(program).args(args).output() {
         Ok(output) => {
@@ -327,10 +422,27 @@ fn effective_override(paths: &Paths, settings: &Settings) -> String {
 }
 
 fn now_text() -> String {
-    // chrono is not a dependency; use the mtime-like UNIX time plus the local
-    // time is not important for a report pasted into an issue.
-    let seconds = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
+    let seconds = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
         .map_or(0, |duration| duration.as_secs());
-    format!("unix {seconds}")
+    let timestamp = seconds as libc::time_t;
+    let mut local: libc::tm = unsafe { std::mem::zeroed() };
+    if unsafe { libc::localtime_r(&timestamp, &mut local) }.is_null() {
+        return format!("unix {seconds}");
+    }
+    let mut buffer = [0u8; 64];
+    let format = b"%Y-%m-%d %H:%M:%S %z\0";
+    let size = unsafe {
+        libc::strftime(
+            buffer.as_mut_ptr().cast(),
+            buffer.len(),
+            format.as_ptr().cast(),
+            &local,
+        )
+    };
+    if size == 0 {
+        format!("unix {seconds}")
+    } else {
+        String::from_utf8_lossy(&buffer[..size]).into_owned()
+    }
 }

@@ -18,6 +18,7 @@ use crate::profile::{self, Profile};
 use crate::proxy_settings;
 use crate::rules::{self, OwnRule};
 use crate::state::{self, Settings};
+use crate::tun::{self, RouteHealth, TunOptions};
 
 #[derive(Clone, Debug)]
 pub enum Event {
@@ -68,6 +69,10 @@ struct Inner {
     exit_region: String,
     message: String,
     phase: String,
+    tun_route_ready: bool,
+    tun_route_known: bool,
+    tun_route_detail: String,
+    tun_route_checked_at: i64,
     running: Option<Running>,
     restart_attempts: u32,
 }
@@ -112,6 +117,13 @@ struct Status {
     system_proxy_applied: bool,
     tun_enabled: bool,
     tun_machine: bool,
+    tun_route_table: u32,
+    tun_rule_index: u32,
+    tun_exclude_private: bool,
+    tun_route_ready: bool,
+    tun_route_known: bool,
+    tun_route_detail: String,
+    tun_route_checked_at: i64,
     kde_proxy: String,
     gnome_proxy: String,
     mode: String,
@@ -189,6 +201,10 @@ impl App {
                 exit_region: String::new(),
                 message: String::new(),
                 phase: PHASE_STOPPED.to_string(),
+                tun_route_ready: true,
+                tun_route_known: true,
+                tun_route_detail: String::new(),
+                tun_route_checked_at: 0,
                 running: None,
                 restart_attempts: 0,
             }),
@@ -1396,6 +1412,90 @@ impl App {
         Ok(())
     }
 
+    pub async fn tun_health_interval_secs(&self) -> u64 {
+        self.inner
+            .lock()
+            .await
+            .settings
+            .tun_health_secs
+            .clamp(1, 60) as u64
+    }
+
+    /// Re-read the TUN policy rule and table while the core is running.
+    ///
+    /// Tailscale and firewalls can rewrite policy routing after startup. This
+    /// turns that into an observable status instead of silent traffic bypass.
+    pub async fn refresh_tun_health(&self) {
+        let (enabled, running, options) = {
+            let inner = self.inner.lock().await;
+            (
+                inner.settings.tun_enabled,
+                inner.core_running,
+                TunOptions::from(&inner.settings),
+            )
+        };
+        if !enabled || !running {
+            let changed = {
+                let mut inner = self.inner.lock().await;
+                let changed = inner.tun_route_ready
+                    || !inner.tun_route_known
+                    || !inner.tun_route_detail.is_empty()
+                    || inner.tun_route_checked_at != 0;
+                inner.tun_route_ready = true;
+                inner.tun_route_known = true;
+                inner.tun_route_detail.clear();
+                inner.tun_route_checked_at = 0;
+                changed
+            };
+            if changed {
+                self.emit(Event::Status);
+            }
+            return;
+        }
+
+        let probe = tokio::task::spawn_blocking(move || tun::probe(&options));
+        let health = match tokio::time::timeout(Duration::from_secs(5), probe).await {
+            Ok(Ok(health)) => health,
+            Ok(Err(error)) => RouteHealth {
+                ready: true,
+                known: false,
+                detail: format!("route probe failed: {error}"),
+            },
+            Err(_) => RouteHealth {
+                ready: true,
+                known: false,
+                detail: "route probe timed out".to_string(),
+            },
+        };
+        let detail = if health.ready {
+            health.detail.clone()
+        } else {
+            format!("{}; check UFW/firewalld or Tailscale", health.detail)
+        };
+        let changed = {
+            let mut inner = self.inner.lock().await;
+            let previous_ready = inner.tun_route_ready;
+            let changed = inner.tun_route_ready != health.ready
+                || inner.tun_route_known != health.known
+                || inner.tun_route_detail != detail;
+            inner.tun_route_ready = health.ready;
+            inner.tun_route_known = health.known;
+            inner.tun_route_detail = detail.clone();
+            inner.tun_route_checked_at = profile::now_unix();
+            if changed {
+                if !health.ready {
+                    tracing::warn!("TUN 路由失效: {detail}");
+                } else if health.known && !previous_ready {
+                    tracing::info!("TUN 路由已恢复: {detail}");
+                }
+            }
+            changed
+        };
+        if changed {
+            self.emit(Event::Status);
+        }
+    }
+
     async fn reconcile_if_due(&self) {
         {
             let mut at = self.reconciled_at.lock().await;
@@ -1438,6 +1538,18 @@ impl App {
         let port = self.inner.lock().await.settings.mixed_port;
         let (kde_proxy, gnome_proxy) = self.proxy_labels(port).await;
         let inner = self.inner.lock().await;
+        let tun_active = inner.settings.tun_enabled && inner.core_running;
+        let (tun_route_ready, tun_route_known, tun_route_detail, tun_route_checked_at) =
+            if tun_active {
+                (
+                    inner.tun_route_ready,
+                    inner.tun_route_known,
+                    inner.tun_route_detail.clone(),
+                    inner.tun_route_checked_at,
+                )
+            } else {
+                (true, true, String::new(), 0)
+            };
         let status = Status {
             core_desired: inner.settings.core_desired,
             core_running: inner.core_running,
@@ -1445,6 +1557,13 @@ impl App {
             system_proxy_applied: inner.system_proxy_applied,
             tun_enabled: inner.settings.tun_enabled,
             tun_machine: inner.settings.tun_machine,
+            tun_route_table: inner.settings.tun_route_table,
+            tun_rule_index: inner.settings.tun_rule_index,
+            tun_exclude_private: inner.settings.tun_exclude_private,
+            tun_route_ready,
+            tun_route_known,
+            tun_route_detail,
+            tun_route_checked_at,
             kde_proxy,
             gnome_proxy,
             mode: inner.settings.mode.clone(),
@@ -1568,11 +1687,19 @@ impl App {
         self.schedule_region_lookup();
         self.emit(Event::Status);
         self.emit(Event::Proxies);
+        self.refresh_tun_health().await;
         Ok(())
     }
 
     async fn fail_before_start(&self, error: String) -> Result<(), String> {
         tracing::error!("内核未能启动: {error}");
+        // resolve_binary/write_runtime_config can fail before the old process
+        // is stopped. Tear it down first so a failed restart cannot leave a
+        // running core behind a "failed" status.
+        self.withdraw_proxy().await;
+        if let Err(stop_error) = self.stop_process().await {
+            tracing::warn!("停止旧内核失败: {stop_error}");
+        }
         self.set_message(error.clone()).await;
         self.set_phase(PHASE_FAILED).await;
         self.emit(Event::Status);
@@ -1600,6 +1727,51 @@ impl App {
                     if tun {
                         tracing::error!("TUN 启动失败: {error}");
                         return Err(error);
+                    }
+                }
+                let (tun, options) = {
+                    let inner = self.inner.lock().await;
+                    (
+                        inner.settings.tun_enabled,
+                        TunOptions::from(&inner.settings),
+                    )
+                };
+                if tun {
+                    let route_started = Instant::now();
+                    loop {
+                        let probe_options = options.clone();
+                        let probe = tokio::task::spawn_blocking(move || tun::probe(&probe_options));
+                        let health = match tokio::time::timeout(Duration::from_secs(5), probe).await
+                        {
+                            Ok(Ok(health)) => health,
+                            Ok(Err(error)) => RouteHealth {
+                                ready: true,
+                                known: false,
+                                detail: format!("route probe failed: {error}"),
+                            },
+                            Err(_) => RouteHealth {
+                                ready: true,
+                                known: false,
+                                detail: "route probe timed out".to_string(),
+                            },
+                        };
+                        if health.ready {
+                            break;
+                        }
+                        if let Ok(Some(status)) = process.try_wait() {
+                            return Err(self.startup_failure(&format!(
+                                "mihomo 在 TUN 路由就绪前退出: {status}"
+                            )));
+                        }
+                        if route_started.elapsed() >= Duration::from_secs(tun::STARTUP_TIMEOUT_SECS)
+                        {
+                            tracing::error!("TUN 路由未建立: {}", health.detail);
+                            return Err(self.startup_failure(&format!(
+                                "TUN 网卡已建立，但系统路由没有指向它：{}。请检查 UFW/firewalld 或 Tailscale 是否改写了路由规则",
+                                health.detail
+                            )));
+                        }
+                        tokio::time::sleep(Duration::from_millis(250)).await;
                     }
                 }
                 return Ok(());

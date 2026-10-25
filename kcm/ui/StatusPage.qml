@@ -362,7 +362,48 @@ Item {
             Layout.fillWidth: true
             visible: kcm.client.tunEnabled && kcm.client.firewallActive
             type: Kirigami.MessageType.Warning
-            text: tx.i18n("The firewall is on, and it can drop TUN traffic.")
+            text: tx.i18n("The firewall is on, and it can drop TUN traffic. Check Diagnostics for route details.")
+            actions: [
+                Kirigami.Action {
+                    text: tx.i18n("Diagnostics")
+                    icon.name: "view-list-text"
+                    onTriggered: root.openDiagnostics()
+                }
+            ]
+        }
+
+        Kirigami.InlineMessage {
+            Layout.fillWidth: true
+            visible: kcm.client.tunEnabled && kcm.client.coreRunning
+                && kcm.client.tunRouteKnown && !kcm.client.tunRouteReady
+            type: Kirigami.MessageType.Error
+            text: kcm.client.tunRouteDetail.length > 0
+                ? tx.i18n("TUN route is not ready: %1", kcm.client.tunRouteDetail)
+                : tx.i18n("TUN route is not ready.")
+            actions: [
+                Kirigami.Action {
+                    text: tx.i18n("Diagnostics")
+                    icon.name: "view-list-text"
+                    onTriggered: root.openDiagnostics()
+                }
+            ]
+        }
+
+        Kirigami.InlineMessage {
+            Layout.fillWidth: true
+            visible: kcm.client.tunEnabled && kcm.client.coreRunning && !kcm.client.tunRouteKnown
+            type: Kirigami.MessageType.Information
+            text: tx.i18n("TUN route could not be checked. Install iproute2 or check the service logs.")
+        }
+
+        QQC2.Label {
+            Layout.fillWidth: true
+            visible: kcm.client.tunEnabled && kcm.client.coreRunning && kcm.client.tunRouteCheckedAt > 0
+            text: tx.i18n("TUN route checked: %1", Qt.formatDateTime(new Date(Number(kcm.client.tunRouteCheckedAt) * 1000), "yyyy-MM-dd HH:mm:ss"))
+            opacity: 0.7
+            font: Kirigami.Theme.smallFont
+            wrapMode: Text.WordWrap
+            Kirigami.MnemonicData.enabled: false
         }
 
         Rectangle {

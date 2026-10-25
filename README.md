@@ -146,6 +146,20 @@ current account unless an administrator enables whole-computer capture from the
 
 The service forces the listen address, controller port, secret, mode,
 allow-lan policy, and TUN block when it generates the runtime configuration.
+
+Advanced TUN routing can be tuned with these top-level keys in `config.toml`;
+the KCM keeps them when it saves other settings:
+
+| Key | Default | Meaning |
+| --- | --- | --- |
+| `tun_route_table` | `2022` | Policy-routing table used by mihomo's `auto-route` |
+| `tun_rule_index` | `9000` | Base `ip rule` priority; avoid a range another VPN already owns |
+| `tun_exclude_private` | `true` | Keep Tailscale, private LAN, and link-local traffic out of TUN |
+| `tun_health_secs` | `5` | Recheck `ip rule` and the default route every 1–60 seconds |
+
+Restart `clash-kde.service` after editing these keys. The Status page shows a
+warning if the route later disappears, and `clash-kde --diagnose` prints the
+rule, table, firewall, and Tailscale state.
 Local edits are kept in the working profile. The Nodes page can restore an
 individual route or profile rule from the original subscription.
 
@@ -177,6 +191,18 @@ Common causes:
 - **TUN is refused**: verify that `/usr/bin/mihomo` is root-owned and not
   group- or world-writable, and that polkit is running. TUN is intentionally
   restricted to the system binary.
+- **TUN is on but applications still use the physical interface**: run
+  `clash-kde --diagnose` and read the `tun` section. TUN waits for its
+  `ip rule` and configured table route before reporting success (table 2022 by
+  default); if `route ready` is `no`, a firewall or Tailscale is rewriting the
+  policy routing. The generated
+  config excludes `100.64.0.0/10`, `fd7a:115c:a1e0::/48`, and private LAN
+  ranges so Tailscale and local devices keep their own routes. With UFW or
+  firewalld active, allow the TUN interface (or temporarily disable the
+  firewall while testing).
+- **The Status page switch is labelled Traffic capture while TUN is on**:
+  that switch now controls TUN, not the desktop proxy. Turning it off disables
+  TUN; use the Users page or turn the switch back on to re-enable it.
 - **openSUSE**: a locally installed AppArmor profile can block the per-user
   runtime directory. Check `sudo aa-status` and
   `journalctl -k | grep -i apparmor`.

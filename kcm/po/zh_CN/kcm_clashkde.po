@@ -877,3 +877,18 @@ msgstr "请输入完整的 http:// 或 https:// 地址（不能包含空格）�
 
 msgid "A rule needs a match value unless its type is MATCH."
 msgstr "除非类型是 MATCH，否则规则需要匹配内容。"
+
+msgid "TUN route is not ready: %1"
+msgstr "TUN 路由未就绪：%1"
+
+msgid "TUN route is not ready."
+msgstr "TUN 路由未就绪。"
+
+msgid "The firewall is on, and it can drop TUN traffic. Check Diagnostics for route details."
+msgstr "防火墙已开启，可能会丢弃 TUN 流量。请在诊断中查看路由详情。"
+
+msgid "TUN route could not be checked. Install iproute2 or check the service logs."
+msgstr "无法检查 TUN 路由。请安装 iproute2，或查看服务日志。"
+
+msgid "TUN route checked: %1"
+msgstr "TUN 路由检查时间：%1"
