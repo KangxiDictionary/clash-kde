@@ -2505,6 +2505,10 @@ bool ClashClient::draftIsDefaults() const
 
 bool ClashClient::commitSettings()
 {
+    if (m_tunPending) {
+        reportError(QStringLiteral("正在应用 TUN 设置，请稍候"));
+        return false;
+    }
     auto failed = [this](const QDBusError &error) {
         reportError(error.message());
         return false;
@@ -2665,10 +2669,28 @@ bool ClashClient::commitSettings()
         }
     }
     if (m_draftTunEnabled != (m_tunEnabled && !m_tunMachine)) {
-        const QDBusReply<void> reply = m_iface->call(QStringLiteral("SetTun"), m_draftTunEnabled);
-        if (!reply.isValid()) {
-            return failed(reply.error());
-        }
+        m_tunPending = true;
+        setBusy(true);
+        auto *watcher = new QDBusPendingCallWatcher(
+            m_iface->asyncCall(QStringLiteral("SetTun"), m_draftTunEnabled), this);
+        connect(watcher, &QDBusPendingCallWatcher::finished, this, [this](QDBusPendingCallWatcher *call) {
+            call->deleteLater();
+            m_tunPending = false;
+            setBusy(false);
+            const QDBusPendingReply<> reply = *call;
+            if (!reply.isValid()) {
+                const QString message = reply.error().message().trimmed().isEmpty()
+                    ? QStringLiteral("应用 TUN 设置失败（没有返回错误信息）")
+                    : reply.error().message();
+                m_draftDirty = true;
+                Q_EMIT draftChanged();
+                reportError(message);
+                Q_EMIT settingsFailed(message);
+            } else {
+                Q_EMIT settingsApplied();
+            }
+            refreshStatus();
+        });
     }
     if (m_draftSystemProxyEnabled != m_systemProxyEnabled) {
         const QDBusReply<void> reply = m_iface->call(QStringLiteral("SetSystemProxy"), m_draftSystemProxyEnabled);
@@ -3045,9 +3067,12 @@ void ClashClient::reportError(const QString &message)
     if (text.startsWith(prefix)) {
         text = text.mid(prefix.size());
     }
+    if (text.trimmed().isEmpty()) {
+        text = QStringLiteral("操作失败（没有返回错误信息）");
+    }
     m_message = text;
     Q_EMIT statusChanged();
-    Q_EMIT errorOccurred(message);
+    Q_EMIT errorOccurred(text);
 }
 
 void ClashClient::asyncCall(const QString &method, const QVariantList &args, bool refreshProfilesAfter, bool refreshProxiesAfter, bool markBusy)

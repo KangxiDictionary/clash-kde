@@ -21,7 +21,8 @@ use crate::state::Settings;
 pub const DEFAULT_ROUTE_TABLE: u32 = 2022;
 pub const DEFAULT_RULE_INDEX: u32 = 9000;
 pub const DEFAULT_HEALTH_SECS: u32 = 5;
-pub const STARTUP_TIMEOUT_SECS: u64 = 30;
+/// How long startup waits for the route table before continuing degraded.
+pub const ROUTE_GRACE_SECS: u64 = 3;
 const COMMAND_TIMEOUT: Duration = Duration::from_secs(2);
 
 /// Keep the tailnet, the LAN, and link-local traffic out of the proxy.

@@ -315,6 +315,8 @@ Q_SIGNALS:
     void errorOccurred(const QString &message);
     void editorTextReady(const QString &body);
     void diagnosticsReady(const QString &text);
+    void settingsApplied();
+    void settingsFailed(const QString &message);
 
 private Q_SLOTS:
     void refreshStatus();
@@ -395,6 +397,7 @@ private:
     bool m_firewallActive = false;
     qint64 m_firewallCheckedAt = 0;
     bool m_firewallBusy = false;
+    bool m_tunPending = false;
     QProcess *m_diagnosticsProcess = nullptr;
     quint64 m_diagnosticsGeneration = 0;
     int m_diagnosticsStage = 0;

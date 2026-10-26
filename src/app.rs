@@ -1709,6 +1709,11 @@ impl App {
     }
 
     async fn fail_before_start(&self, error: String) -> Result<(), String> {
+        let error = if error.trim().is_empty() {
+            "内核启动失败（没有返回错误信息）".to_string()
+        } else {
+            error
+        };
         tracing::error!("内核未能启动: {error}");
         // resolve_binary/write_runtime_config can fail before the old process
         // is stopped. Tear it down first so a failed restart cannot leave a
@@ -1743,7 +1748,7 @@ impl App {
                     let tun = self.inner.lock().await.settings.tun_enabled;
                     if tun {
                         tracing::error!("TUN 启动失败: {error}");
-                        return Err(error);
+                        return Err(self.startup_failure(&error));
                     }
                 }
                 let (tun, options) = {
@@ -1774,13 +1779,20 @@ impl App {
                                 "mihomo 在 TUN 路由就绪前退出: {status}"
                             )));
                         }
-                        if route_started.elapsed() >= Duration::from_secs(tun::STARTUP_TIMEOUT_SECS)
-                        {
-                            tracing::error!("TUN 路由未建立: {}", health.detail);
-                            return Err(self.startup_failure(&format!(
-                                "TUN 网卡已建立，但系统路由没有指向它：{}。如果 mihomo 的设备名不是 {expected}，请在 config.toml 设置 tun_device。请检查 UFW/firewalld 或 Tailscale 是否改写了路由规则",
+                        if route_started.elapsed() >= Duration::from_secs(tun::ROUTE_GRACE_SECS) {
+                            // TUN traffic can still work through auto-redirect even when the
+                            // dedicated table has no default route. Keep the core running and
+                            // let the periodic health check clear or report the degraded state.
+                            tracing::warn!(
+                                "TUN 路由未建立（降级运行）: {}；如果 mihomo 的设备名不是 {expected}，请设置 tun_device",
                                 health.detail
-                            )));
+                            );
+                            let mut inner = self.inner.lock().await;
+                            inner.tun_route_ready = false;
+                            inner.tun_route_known = health.known;
+                            inner.tun_route_detail = health.detail.clone();
+                            inner.tun_route_checked_at = profile::now_unix();
+                            break;
                         }
                         tokio::time::sleep(Duration::from_millis(250)).await;
                     }
@@ -1817,6 +1829,11 @@ impl App {
     }
 
     fn startup_failure(&self, error: &str) -> String {
+        let error = if error.trim().is_empty() {
+            "内核启动失败（没有返回错误信息）"
+        } else {
+            error
+        };
         let tail = core::log_tail(&self.paths.core_log());
         if tail.is_empty() {
             error.to_string()

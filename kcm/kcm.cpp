@@ -15,6 +15,12 @@ ClashKcm::ClashKcm(QObject *parent, const KPluginMetaData &data)
 {
     setButtons(Apply | Default);
     setSupportsInstantApply(false);
+    connect(m_client, &ClashClient::settingsApplied, this, [this]() {
+        setNeedsSave(false);
+    });
+    connect(m_client, &ClashClient::settingsFailed, this, [this](const QString &) {
+        setNeedsSave(true);
+    });
 }
 
 ClashClient *ClashKcm::client() const
