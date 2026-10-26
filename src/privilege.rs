@@ -384,6 +384,7 @@ mod tests {
         let config = runtime.join("config.yaml");
         let mut file = fs::OpenOptions::new()
             .create(true)
+            .truncate(true)
             .write(true)
             .mode(0o600)
             .open(&config)

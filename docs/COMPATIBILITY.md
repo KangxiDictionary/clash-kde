@@ -84,7 +84,7 @@ should be reviewed before granting TUN to a shared account.
 | SPDX | Met | C++/QML/applet files and all `src/*.rs` files carry SPDX identifiers |
 | Accessibility | Mostly met | Standard Qt/Kirigami controls; applet compact view has `Accessible.name`/role |
 | HiDPI | Met | Kirigami units; no hard-coded pixel sizes |
-| CI | Missing | No repository workflow runs `cargo test`, KCM build, or `qmllint` |
+| CI | Met | `.github/workflows/ci.yml` runs formatting, tests, clippy, QML lint, and the KCM build on Arch Linux |
 | Reproducible RPM build | Partial | `cargo build` needs network; OBS/Koji need vendored crates |
 
 ## Portability limits

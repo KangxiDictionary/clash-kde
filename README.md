@@ -247,7 +247,8 @@ documented in [`docs/COMPATIBILITY.md`](docs/COMPATIBILITY.md). Highlights:
 - FHS paths, XDG configuration/data directories, systemd user and system
   units, D-Bus activation, and polkit actions are used.
 - Source files carry SPDX identifiers; the MSRV is declared in `Cargo.toml`.
-- AppStream metadata and a CI workflow are not yet present.
+- AppStream metadata is not yet present. CI runs formatting, tests, clippy,
+  QML lint, and the KCM build on Arch Linux.
 - Error strings from the Rust service and some C++ paths are currently Chinese
   and are not part of the gettext catalogs.
 

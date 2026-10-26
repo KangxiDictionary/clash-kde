@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  rust-and-kcm:
+    name: Rust tests, clippy, QML lint, KCM build
+    runs-on: ubuntu-latest
+    container:
+      image: archlinux:base-devel
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          pacman -Syu --noconfirm --needed \
+            cargo cmake extra-cmake-modules git icu pkgconf rust \
+            qt6-base qt6-declarative qt6-tools \
+            kcmutils kconfig kcoreaddons ki18n kirigami kirigami-addons \
+            kquickcharts libplasma
+
+      - name: Check Rust formatting
+        run: cargo fmt --check
+
+      - name: Run Rust tests
+        env:
+          CARGO_NET_RETRY: 10
+        run: cargo test --locked
+
+      - name: Run clippy
+        env:
+          CARGO_NET_RETRY: 10
+        run: cargo clippy --locked --all-targets -- -D warnings
+
+      - name: Lint QML
+        run: /usr/lib/qt6/bin/qmllint kcm/ui/*.qml applet/*.qml
+
+      - name: Build KCM and applet
+        run: |
+          cmake -S kcm -B build-kcm -DCMAKE_BUILD_TYPE=Release
+          cmake --build build-kcm -j"$(nproc)"

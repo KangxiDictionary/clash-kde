@@ -192,6 +192,7 @@ impl Manager {
     }
 
     #[zbus(name = "AddRoute")]
+    #[allow(clippy::too_many_arguments)]
     async fn add_route(
         &self,
         id: String,
@@ -237,6 +238,7 @@ impl Manager {
     }
 
     #[zbus(name = "UpdateRoute")]
+    #[allow(clippy::too_many_arguments)]
     async fn update_route(
         &self,
         id: String,

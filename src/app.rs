@@ -962,6 +962,7 @@ impl App {
         .expect("route detail"))
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub async fn add_route(
         self: &Arc<Self>,
         id: &str,
@@ -993,6 +994,7 @@ impl App {
         self.set_profile_body(id, next).await
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub async fn update_route(
         self: &Arc<Self>,
         id: &str,

@@ -866,11 +866,13 @@ mod tests {
         .unwrap();
         let overlay =
             serde_yaml::from_str("mode: direct\nexternal-controller: 0.0.0.0:1\n").unwrap();
-        let mut settings = Settings::default();
-        settings.mixed_port = 7897;
-        settings.controller_port = 19090;
-        settings.controller_secret = "secret".into();
-        settings.mode = "rule".into();
+        let settings = Settings {
+            mixed_port: 7897,
+            controller_port: 19090,
+            controller_secret: "secret".into(),
+            mode: "rule".into(),
+            ..Settings::default()
+        };
         let config = prepare_runtime_config(profile, overlay, &settings, false);
         assert_eq!(
             config.get("allow-lan").and_then(Value::as_bool),
@@ -918,9 +920,11 @@ mod tests {
             "tun:\n  enable: true\n  device: evil\n  include-uid: [0]\nsniffer:\n  enable: false\nproxies: []\n",
         )
         .unwrap();
-        let mut settings = Settings::default();
-        settings.tun_enabled = true;
-        settings.mode = "rule".into();
+        let mut settings = Settings {
+            tun_enabled: true,
+            mode: "rule".into(),
+            ..Settings::default()
+        };
         let config =
             prepare_runtime_config(profile, Value::Mapping(Mapping::new()), &settings, false);
         let tun = config.get("tun").expect("tun");
@@ -1108,12 +1112,14 @@ proxy-groups:
 
     #[test]
     fn lan_opens_the_mixed_port_only_when_allowed() {
-        let mut settings = Settings::default();
-        settings.mixed_port = 7890;
-        settings.controller_port = 9090;
-        settings.allow_lan = true;
-        settings.lan_username = "ada".into();
-        settings.lan_password = "secret".into();
+        let settings = Settings {
+            mixed_port: 7890,
+            controller_port: 9090,
+            allow_lan: true,
+            lan_username: "ada".into(),
+            lan_password: "secret".into(),
+            ..Settings::default()
+        };
         let profile = decode_subscription("proxies: []\n").unwrap();
         let open = prepare_runtime_config(
             profile.clone(),
@@ -1184,8 +1190,10 @@ proxy-groups:
             }],
         )
         .unwrap();
-        let mut settings = Settings::default();
-        settings.active_profile = "profile".into();
+        let settings = Settings {
+            active_profile: "profile".into(),
+            ..Settings::default()
+        };
         write_runtime_config(&paths, &settings).unwrap();
         assert_eq!(fs::read(&override_path).unwrap(), before);
         let runtime = fs::read_to_string(paths.runtime_config()).unwrap();
