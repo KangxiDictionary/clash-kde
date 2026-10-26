@@ -817,6 +817,7 @@ PlasmoidItem {
 
             PC3.ComboBox {
                 Layout.fillWidth: true
+                Layout.preferredWidth: Kirigami.Units.gridUnit * 12
                 model: [i18n("Rule"), i18n("Global"), i18n("Direct")]
                 currentIndex: Math.max(0, root.modes.indexOf(session.mode))
                 onActivated: index => {
@@ -840,6 +841,7 @@ PlasmoidItem {
                 id: profileBox
                 visible: session.profiles.length > 0
                 Layout.fillWidth: true
+                Layout.preferredWidth: Kirigami.Units.gridUnit * 12
                 property var profileIds: []
                 property var profileNames: []
                 model: profileNames

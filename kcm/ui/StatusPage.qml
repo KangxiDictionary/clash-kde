@@ -205,7 +205,7 @@ Item {
                 array: chartRoot.secondSeries
             }
             Charts.ArraySource {
-                id: nameSource
+                id: nameArray
                 array: {
                     const names = [];
                     if (chartRoot.showFirst) {
@@ -281,7 +281,7 @@ Item {
                     }
                     return sources;
                 }
-                nameSource: nameSource
+                nameSource: nameArray
                 colorSource: chartRoot.showFirst && chartRoot.showSecond ? pairedColors : loneColor
                 highlight: rateLegend.highlightedIndex
 

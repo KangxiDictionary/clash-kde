@@ -641,7 +641,7 @@ Item {
         QQC2.TabBar {
             id: modeTabs
             Layout.fillHeight: true
-            Layout.preferredWidth: Math.max(routeTab.implicitWidth, ruleTab.implicitWidth)
+            Layout.preferredWidth: Kirigami.Units.gridUnit * 7
             spacing: 0
             onCurrentIndexChanged: {
                 const next = currentIndex === 1 ? "rules" : "routes";
@@ -669,13 +669,11 @@ Item {
             QQC2.TabButton {
                 id: routeTab
                 text: tx.i18n("Routes")
-                width: modeTabs.width
                 Kirigami.MnemonicData.enabled: false
             }
             QQC2.TabButton {
                 id: ruleTab
                 text: tx.i18n("Rules")
-                width: modeTabs.width
                 Kirigami.MnemonicData.enabled: false
             }
         }
@@ -1151,30 +1149,30 @@ Item {
                                 Layout.fillWidth: true
                                 Kirigami.MnemonicData.enabled: false
                             }
-                            QQC2.TextArea {
-                                id: detailNote
+                            QQC2.ScrollView {
+                                id: detailNoteScroll
                                 visible: root.picked.length > 0
                                 Layout.fillWidth: true
-                                readonly property real noteLimit: Kirigami.Units.gridUnit * 12
-                                readonly property int noteCharacterLimit: 4096
-                                Layout.preferredHeight: Math.min(noteLimit, Math.max(implicitBackgroundHeight, contentHeight + topPadding + bottomPadding))
-                                Layout.maximumHeight: noteLimit
-                                wrapMode: TextEdit.Wrap
+                                Layout.preferredHeight: Kirigami.Units.gridUnit * 6
+                                Layout.maximumHeight: Kirigami.Units.gridUnit * 12
                                 clip: true
-                                placeholderText: tx.i18n("Optional comment")
-                                Kirigami.MnemonicData.enabled: false
-                                QQC2.ScrollBar.vertical: QQC2.ScrollBar {
-                                    policy: QQC2.ScrollBar.AsNeeded
-                                }
-                                onTextChanged: {
-                                    if (length > noteCharacterLimit) {
-                                        text = text.substring(0, noteCharacterLimit);
-                                        return;
+                                QQC2.TextArea {
+                                    id: detailNote
+                                    width: detailNoteScroll.availableWidth
+                                    readonly property int noteCharacterLimit: 4096
+                                    wrapMode: TextEdit.Wrap
+                                    placeholderText: tx.i18n("Optional comment")
+                                    Kirigami.MnemonicData.enabled: false
+                                    onTextChanged: {
+                                        if (length > noteCharacterLimit) {
+                                            text = text.substring(0, noteCharacterLimit);
+                                            return;
+                                        }
+                                        if (root.filling || root.picked.length === 0) {
+                                            return;
+                                        }
+                                        kcm.client.stageNote("route\n" + kcm.client.draftActiveProfile + "\n" + root.picked, text);
                                     }
-                                    if (root.filling || root.picked.length === 0) {
-                                        return;
-                                    }
-                                    kcm.client.stageNote("route\n" + kcm.client.draftActiveProfile + "\n" + root.picked, text);
                                 }
                             }
                         }
