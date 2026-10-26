@@ -156,7 +156,11 @@ pub fn probe(options: &TunOptions) -> RouteHealth {
     let ip = ip_program();
     let rules = command_text(ip, &["-4", "rule", "show"]);
     let table = options.route_table.to_string();
-    let routes = command_text(ip, &["-4", "route", "show", "table", &table]);
+    let routes = if rules.is_some() {
+        command_text(ip, &["-4", "route", "show", "table", &table])
+    } else {
+        None
+    };
     health_from_output(rules.as_deref(), routes.as_deref(), options)
 }
 
@@ -249,14 +253,16 @@ fn route_matches(entries: &[RouteEntry<'_>], expected: &str) -> (bool, String) {
     }
     if !defaults.is_empty() {
         let devices: Vec<&str> = defaults.iter().filter_map(|entry| entry.dev).collect();
-        let devices = if devices.is_empty() {
-            "no dev".to_string()
-        } else {
-            devices.join(", ")
-        };
         return (
             false,
-            format!("default routes point at {devices}, not {expected}"),
+            if devices.is_empty() {
+                format!("default routes have no dev field (expected {expected})")
+            } else {
+                format!(
+                    "default routes point at {} (expected {expected})",
+                    devices.join(", ")
+                )
+            },
         );
     }
 
@@ -279,19 +285,23 @@ fn route_matches(entries: &[RouteEntry<'_>], expected: &str) -> (bool, String) {
             format!("0.0.0.0/1 + 128.0.0.0/1 routes on {expected}"),
         );
     }
-    let devices: Vec<&str> = low
-        .iter()
-        .chain(high.iter())
-        .filter_map(|entry| entry.dev)
-        .collect();
-    let devices = if devices.is_empty() {
+    let low_devices: Vec<&str> = low.iter().filter_map(|entry| entry.dev).collect();
+    let high_devices: Vec<&str> = high.iter().filter_map(|entry| entry.dev).collect();
+    let low_text = if low_devices.is_empty() {
         "no dev".to_string()
     } else {
-        devices.join(", ")
+        low_devices.join(", ")
+    };
+    let high_text = if high_devices.is_empty() {
+        "no dev".to_string()
+    } else {
+        high_devices.join(", ")
     };
     (
         false,
-        format!("split routes point at {devices}, not {expected}"),
+        format!(
+            "split routes: 0.0.0.0/1 on [{low_text}], 128.0.0.0/1 on [{high_text}], expected {expected}"
+        ),
     )
 }
 
@@ -431,7 +441,7 @@ mod tests {
         let routes = "default via 10.0.0.1 dev wg0\n";
         let health = health_from_output(Some(rules), Some(routes), &options);
         assert!(!health.ready);
-        assert!(health.detail.contains("point at wg0, not Meta"));
+        assert!(health.detail.contains("point at wg0 (expected Meta)"));
     }
 
     #[test]
@@ -454,6 +464,17 @@ mod tests {
     }
 
     #[test]
+    fn split_route_detail_lists_low_and_high_devices_separately() {
+        let options = TunOptions::default();
+        let rules = "9000: from all uidrange 65534-65534 goto 9010\n";
+        let routes = "0.0.0.0/1 via 198.18.0.2 dev Meta\n0.0.0.0/1 via 10.0.0.1 dev wg0\n128.0.0.0/1 via 10.0.0.1 dev wg0\n";
+        let health = health_from_output(Some(rules), Some(routes), &options);
+        assert!(!health.ready);
+        assert!(health.detail.contains("0.0.0.0/1 on [Meta, wg0]"));
+        assert!(health.detail.contains("128.0.0.0/1 on [wg0]"));
+    }
+
+    #[test]
     fn route_probe_uses_the_configured_device_name() {
         let options = TunOptions {
             device: "clash0".to_string(),
@@ -466,7 +487,7 @@ mod tests {
         let wrong = "default via 198.18.0.2 dev Meta\n";
         let health = health_from_output(Some(rules), Some(wrong), &options);
         assert!(!health.ready);
-        assert!(health.detail.contains("not clash0"));
+        assert!(health.detail.contains("expected clash0"));
     }
 
     #[test]

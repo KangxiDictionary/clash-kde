@@ -109,6 +109,23 @@ fn claim_delay_group(testing: &mut HashSet<String>, group: &str) -> bool {
     testing.insert(group.to_string())
 }
 
+async fn probe_health(options: TunOptions) -> RouteHealth {
+    let probe = tokio::task::spawn_blocking(move || tun::probe(&options));
+    match tokio::time::timeout(Duration::from_secs(5), probe).await {
+        Ok(Ok(health)) => health,
+        Ok(Err(error)) => RouteHealth {
+            ready: true,
+            known: false,
+            detail: format!("route probe failed: {error}"),
+        },
+        Err(_) => RouteHealth {
+            ready: true,
+            known: false,
+            detail: "route probe timed out".to_string(),
+        },
+    }
+}
+
 #[derive(Serialize)]
 struct Status {
     core_desired: bool,
@@ -324,15 +341,24 @@ impl App {
         Ok(())
     }
 
+    async fn ensure_capture_grant(scope: &str) -> Result<(), String> {
+        let grant = crate::admin::own_grant().await.unwrap_or_default();
+        if grant == scope {
+            return Ok(());
+        }
+        match scope {
+            "user" => crate::admin::authorize_tun().await,
+            "machine" => crate::admin::authorize_machine_tun().await,
+            _ => Err(format!("unknown capture scope {scope}")),
+        }
+    }
+
     pub async fn set_tun(self: &Arc<Self>, enabled: bool) -> Result<(), String> {
         if enabled {
             let path = self.inner.lock().await.settings.mihomo_path.clone();
             let binary = core::resolve_binary(&path)?;
             crate::privilege::ensure_system_binary(&binary)?;
-            let grant = crate::admin::own_grant().await.unwrap_or_default();
-            if grant != "user" {
-                crate::admin::authorize_tun().await?;
-            }
+            Self::ensure_capture_grant("user").await?;
         }
         self.finish_capture(enabled, false).await
     }
@@ -342,10 +368,7 @@ impl App {
             let path = self.inner.lock().await.settings.mihomo_path.clone();
             let binary = core::resolve_binary(&path)?;
             crate::privilege::ensure_system_binary(&binary)?;
-            let grant = crate::admin::own_grant().await.unwrap_or_default();
-            if grant != "machine" {
-                crate::admin::authorize_machine_tun().await?;
-            }
+            Self::ensure_capture_grant("machine").await?;
         }
         self.finish_capture(enabled, enabled).await
     }
@@ -1456,24 +1479,11 @@ impl App {
             return;
         }
 
-        let probe = tokio::task::spawn_blocking(move || tun::probe(&options));
-        let health = match tokio::time::timeout(Duration::from_secs(5), probe).await {
-            Ok(Ok(health)) => health,
-            Ok(Err(error)) => RouteHealth {
-                ready: true,
-                known: false,
-                detail: format!("route probe failed: {error}"),
-            },
-            Err(_) => RouteHealth {
-                ready: true,
-                known: false,
-                detail: "route probe timed out".to_string(),
-            },
-        };
-        let detail = if health.ready {
-            health.detail.clone()
-        } else {
+        let health = probe_health(options).await;
+        let detail = if health.known && !health.ready {
             format!("{}; check UFW/firewalld or Tailscale", health.detail)
+        } else {
+            health.detail.clone()
         };
         let changed = {
             let mut inner = self.inner.lock().await;
@@ -1486,7 +1496,7 @@ impl App {
             inner.tun_route_detail = detail.clone();
             inner.tun_route_checked_at = profile::now_unix();
             if changed {
-                if !health.ready {
+                if health.known && !health.ready {
                     tracing::warn!("TUN 路由失效: {detail}");
                 } else if health.known && !previous_ready {
                     tracing::info!("TUN 路由已恢复: {detail}");
@@ -1693,7 +1703,6 @@ impl App {
         self.schedule_region_lookup();
         self.emit(Event::Status);
         self.emit(Event::Proxies);
-        self.refresh_tun_health().await;
         Ok(())
     }
 
@@ -1746,23 +1755,16 @@ impl App {
                     let expected = options.expected_device().to_string();
                     let route_started = Instant::now();
                     loop {
-                        let probe_options = options.clone();
-                        let probe = tokio::task::spawn_blocking(move || tun::probe(&probe_options));
-                        let health = match tokio::time::timeout(Duration::from_secs(5), probe).await
-                        {
-                            Ok(Ok(health)) => health,
-                            Ok(Err(error)) => RouteHealth {
-                                ready: true,
-                                known: false,
-                                detail: format!("route probe failed: {error}"),
-                            },
-                            Err(_) => RouteHealth {
-                                ready: true,
-                                known: false,
-                                detail: "route probe timed out".to_string(),
-                            },
-                        };
+                        let health = probe_health(options.clone()).await;
                         if health.ready {
+                            if !health.known {
+                                tracing::warn!("TUN 路由未验证: {}", health.detail);
+                            }
+                            let mut inner = self.inner.lock().await;
+                            inner.tun_route_ready = true;
+                            inner.tun_route_known = health.known;
+                            inner.tun_route_detail = health.detail.clone();
+                            inner.tun_route_checked_at = profile::now_unix();
                             break;
                         }
                         if let Ok(Some(status)) = process.try_wait() {
