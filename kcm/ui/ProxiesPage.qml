@@ -633,7 +633,9 @@ Item {
 
         ColumnLayout {
             Layout.fillHeight: true
+            Layout.minimumWidth: Kirigami.Units.gridUnit * 6
             Layout.preferredWidth: Kirigami.Units.gridUnit * 6
+            Layout.maximumWidth: Kirigami.Units.gridUnit * 6
             spacing: Kirigami.Units.smallSpacing
 
             QQC2.ItemDelegate {
