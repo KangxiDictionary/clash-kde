@@ -144,6 +144,11 @@ current account unless an administrator enables whole-computer capture from the
 | `~/.config/kioslaverc` | KDE proxy settings, only while the service owns them |
 | `/var/lib/clash-kde/` | Root-owned TUN and LAN policy state |
 
+When TUN is off, the generated config forces `sniffer.enable: false`, including
+when `override.yaml` or the subscription sets it to `true`. Sniffing is tied to
+TUN capture in the current design; it cannot be re-enabled separately while TUN
+is off.
+
 The service forces the listen address, controller port, secret, mode,
 allow-lan policy, and TUN block when it generates the runtime configuration.
 

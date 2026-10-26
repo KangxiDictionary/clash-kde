@@ -402,6 +402,8 @@ fn command_text(program: &str, args: &[&str]) -> String {
                 stdout
             } else if output.status.success() {
                 "(empty)".to_string()
+            } else if let Some(code) = output.status.code() {
+                format!("exit {code}")
             } else {
                 format!("({})", output.status)
             }
