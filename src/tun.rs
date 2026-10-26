@@ -71,6 +71,18 @@ impl From<&Settings> for TunOptions {
     }
 }
 
+impl TunOptions {
+    /// mihomo's default TUN name is Meta. If it changes, users can pin the
+    /// real name with `tun_device` instead of relying on a heuristic.
+    pub fn expected_device(&self) -> &str {
+        if self.device.trim().is_empty() {
+            "Meta"
+        } else {
+            self.device.trim()
+        }
+    }
+}
+
 /// Build the managed `tun` block. Values that could point at another
 /// account's runtime are supplied by the caller, not by the subscription.
 pub fn config(uid: u32, device: &str, machine: bool, options: &TunOptions) -> Value {
@@ -168,45 +180,12 @@ fn health_from_output(
         };
     };
 
-    let expected = if options.device.trim().is_empty() {
-        "Meta"
-    } else {
-        options.device.trim()
-    };
-    let default_line = routes.lines().find(|line| line.starts_with("default"));
-    let split_lines: Vec<&str> = routes
-        .lines()
-        .filter(|line| line.starts_with("0.0.0.0/1") || line.starts_with("128.0.0.0/1"))
-        .collect();
-    let split_present = split_lines.len() == 2;
-
-    let (route_present, route_detail) = if let Some(line) = default_line {
-        match dev_of(line) {
-            Some(device) if device == expected => (true, format!("default route on {device}")),
-            Some(device) => (
-                false,
-                format!("default route points at {device}, not {expected}"),
-            ),
-            None => (false, "default route has no dev field".to_string()),
-        }
-    } else if split_present {
-        let devices: Vec<Option<&str>> = split_lines.iter().map(|line| dev_of(line)).collect();
-        if devices.iter().all(|device| *device == Some(expected)) {
-            (
-                true,
-                format!("0.0.0.0/1 + 128.0.0.0/1 routes on {expected}"),
-            )
-        } else {
-            (false, format!("split routes do not point at {expected}"))
-        }
-    } else {
-        (false, "no default or split default route".to_string())
-    };
-
     let rule_prefix = format!("{}:", options.rule_index);
     let rule_present = rules
         .lines()
         .any(|line| line.trim_start().starts_with(&rule_prefix));
+    let entries = parse_routes(routes);
+    let (route_present, route_detail) = route_matches(&entries, options.expected_device());
     let detail = match (rule_present, route_present) {
         (true, true) => format!(
             "IPv4 table {} ({route_detail}), rule {}",
@@ -221,6 +200,99 @@ fn health_from_output(
         known: true,
         detail,
     }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum RouteKind {
+    Default,
+    Low,
+    High,
+}
+
+#[derive(Clone, Copy, Debug)]
+struct RouteEntry<'a> {
+    kind: RouteKind,
+    dev: Option<&'a str>,
+}
+
+fn parse_routes(text: &str) -> Vec<RouteEntry<'_>> {
+    text.lines()
+        .filter_map(|line| {
+            let line = line.trim_start();
+            let kind = if line.starts_with("default") {
+                RouteKind::Default
+            } else if line.starts_with("0.0.0.0/1") {
+                RouteKind::Low
+            } else if line.starts_with("128.0.0.0/1") {
+                RouteKind::High
+            } else {
+                return None;
+            };
+            Some(RouteEntry {
+                kind,
+                dev: dev_of(line),
+            })
+        })
+        .collect()
+}
+
+/// Check that a default (or split default) route actually points at the
+/// configured TUN device. Multiple default entries are normal; any matching
+/// one is enough.
+fn route_matches(entries: &[RouteEntry<'_>], expected: &str) -> (bool, String) {
+    let defaults: Vec<&RouteEntry<'_>> = entries
+        .iter()
+        .filter(|entry| entry.kind == RouteKind::Default)
+        .collect();
+    if defaults.iter().any(|entry| entry.dev == Some(expected)) {
+        return (true, format!("default route on {expected}"));
+    }
+    if !defaults.is_empty() {
+        let devices: Vec<&str> = defaults.iter().filter_map(|entry| entry.dev).collect();
+        let devices = if devices.is_empty() {
+            "no dev".to_string()
+        } else {
+            devices.join(", ")
+        };
+        return (
+            false,
+            format!("default routes point at {devices}, not {expected}"),
+        );
+    }
+
+    let low: Vec<&RouteEntry<'_>> = entries
+        .iter()
+        .filter(|entry| entry.kind == RouteKind::Low)
+        .collect();
+    let high: Vec<&RouteEntry<'_>> = entries
+        .iter()
+        .filter(|entry| entry.kind == RouteKind::High)
+        .collect();
+    if low.is_empty() || high.is_empty() {
+        return (false, "no default or split default route".to_string());
+    }
+    if low.iter().any(|entry| entry.dev == Some(expected))
+        && high.iter().any(|entry| entry.dev == Some(expected))
+    {
+        return (
+            true,
+            format!("0.0.0.0/1 + 128.0.0.0/1 routes on {expected}"),
+        );
+    }
+    let devices: Vec<&str> = low
+        .iter()
+        .chain(high.iter())
+        .filter_map(|entry| entry.dev)
+        .collect();
+    let devices = if devices.is_empty() {
+        "no dev".to_string()
+    } else {
+        devices.join(", ")
+    };
+    (
+        false,
+        format!("split routes point at {devices}, not {expected}"),
+    )
 }
 
 fn dev_of(line: &str) -> Option<&str> {
@@ -359,9 +431,26 @@ mod tests {
         let routes = "default via 10.0.0.1 dev wg0\n";
         let health = health_from_output(Some(rules), Some(routes), &options);
         assert!(!health.ready);
-        assert!(
-            health.detail.contains("dev wg0, not Meta") || health.detail.contains("points at wg0")
-        );
+        assert!(health.detail.contains("point at wg0, not Meta"));
+    }
+
+    #[test]
+    fn route_probe_accepts_any_matching_default_route() {
+        let options = TunOptions::default();
+        let rules = "9000: from all uidrange 65534-65534 goto 9010\n";
+        let routes = "default via 10.0.0.1 dev wg0\ndefault via 198.18.0.2 dev Meta\n";
+        let health = health_from_output(Some(rules), Some(routes), &options);
+        assert!(health.ready);
+        assert!(health.detail.contains("default route on Meta"));
+    }
+
+    #[test]
+    fn route_probe_accepts_multiple_split_routes() {
+        let options = TunOptions::default();
+        let rules = "9000: from all uidrange 65534-65534 goto 9010\n";
+        let routes = "0.0.0.0/1 via 198.18.0.2 dev Meta\n0.0.0.0/1 via 198.18.0.2 dev Meta metric 10\n128.0.0.0/1 via 198.18.0.2 dev Meta\n128.0.0.0/1 via 198.18.0.2 dev Meta metric 10\n";
+        let health = health_from_output(Some(rules), Some(routes), &options);
+        assert!(health.ready);
     }
 
     #[test]

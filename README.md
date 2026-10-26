@@ -203,6 +203,9 @@ Common causes:
 - **The Status page switch is labelled Traffic capture while TUN is on**:
   that switch now controls TUN, not the desktop proxy. Turning it off disables
   TUN; use the Users page or turn the switch back on to re-enable it.
+- **mihomo uses a different TUN device name**: the health probe expects
+  `Meta` by default. Set `tun_device` in `config.toml` to the actual interface
+  name; the startup error and `--diagnose` both print the expected name.
 - **openSUSE**: a locally installed AppArmor profile can block the per-user
   runtime directory. Check `sudo aa-status` and
   `journalctl -k | grep -i apparmor`.

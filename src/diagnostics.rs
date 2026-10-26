@@ -219,6 +219,16 @@ fn report(paths: &Paths, settings: &Settings) -> String {
             &["-brief", "link", "show", "type", "tun"]
         )
     );
+    let _ = writeln!(
+        out,
+        "expected device: {}{}",
+        options.expected_device(),
+        if options.device.trim().is_empty() {
+            " (default; set tun_device if mihomo uses another name)"
+        } else {
+            " (from tun_device)"
+        }
+    );
     let health = settings.tun_enabled.then(|| tun::probe(&options));
     let _ = writeln!(
         out,
@@ -393,7 +403,7 @@ fn command_text(program: &str, args: &[&str]) -> String {
             } else if output.status.success() {
                 "(empty)".to_string()
             } else {
-                format!("exit {}", output.status)
+                format!("({})", output.status)
             }
         }
         Err(error) => format!("not available ({error})"),

@@ -1743,6 +1743,7 @@ impl App {
                     )
                 };
                 if tun {
+                    let expected = options.expected_device().to_string();
                     let route_started = Instant::now();
                     loop {
                         let probe_options = options.clone();
@@ -1773,7 +1774,7 @@ impl App {
                         {
                             tracing::error!("TUN 路由未建立: {}", health.detail);
                             return Err(self.startup_failure(&format!(
-                                "TUN 网卡已建立，但系统路由没有指向它：{}。请检查 UFW/firewalld 或 Tailscale 是否改写了路由规则",
+                                "TUN 网卡已建立，但系统路由没有指向它：{}。如果 mihomo 的设备名不是 {expected}，请在 config.toml 设置 tun_device。请检查 UFW/firewalld 或 Tailscale 是否改写了路由规则",
                                 health.detail
                             )));
                         }
