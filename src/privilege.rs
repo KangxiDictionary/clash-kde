@@ -3,7 +3,7 @@
 
 use std::fs;
 use std::io;
-use std::os::unix::fs::MetadataExt;
+use std::os::unix::fs::{MetadataExt, OpenOptionsExt};
 use std::os::unix::process::CommandExt;
 use std::path::{Path, PathBuf};
 
@@ -173,6 +173,14 @@ pub fn log_path_is_runtime(log: &Path, runtime: &Path) -> Result<(), String> {
     if parent != runtime || log.file_name() != Some(std::ffi::OsStr::new("mihomo.log")) {
         return Err("TUN 只能使用这个账户自己的运行配置".to_string());
     }
+    match fs::symlink_metadata(log) {
+        Ok(meta) if meta.file_type().is_symlink() => {
+            return Err("TUN 日志不能是符号链接".to_string());
+        }
+        Ok(_) => {}
+        Err(error) if error.kind() == io::ErrorKind::NotFound => {}
+        Err(error) => return Err(format!("无法检查内核日志: {error}")),
+    }
     Ok(())
 }
 
@@ -303,6 +311,7 @@ fn prepare_exec(
     let log_file = fs::OpenOptions::new()
         .create(true)
         .append(true)
+        .custom_flags(libc::O_NOFOLLOW)
         .open(log)
         .map_err(|error| format!("无法打开内核日志: {error}"))?;
     let stderr = log_file
@@ -330,7 +339,6 @@ fn prepare_exec(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::os::unix::fs::OpenOptionsExt as _;
 
     #[test]
     fn rejects_a_binary_that_is_not_the_system_one() {
@@ -430,5 +438,16 @@ mod tests {
         assert_eq!(mode, 0o600);
         remove_stamp(dir.path(), 7).unwrap();
         assert!(!stamp_exists(dir.path(), 7));
+    }
+    #[test]
+    fn rejects_a_symlinked_tun_log() {
+        let dir = tempfile::tempdir().unwrap();
+        let runtime = dir.path().join("runtime");
+        fs::create_dir_all(&runtime).unwrap();
+        let target = dir.path().join("target.log");
+        fs::write(&target, b"x").unwrap();
+        std::os::unix::fs::symlink(&target, runtime.join("mihomo.log")).unwrap();
+        let error = log_path_is_runtime(&runtime.join("mihomo.log"), &runtime).unwrap_err();
+        assert!(error.contains("符号链接"));
     }
 }

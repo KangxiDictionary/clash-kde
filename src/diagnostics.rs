@@ -9,7 +9,8 @@
 //! and journalctl, so it also works from a TTY after a failed login start.
 
 use std::fmt::Write as _;
-use std::path::Path;
+use std::fs;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -36,6 +37,20 @@ fn report(paths: &Paths, settings: &Settings) -> String {
     let _ = writeln!(out, "config dir:   {}", paths.config_dir.display());
     let _ = writeln!(out, "data dir:     {}", paths.data_dir.display());
     let _ = writeln!(out, "settings:     {}", existence(&paths.settings_file()));
+    let broken = broken_settings_backups(&paths.config_dir);
+    if !broken.is_empty() {
+        let _ = writeln!(out, "broken configs: {}", broken.len());
+        for path in broken.iter().rev().take(5) {
+            let _ = writeln!(out, "  {}", path.display());
+        }
+        if broken.len() > 5 {
+            let _ = writeln!(out, "  ... and {} more", broken.len() - 5);
+        }
+        let _ = writeln!(
+            out,
+            "  (a corrupt config was backed up; current settings may be defaults; restore or fix one)"
+        );
+    }
     let _ = writeln!(out, "override:     {}", effective_override(paths, settings));
     let _ = writeln!(out, "profiles dir: {}", paths.profiles_dir().display());
     let _ = writeln!(out, "runtime dir:  {}", paths.runtime_dir().display());
@@ -387,6 +402,25 @@ fn journal_tail() -> String {
     }
 }
 
+fn broken_settings_backups(dir: &Path) -> Vec<PathBuf> {
+    let Ok(entries) = fs::read_dir(dir) else {
+        return Vec::new();
+    };
+    let mut paths: Vec<PathBuf> = entries
+        .flatten()
+        .filter(|entry| {
+            entry
+                .file_name()
+                .to_string_lossy()
+                .starts_with("config.toml.broken-")
+        })
+        .map(|entry| entry.path())
+        .filter(|path| path.is_file())
+        .collect();
+    paths.sort();
+    paths
+}
+
 fn existence(path: &std::path::Path) -> String {
     match std::fs::metadata(path) {
         Ok(meta) => format!("{} ({} bytes)", path.display(), meta.len()),
@@ -464,5 +498,27 @@ fn now_text() -> String {
         format!("unix {seconds}")
     } else {
         String::from_utf8_lossy(&buffer[..size]).into_owned()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn finds_broken_settings_backups_only() {
+        let dir = tempfile::tempdir().unwrap();
+        fs::write(dir.path().join("config.toml"), "x").unwrap();
+        fs::write(dir.path().join("config.toml.broken-1"), "broken").unwrap();
+        fs::write(dir.path().join("config.toml.broken-2"), "broken").unwrap();
+        fs::write(dir.path().join("other"), "x").unwrap();
+        let found = broken_settings_backups(dir.path());
+        assert_eq!(found.len(), 2);
+        assert!(found.iter().all(|path| {
+            path.file_name()
+                .unwrap()
+                .to_string_lossy()
+                .starts_with("config.toml.broken-")
+        }));
     }
 }
