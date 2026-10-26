@@ -35,13 +35,6 @@ Item {
     property int shownSlot: 0
     property string page: "routes"
 
-    onPageChanged: {
-        const next = page === "rules" ? 1 : 0;
-        if (modeTabs.currentIndex !== next) {
-            modeTabs.currentIndex = next;
-        }
-    }
-
     ListModel {
         id: shownModel
     }
@@ -636,45 +629,45 @@ Item {
 
     RowLayout {
         anchors.fill: parent
-        spacing: Kirigami.Units.smallSpacing
+        spacing: Kirigami.Units.largeSpacing
 
-        QQC2.TabBar {
-            id: modeTabs
+        ColumnLayout {
             Layout.fillHeight: true
-            Layout.preferredWidth: Kirigami.Units.gridUnit * 7
-            spacing: 0
-            onCurrentIndexChanged: {
-                const next = currentIndex === 1 ? "rules" : "routes";
-                if (root.page !== next) {
-                    root.page = next;
-                }
-            }
-            contentItem: ListView {
-                model: modeTabs.contentModel
-                currentIndex: modeTabs.currentIndex
-                orientation: ListView.Vertical
-                spacing: modeTabs.spacing
-                interactive: false
-                boundsBehavior: Flickable.StopAtBounds
-                clip: true
-            }
-            background: Item {
-                Kirigami.Separator {
-                    anchors.top: parent.top
-                    anchors.bottom: parent.bottom
-                    anchors.right: parent.right
+            Layout.preferredWidth: Kirigami.Units.gridUnit * 6
+            spacing: Kirigami.Units.smallSpacing
+
+            QQC2.ItemDelegate {
+                id: routesItem
+                Layout.fillWidth: true
+                text: tx.i18n("Routes")
+                highlighted: root.page === "routes"
+                Kirigami.MnemonicData.enabled: false
+                onClicked: root.page = "routes"
+
+                background: Rectangle {
+                    radius: Kirigami.Units.cornerRadius
+                    color: routesItem.highlighted ? Kirigami.Theme.highlightColor : "transparent"
+                    opacity: routesItem.highlighted ? 0.15 : 0
                 }
             }
 
-            QQC2.TabButton {
-                id: routeTab
-                text: tx.i18n("Routes")
-                Kirigami.MnemonicData.enabled: false
-            }
-            QQC2.TabButton {
-                id: ruleTab
+            QQC2.ItemDelegate {
+                id: rulesItem
+                Layout.fillWidth: true
                 text: tx.i18n("Rules")
+                highlighted: root.page === "rules"
                 Kirigami.MnemonicData.enabled: false
+                onClicked: root.page = "rules"
+
+                background: Rectangle {
+                    radius: Kirigami.Units.cornerRadius
+                    color: rulesItem.highlighted ? Kirigami.Theme.highlightColor : "transparent"
+                    opacity: rulesItem.highlighted ? 0.15 : 0
+                }
+            }
+
+            Item {
+                Layout.fillHeight: true
             }
         }
 

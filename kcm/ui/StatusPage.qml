@@ -976,30 +976,37 @@ Item {
         contentItem: ColumnLayout {
             spacing: Kirigami.Units.smallSpacing
 
-            Flickable {
-                id: diagnosticFlick
+            Rectangle {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                clip: true
-                contentWidth: width
-                contentHeight: diagnosticEdit.paintedHeight + Kirigami.Units.smallSpacing * 2
-                boundsBehavior: Flickable.StopAtBounds
-                QQC2.ScrollBar.vertical: QQC2.ScrollBar {
-                    policy: QQC2.ScrollBar.AsNeeded
-                }
+                color: Kirigami.Theme.alternateBackgroundColor
+                radius: Kirigami.Units.cornerRadius
 
-                TextEdit {
-                    id: diagnosticEdit
-                    x: Kirigami.Units.smallSpacing
-                    y: Kirigami.Units.smallSpacing
-                    width: diagnosticFlick.width - Kirigami.Units.smallSpacing * 2
-                    height: paintedHeight
-                    readOnly: true
-                    selectByMouse: true
-                    wrapMode: TextEdit.WrapAtWordBoundaryOrAnywhere
-                    textFormat: TextEdit.PlainText
-                    font.family: "monospace"
-                    color: Kirigami.Theme.textColor
+                Flickable {
+                    id: diagnosticFlick
+                    anchors.fill: parent
+                    anchors.margins: Kirigami.Units.smallSpacing
+                    clip: true
+                    contentWidth: width
+                    contentHeight: diagnosticEdit.paintedHeight + Kirigami.Units.smallSpacing * 2
+                    boundsBehavior: Flickable.StopAtBounds
+                    QQC2.ScrollBar.vertical: QQC2.ScrollBar {
+                        policy: QQC2.ScrollBar.AsNeeded
+                    }
+
+                    TextEdit {
+                        id: diagnosticEdit
+                        x: Kirigami.Units.smallSpacing
+                        y: Kirigami.Units.smallSpacing
+                        width: diagnosticFlick.width - Kirigami.Units.smallSpacing * 2
+                        height: paintedHeight
+                        readOnly: true
+                        selectByMouse: true
+                        wrapMode: TextEdit.WrapAtWordBoundaryOrAnywhere
+                        textFormat: TextEdit.PlainText
+                        font.family: "monospace"
+                        color: Kirigami.Theme.textColor
+                    }
                 }
             }
 
