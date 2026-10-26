@@ -363,6 +363,11 @@ fn managed_keys(settings: &Settings, lan_open: bool) -> Value {
         let mut tun = Mapping::new();
         tun.insert(Value::String("enable".into()), Value::Bool(false));
         managed.insert(Value::String("tun".into()), Value::Mapping(tun));
+        // A subscription may ship sniffer.enable: true. Disable it after the
+        // merge as well, so turning TUN off cannot leave active sniffing.
+        let mut sniffer = Mapping::new();
+        sniffer.insert(Value::String("enable".into()), Value::Bool(false));
+        managed.insert(Value::String("sniffer".into()), Value::Mapping(sniffer));
     }
     Value::Mapping(managed)
 }
@@ -856,7 +861,7 @@ mod tests {
     #[test]
     fn managed_keys_win_and_tun_stays_off() {
         let profile = serde_yaml::from_str(
-            "allow-lan: true\nbind-address: '*'\nfind-process-mode: off\ntun:\n  enable: true\n  stack: system\nproxies: []\n",
+            "allow-lan: true\nbind-address: '*'\nfind-process-mode: off\ntun:\n  enable: true\n  stack: system\nsniffer:\n  enable: true\nproxies: []\n",
         )
         .unwrap();
         let overlay =
@@ -898,7 +903,13 @@ mod tests {
                 .and_then(Value::as_str),
             Some("system")
         );
-        assert!(config.get("sniffer").is_none());
+        assert_eq!(
+            config
+                .get("sniffer")
+                .and_then(|sniffer| sniffer.get("enable"))
+                .and_then(Value::as_bool),
+            Some(false)
+        );
     }
 
     #[test]

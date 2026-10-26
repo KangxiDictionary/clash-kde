@@ -394,7 +394,9 @@ Item {
             Layout.fillWidth: true
             visible: kcm.client.tunEnabled && kcm.client.coreRunning && !kcm.client.tunRouteKnown
             type: Kirigami.MessageType.Information
-            text: tx.i18n("TUN route could not be checked. Install iproute2 or check the service logs.")
+            text: kcm.client.tunRouteDetail.length > 0
+                ? tx.i18n("TUN route could not be checked: %1", kcm.client.tunRouteDetail)
+                : tx.i18n("TUN route could not be checked. Install iproute2 or check the service logs.")
         }
 
         QQC2.Label {

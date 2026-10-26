@@ -154,14 +154,28 @@ pub fn ip_program() -> &'static str {
 
 pub fn probe(options: &TunOptions) -> RouteHealth {
     let ip = ip_program();
-    let rules = command_text(ip, &["-4", "rule", "show"]);
-    let table = options.route_table.to_string();
-    let routes = if rules.is_some() {
-        command_text(ip, &["-4", "route", "show", "table", &table])
-    } else {
-        None
+    let rules = match command_text(ip, &["-4", "rule", "show"]) {
+        Ok(rules) => rules,
+        Err(error) => {
+            return RouteHealth {
+                ready: true,
+                known: false,
+                detail: format!("ip -4 rule show failed: {error}"),
+            };
+        }
     };
-    health_from_output(rules.as_deref(), routes.as_deref(), options)
+    let table = options.route_table.to_string();
+    let routes = match command_text(ip, &["-4", "route", "show", "table", &table]) {
+        Ok(routes) => routes,
+        Err(error) => {
+            return RouteHealth {
+                ready: true,
+                known: false,
+                detail: format!("ip -4 route show table {table} failed: {error}"),
+            };
+        }
+    };
+    health_from_output(Some(&rules), Some(&routes), options)
 }
 
 fn health_from_output(
@@ -315,31 +329,79 @@ fn dev_of(line: &str) -> Option<&str> {
     None
 }
 
-fn command_text(program: &str, args: &[&str]) -> Option<String> {
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum ProbeError {
+    Missing,
+    Timeout,
+    Failed { code: i32, stderr: String },
+    Io(String),
+}
+
+impl std::fmt::Display for ProbeError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Missing => write!(formatter, "iproute2 is not available"),
+            Self::Timeout => write!(
+                formatter,
+                "ip command timed out after {}s",
+                COMMAND_TIMEOUT.as_secs()
+            ),
+            Self::Failed { code, stderr } if !stderr.is_empty() => {
+                write!(formatter, "ip exited with code {code}: {stderr}")
+            }
+            Self::Failed { code, .. } => write!(formatter, "ip exited with code {code}"),
+            Self::Io(error) => write!(formatter, "could not run ip: {error}"),
+        }
+    }
+}
+
+fn command_text(program: &str, args: &[&str]) -> Result<String, ProbeError> {
     let mut child = Command::new(program)
         .args(args)
         .stdout(Stdio::piped())
-        .stderr(Stdio::null())
+        .stderr(Stdio::piped())
         .spawn()
-        .ok()?;
+        .map_err(|error| {
+            if error.kind() == std::io::ErrorKind::NotFound {
+                ProbeError::Missing
+            } else {
+                ProbeError::Io(error.to_string())
+            }
+        })?;
     let started = Instant::now();
     loop {
         match child.try_wait() {
             Ok(Some(status)) => {
-                if !status.success() {
-                    return None;
+                let mut stdout = String::new();
+                if let Some(mut output) = child.stdout.take() {
+                    output
+                        .read_to_string(&mut stdout)
+                        .map_err(|error| ProbeError::Io(error.to_string()))?;
                 }
-                let mut text = String::new();
-                child.stdout.take()?.read_to_string(&mut text).ok()?;
-                return Some(text);
+                if !status.success() {
+                    let mut stderr = String::new();
+                    if let Some(mut output) = child.stderr.take() {
+                        let _ = output.read_to_string(&mut stderr);
+                    }
+                    return Err(ProbeError::Failed {
+                        code: status.code().unwrap_or(-1),
+                        stderr: stderr.trim().to_string(),
+                    });
+                }
+                return Ok(stdout);
             }
             Ok(None) if started.elapsed() < COMMAND_TIMEOUT => {
                 thread::sleep(Duration::from_millis(25));
             }
-            Ok(None) | Err(_) => {
+            Ok(None) => {
                 let _ = child.kill();
                 let _ = child.wait();
-                return None;
+                return Err(ProbeError::Timeout);
+            }
+            Err(error) => {
+                let _ = child.kill();
+                let _ = child.wait();
+                return Err(ProbeError::Io(error.to_string()));
             }
         }
     }
@@ -461,6 +523,20 @@ mod tests {
         let routes = "0.0.0.0/1 via 198.18.0.2 dev Meta\n0.0.0.0/1 via 198.18.0.2 dev Meta metric 10\n128.0.0.0/1 via 198.18.0.2 dev Meta\n128.0.0.0/1 via 198.18.0.2 dev Meta metric 10\n";
         let health = health_from_output(Some(rules), Some(routes), &options);
         assert!(health.ready);
+    }
+
+    #[test]
+    fn probe_errors_are_human_readable() {
+        assert_eq!(ProbeError::Missing.to_string(), "iproute2 is not available");
+        assert!(ProbeError::Timeout.to_string().contains("timed out"));
+        assert!(
+            ProbeError::Failed {
+                code: 2,
+                stderr: "Operation not permitted".to_string()
+            }
+            .to_string()
+            .contains("Operation not permitted")
+        );
     }
 
     #[test]
