@@ -4,11 +4,13 @@
 #pragma once
 
 #include <QList>
+#include <QStringList>
 #include <QObject>
 #include <QVariantList>
 #include <QVariantMap>
 
 class QDBusInterface;
+class QProcess;
 
 class ClashClient : public QObject
 {
@@ -247,7 +249,7 @@ public:
     Q_INVOKABLE QString checkProfileText(const QString &body);
     Q_INVOKABLE QString coreLog() const;
     Q_INVOKABLE QString serviceLog() const;
-    Q_INVOKABLE QString diagnostics() const;
+    Q_INVOKABLE void refreshDiagnostics();
     Q_INVOKABLE void restoreSystemProxy();
     Q_INVOKABLE void openLogFolder();
     Q_INVOKABLE bool openBodyInEditor(const QString &body);
@@ -312,6 +314,7 @@ Q_SIGNALS:
     void hintChanged();
     void errorOccurred(const QString &message);
     void editorTextReady(const QString &body);
+    void diagnosticsReady(const QString &text);
 
 private Q_SLOTS:
     void refreshStatus();
@@ -366,6 +369,11 @@ private:
     void pullNotes();
     void shiftOwnRuleNotes(int removed);
     class QNetworkAccessManager *speedNam(bool throughProxy);
+    QString buildDiagnostics(const QString &version, const QString &systemState, const QString &journal) const;
+    void startDiagnosticsStage(quint64 generation);
+    void startDiagnosticsProcess(quint64 generation, const QString &program, const QStringList &args, int timeoutMs);
+    void finishDiagnosticsStage(quint64 generation, const QString &output);
+
     void asyncCall(const QString &method, const QVariantList &args, bool refreshProfilesAfter, bool refreshProxiesAfter, bool markBusy = true);
     void accountCall(const QString &method, qulonglong uid);
     void runRestoreProxyCommand();
@@ -387,6 +395,13 @@ private:
     bool m_firewallActive = false;
     qint64 m_firewallCheckedAt = 0;
     bool m_firewallBusy = false;
+    QProcess *m_diagnosticsProcess = nullptr;
+    quint64 m_diagnosticsGeneration = 0;
+    int m_diagnosticsStage = 0;
+    QString m_diagnosticsResolved;
+    QString m_diagnosticsVersion;
+    QString m_diagnosticsSystem;
+    QString m_diagnosticsJournal;
     bool m_statusPending = false;
     bool m_profilesPending = false;
     bool m_proxiesPending = false;

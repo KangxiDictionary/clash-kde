@@ -895,3 +895,6 @@ msgstr "TUN 路由检查时间：%1"
 
 msgid "TUN route could not be checked: %1"
 msgstr "无法检查 TUN 路由：%1"
+
+msgid "Collecting diagnostics…"
+msgstr "正在收集诊断信息…"

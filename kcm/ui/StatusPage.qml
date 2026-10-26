@@ -39,8 +39,16 @@ Item {
     }
 
     function openDiagnostics() {
-        diagnosticEdit.text = kcm.client.diagnostics();
+        diagnosticEdit.text = tx.i18n("Collecting diagnostics…");
         diagnosticsDialog.open();
+        kcm.client.refreshDiagnostics();
+    }
+
+    Connections {
+        target: kcm.client
+        function onDiagnosticsReady(text) {
+            diagnosticEdit.text = text;
+        }
     }
 
     Tx {
@@ -1002,7 +1010,10 @@ Item {
                 QQC2.Button {
                     text: tx.i18n("Refresh")
                     icon.name: "view-refresh"
-                    onClicked: diagnosticEdit.text = kcm.client.diagnostics()
+                    onClicked: {
+                        diagnosticEdit.text = tx.i18n("Collecting diagnostics…");
+                        kcm.client.refreshDiagnostics()
+                    }
                 }
 
                 QQC2.Button {

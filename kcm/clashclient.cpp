@@ -845,7 +845,7 @@ QString ClashClient::serviceLog() const
     return text;
 }
 
-QString ClashClient::diagnostics() const
+QString ClashClient::buildDiagnostics(const QString &version, const QString &systemState, const QString &journal) const
 {
     const auto yesNo = [](bool value) {
         return value ? QStringLiteral("true") : QStringLiteral("false");
@@ -890,17 +890,8 @@ QString ClashClient::diagnostics() const
         lines << QStringLiteral("resolved: NOT FOUND");
     } else {
         lines << QStringLiteral("resolved: %1").arg(resolved);
-        QProcess version;
-        version.start(resolved, {QStringLiteral("-v")});
-        if (version.waitForFinished(2000)) {
-            QString text = QString::fromUtf8(version.readAllStandardOutput()).trimmed();
-            if (text.isEmpty()) {
-                text = QString::fromUtf8(version.readAllStandardError()).trimmed();
-            }
-            if (!text.isEmpty()) {
-                lines << QStringLiteral("version: %1").arg(text);
-            }
-        }
+        lines << QStringLiteral("version: %1").arg(
+            version.isEmpty() ? QStringLiteral("(unavailable)") : version);
     }
     lines << QString();
     lines << QStringLiteral("== geodata ==");
@@ -934,17 +925,9 @@ QString ClashClient::diagnostics() const
     if (m_coreRunning) {
         lines << QStringLiteral("(the running core normally owns these ports)");
     }
-    QProcess systemService;
-    systemService.start(QStringLiteral("systemctl"), {QStringLiteral("is-active"), QStringLiteral("mihomo.service")});
-    QString systemState = QStringLiteral("unknown");
-    if (systemService.waitForFinished(1500)) {
-        systemState = QString::fromUtf8(systemService.readAllStandardOutput()).trimmed();
-    }
-    if (systemState.isEmpty()) {
-        systemState = QStringLiteral("unknown");
-    }
-    lines << QStringLiteral("system mihomo.service: %1").arg(systemState);
-    if (systemState == QStringLiteral("active")) {
+    const QString serviceState = systemState.isEmpty() ? QStringLiteral("unknown") : systemState;
+    lines << QStringLiteral("system mihomo.service: %1").arg(serviceState);
+    if (serviceState == QStringLiteral("active")) {
         lines << QStringLiteral("(it normally uses 7890/9090; run: sudo systemctl disable --now mihomo, or choose other ports)");
     }
     lines << QString();
@@ -953,8 +936,137 @@ QString ClashClient::diagnostics() const
     lines << (log.isEmpty() ? QStringLiteral("(no log yet)") : log.trimmed());
     lines << QString();
     lines << QStringLiteral("== service journal ==");
-    lines << serviceLog();
+    lines << (journal.isEmpty() ? QStringLiteral("No journal entries for clash-kde.service.") : journal);
     return lines.join(QLatin1Char('\n'));
+}
+
+void ClashClient::refreshDiagnostics()
+{
+    ++m_diagnosticsGeneration;
+    if (m_diagnosticsProcess) {
+        auto *old = m_diagnosticsProcess;
+        m_diagnosticsProcess = nullptr;
+        old->kill();
+        old->deleteLater();
+    }
+    m_diagnosticsVersion.clear();
+    m_diagnosticsSystem.clear();
+    m_diagnosticsJournal.clear();
+    m_diagnosticsResolved = m_mihomoPath.contains(QLatin1Char('/'))
+        ? m_mihomoPath
+        : QStandardPaths::findExecutable(m_mihomoPath);
+    m_diagnosticsStage = m_diagnosticsResolved.isEmpty() ? 1 : 0;
+    startDiagnosticsStage(m_diagnosticsGeneration);
+}
+
+void ClashClient::startDiagnosticsStage(quint64 generation)
+{
+    if (generation != m_diagnosticsGeneration) {
+        return;
+    }
+    switch (m_diagnosticsStage) {
+    case 0:
+        startDiagnosticsProcess(generation, m_diagnosticsResolved,
+                                {QStringLiteral("-v")}, 2000);
+        return;
+    case 1: {
+        const QString systemctl = QStandardPaths::findExecutable(QStringLiteral("systemctl"));
+        if (systemctl.isEmpty()) {
+            finishDiagnosticsStage(generation, QStringLiteral("(systemctl not found)"));
+            return;
+        }
+        startDiagnosticsProcess(generation, systemctl,
+                                {QStringLiteral("is-active"), QStringLiteral("mihomo.service")},
+                                1500);
+        return;
+    }
+    case 2: {
+        const QString journalctl = QStandardPaths::findExecutable(QStringLiteral("journalctl"));
+        if (journalctl.isEmpty()) {
+            finishDiagnosticsStage(generation, QStringLiteral("(journalctl not found)"));
+            return;
+        }
+        startDiagnosticsProcess(generation, journalctl,
+                                {QStringLiteral("--user"), QStringLiteral("-u"),
+                                 QStringLiteral("clash-kde.service"), QStringLiteral("-n"),
+                                 QStringLiteral("200"), QStringLiteral("--no-pager"),
+                                 QStringLiteral("-o"), QStringLiteral("short-iso")},
+                                3000);
+        return;
+    }
+    default:
+        Q_EMIT diagnosticsReady(buildDiagnostics(m_diagnosticsVersion,
+                                                 m_diagnosticsSystem,
+                                                 m_diagnosticsJournal));
+        return;
+    }
+}
+
+void ClashClient::finishDiagnosticsStage(quint64 generation, const QString &output)
+{
+    if (generation != m_diagnosticsGeneration) {
+        return;
+    }
+    switch (m_diagnosticsStage) {
+    case 0:
+        m_diagnosticsVersion = output;
+        m_diagnosticsStage = 1;
+        break;
+    case 1:
+        m_diagnosticsSystem = output;
+        m_diagnosticsStage = 2;
+        break;
+    case 2:
+        m_diagnosticsJournal = output;
+        m_diagnosticsStage = 3;
+        break;
+    default:
+        return;
+    }
+    startDiagnosticsStage(generation);
+}
+
+void ClashClient::startDiagnosticsProcess(quint64 generation, const QString &program,
+                                          const QStringList &args, int timeoutMs)
+{
+    auto *process = new QProcess(this);
+    process->setProcessChannelMode(QProcess::MergedChannels);
+    m_diagnosticsProcess = process;
+
+    connect(process, &QProcess::finished, this,
+            [this, generation, process](int, QProcess::ExitStatus) {
+                if (generation != m_diagnosticsGeneration || process != m_diagnosticsProcess) {
+                    process->deleteLater();
+                    return;
+                }
+                m_diagnosticsProcess = nullptr;
+                const QString output = QString::fromUtf8(process->readAll()).trimmed();
+                process->deleteLater();
+                finishDiagnosticsStage(generation, output);
+            });
+    connect(process, &QProcess::errorOccurred, this,
+            [this, generation, process](QProcess::ProcessError error) {
+                if (error != QProcess::FailedToStart) {
+                    return;
+                }
+                if (generation != m_diagnosticsGeneration || process != m_diagnosticsProcess) {
+                    process->deleteLater();
+                    return;
+                }
+                m_diagnosticsProcess = nullptr;
+                process->deleteLater();
+                finishDiagnosticsStage(generation, QStringLiteral("(failed to start)"));
+            });
+    QTimer::singleShot(timeoutMs, this, [this, generation, process]() {
+        if (generation != m_diagnosticsGeneration || process != m_diagnosticsProcess) {
+            return;
+        }
+        m_diagnosticsProcess = nullptr;
+        process->kill();
+        process->deleteLater();
+        finishDiagnosticsStage(generation, QStringLiteral("(timed out)"));
+    });
+    process->start(program, args);
 }
 
 void ClashClient::openLogFolder()
