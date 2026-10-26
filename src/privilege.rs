@@ -346,14 +346,12 @@ mod tests {
 
     #[test]
     fn rejects_a_user_owned_binary_even_at_the_system_path() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("mihomo");
-        fs::write(&path, b"x").unwrap();
-        let meta = fs::metadata(&path).unwrap();
+        // Simulate a user-owned file at the expected path. Using a fixed uid
+        // keeps this test valid when the suite runs as root in CI.
         let error = judge_binary(
             Path::new("/usr/bin/mihomo"),
-            meta.uid(),
-            meta.mode(),
+            1000,
+            0o755,
             Path::new("/usr/bin/mihomo"),
         );
         assert!(error.is_err());
