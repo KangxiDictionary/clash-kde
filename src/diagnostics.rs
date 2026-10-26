@@ -421,7 +421,11 @@ fn command_state(program: &str, args: &[&str]) -> String {
             } else {
                 let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
                 if stderr.is_empty() {
-                    format!("exit {}", output.status)
+                    output
+                        .status
+                        .code()
+                        .map(|code| format!("exit {code}"))
+                        .unwrap_or_else(|| format!("({})", output.status))
                 } else {
                     stderr
                 }
