@@ -84,15 +84,17 @@ impl Admin {
         #[zbus(connection)] connection: &zbus::Connection,
     ) -> fdo::Result<()> {
         let (uid, sender) = caller(&header, connection).await?;
+        // This check only needs root to read the other accounts' configs;
+        // fail before asking the user for a password.
+        if privilege::other_personal_tun(uid) {
+            return Err(fdo::Error::Failed("已有账户开着自己的 TUN".to_string()));
+        }
         allow(
             &sender,
             POLKIT_TUN_MACHINE,
             "send every account and root through this account",
         )
         .await?;
-        if privilege::other_personal_tun(uid) {
-            return Err(fdo::Error::Failed("已有账户开着自己的 TUN".to_string()));
-        }
         privilege::write_machine_stamp(Path::new(privilege::STAMP_DIR), uid)
             .map_err(|error| fdo::Error::Failed(error.to_string()))
     }

@@ -44,6 +44,7 @@ pub struct TunOptions {
     pub rule_index: u32,
     pub exclude_private: bool,
     pub health_secs: u32,
+    pub device: String,
 }
 
 impl Default for TunOptions {
@@ -53,6 +54,7 @@ impl Default for TunOptions {
             rule_index: DEFAULT_RULE_INDEX,
             exclude_private: true,
             health_secs: DEFAULT_HEALTH_SECS,
+            device: String::new(),
         }
     }
 }
@@ -64,6 +66,7 @@ impl From<&Settings> for TunOptions {
             rule_index: settings.tun_rule_index,
             exclude_private: settings.tun_exclude_private,
             health_secs: settings.tun_health_secs,
+            device: settings.tun_device.clone(),
         }
     }
 }
@@ -165,42 +168,69 @@ fn health_from_output(
         };
     };
 
+    let expected = if options.device.trim().is_empty() {
+        "Meta"
+    } else {
+        options.device.trim()
+    };
+    let default_line = routes.lines().find(|line| line.starts_with("default"));
+    let split_lines: Vec<&str> = routes
+        .lines()
+        .filter(|line| line.starts_with("0.0.0.0/1") || line.starts_with("128.0.0.0/1"))
+        .collect();
+    let split_present = split_lines.len() == 2;
+
+    let (route_present, route_detail) = if let Some(line) = default_line {
+        match dev_of(line) {
+            Some(device) if device == expected => (true, format!("default route on {device}")),
+            Some(device) => (
+                false,
+                format!("default route points at {device}, not {expected}"),
+            ),
+            None => (false, "default route has no dev field".to_string()),
+        }
+    } else if split_present {
+        let devices: Vec<Option<&str>> = split_lines.iter().map(|line| dev_of(line)).collect();
+        if devices.iter().all(|device| *device == Some(expected)) {
+            (
+                true,
+                format!("0.0.0.0/1 + 128.0.0.0/1 routes on {expected}"),
+            )
+        } else {
+            (false, format!("split routes do not point at {expected}"))
+        }
+    } else {
+        (false, "no default or split default route".to_string())
+    };
+
     let rule_prefix = format!("{}:", options.rule_index);
     let rule_present = rules
         .lines()
         .any(|line| line.trim_start().starts_with(&rule_prefix));
-    let default_route = routes.lines().any(|line| line.starts_with("default"));
-    let split_route = routes.lines().any(|line| line.starts_with("0.0.0.0/1"))
-        && routes.lines().any(|line| line.starts_with("128.0.0.0/1"));
-    let route_present = default_route || split_route;
-
-    let route_kind = if default_route {
-        "default route"
-    } else if split_route {
-        "0.0.0.0/1 + 128.0.0.0/1 routes"
-    } else {
-        "no default route"
-    };
     let detail = match (rule_present, route_present) {
         (true, true) => format!(
-            "IPv4 table {} ({route_kind}), rule {}",
+            "IPv4 table {} ({route_detail}), rule {}",
             options.route_table, options.rule_index
         ),
-        (false, true) => format!("IPv4 {route_kind} exists, but rule {rule_prefix} is missing"),
-        (true, false) => format!(
-            "IPv4 rule exists, but table {} has no default route",
-            options.route_table
-        ),
-        (false, false) => format!(
-            "IPv4 rule {rule_prefix} and table-{} default route are missing",
-            options.route_table
-        ),
+        (false, true) => format!("IPv4 {route_detail}, but rule {rule_prefix} is missing"),
+        (true, false) => format!("IPv4 rule exists, but {route_detail}"),
+        (false, false) => format!("IPv4 rule {rule_prefix} is missing and {route_detail}"),
     };
     RouteHealth {
         ready: rule_present && route_present,
         known: true,
         detail,
     }
+}
+
+fn dev_of(line: &str) -> Option<&str> {
+    let mut tokens = line.split_whitespace();
+    while let Some(token) = tokens.next() {
+        if token == "dev" {
+            return tokens.next();
+        }
+    }
+    None
 }
 
 fn command_text(program: &str, args: &[&str]) -> Option<String> {
@@ -320,6 +350,34 @@ mod tests {
         let health = health_from_output(Some(rules), Some(routes), &options);
         assert!(health.ready);
         assert!(health.detail.contains("0.0.0.0/1"));
+    }
+
+    #[test]
+    fn route_probe_rejects_a_default_route_on_another_device() {
+        let options = TunOptions::default();
+        let rules = "9000: from all uidrange 65534-65534 goto 9010\n";
+        let routes = "default via 10.0.0.1 dev wg0\n";
+        let health = health_from_output(Some(rules), Some(routes), &options);
+        assert!(!health.ready);
+        assert!(
+            health.detail.contains("dev wg0, not Meta") || health.detail.contains("points at wg0")
+        );
+    }
+
+    #[test]
+    fn route_probe_uses_the_configured_device_name() {
+        let options = TunOptions {
+            device: "clash0".to_string(),
+            ..TunOptions::default()
+        };
+        let rules = "9000: from all uidrange 65534-65534 goto 9010\n";
+        let good = "default via 198.18.0.2 dev clash0\n";
+        assert!(health_from_output(Some(rules), Some(good), &options).ready);
+
+        let wrong = "default via 198.18.0.2 dev Meta\n";
+        let health = health_from_output(Some(rules), Some(wrong), &options);
+        assert!(!health.ready);
+        assert!(health.detail.contains("not clash0"));
     }
 
     #[test]

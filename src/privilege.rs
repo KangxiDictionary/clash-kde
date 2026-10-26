@@ -279,7 +279,7 @@ pub fn exec_tun(uid: u32, binary: &Path, runtime: &Path, config: &Path, log: &Pa
         eprintln!("{error}");
         return 1;
     }
-    1
+    unreachable!("prepare_exec returned without replacing the process")
 }
 
 fn prepare_exec(

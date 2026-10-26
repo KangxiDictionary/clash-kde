@@ -342,7 +342,10 @@ impl App {
             let path = self.inner.lock().await.settings.mihomo_path.clone();
             let binary = core::resolve_binary(&path)?;
             crate::privilege::ensure_system_binary(&binary)?;
-            crate::admin::authorize_machine_tun().await?;
+            let grant = crate::admin::own_grant().await.unwrap_or_default();
+            if grant != "machine" {
+                crate::admin::authorize_machine_tun().await?;
+            }
         }
         self.finish_capture(enabled, enabled).await
     }
