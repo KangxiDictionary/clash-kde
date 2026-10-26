@@ -22,7 +22,7 @@ jobs:
       - name: Install build dependencies
         run: |
           pacman -Syu --noconfirm --needed \
-            cargo cmake extra-cmake-modules git icu pkgconf rust \
+            cmake extra-cmake-modules git icu pkgconf rust \
             qt6-base qt6-declarative qt6-tools \
             kcmutils kconfig kcoreaddons ki18n kirigami kirigami-addons \
             kquickcharts libplasma
