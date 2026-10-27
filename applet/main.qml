@@ -765,22 +765,28 @@ PlasmoidItem {
                 Layout.fillWidth: true
                 spacing: Kirigami.Units.gridUnit * 2
 
-                PC3.Switch {
-                    text: i18n("Core")
-                    checked: session.coreDesired
-                    onToggled: {
-                        if (checked !== session.coreDesired) {
-                            session.setCoreDesired(checked);
+                Item {
+                    implicitWidth: coreSwitch.implicitWidth
+                    implicitHeight: coreSwitch.implicitHeight
+
+                    PlasmaCore.ToolTipArea {
+                        anchors.fill: parent
+                        mainText: i18n("Core")
+                        subText: i18n("This switch only starts the local proxy.")
+                        textFormat: Text.PlainText
+
+                        PC3.Switch {
+                            id: coreSwitch
+                            anchors.fill: parent
+                            text: i18n("Core")
+                            checked: session.coreDesired
+                            onToggled: {
+                                if (checked !== session.coreDesired) {
+                                    session.setCoreDesired(checked);
+                                }
+                            }
                         }
                     }
-
-                    HoverHandler {
-                        id: coreHover
-                    }
-
-                    PC3.ToolTip.visible: coreHover.hovered
-                    PC3.ToolTip.delay: Kirigami.Units.longDuration
-                    PC3.ToolTip.text: i18n("This switch only starts the local proxy.")
                 }
 
                 Item {
@@ -792,26 +798,25 @@ PlasmoidItem {
                     implicitWidth: proxySwitch.implicitWidth
                     implicitHeight: proxySwitch.implicitHeight
 
-                    PC3.Switch {
-                        id: proxySwitch
+                    PlasmaCore.ToolTipArea {
                         anchors.fill: parent
-                        text: i18n("System proxy")
-                        checked: session.systemProxyEnabled
-                        enabled: session.systemProxyEnabled || root.systemProxyUsable
-                        onToggled: {
-                            if (checked !== session.systemProxyEnabled) {
-                                session.setSystemProxyEnabled(checked);
+                        mainText: i18n("System proxy")
+                        subText: i18n("This takes effect only while the core is running and TUN is off.")
+                        textFormat: Text.PlainText
+
+                        PC3.Switch {
+                            id: proxySwitch
+                            anchors.fill: parent
+                            text: i18n("System proxy")
+                            checked: session.systemProxyEnabled
+                            enabled: session.systemProxyEnabled || root.systemProxyUsable
+                            onToggled: {
+                                if (checked !== session.systemProxyEnabled) {
+                                    session.setSystemProxyEnabled(checked);
+                                }
                             }
                         }
                     }
-
-                    HoverHandler {
-                        id: proxyHover
-                    }
-
-                    PC3.ToolTip.visible: proxyHover.hovered
-                    PC3.ToolTip.delay: Kirigami.Units.longDuration
-                    PC3.ToolTip.text: i18n("This takes effect only while the core is running and TUN is off.")
                 }
             }
 
