@@ -136,7 +136,8 @@ pub fn config(uid: u32, device: &str, machine: bool, options: &TunOptions) -> Va
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct RouteHealth {
-    /// True when the route is present, or when iproute2 cannot be queried.
+    /// True when the route is present, when auto-redirect keeps the TUN usable,
+    /// or when iproute2 cannot be queried.
     pub ready: bool,
     /// False when the probe could not run; the UI should not alert in that case.
     pub known: bool,
@@ -166,17 +167,45 @@ pub fn probe(options: &TunOptions) -> RouteHealth {
         }
     };
     let table = options.route_table.to_string();
-    let routes = match command_text(ip, &["-4", "route", "show", "table", &table]) {
-        Ok(routes) => routes,
-        Err(error) => {
-            return RouteHealth {
-                ready: true,
-                known: false,
-                detail: format!("ip -4 route show table {table} failed: {error}"),
-            };
-        }
-    };
-    health_from_output(Some(&rules), Some(&routes), options)
+    let mut routes =
+        command_text(ip, &["-4", "route", "show", "table", &table]).unwrap_or_default();
+    if parse_routes(&routes).is_empty()
+        && let Ok(all) = command_text(ip, &["-4", "route", "show", "table", "all"])
+    {
+        routes.push_str(&all);
+    }
+    if routes.is_empty() {
+        return RouteHealth {
+            ready: true,
+            known: false,
+            detail: format!("ip -4 route show table {table} failed"),
+        };
+    }
+    let health = health_from_output(Some(&rules), Some(&routes), options);
+    if health.ready || !health.known {
+        return health;
+    }
+    let rule_prefix = format!("{}:", options.rule_index);
+    let rule_present = rules
+        .lines()
+        .any(|line| line.trim_start().starts_with(&rule_prefix));
+    if rule_present && tun_address_present(ip, options.expected_device()) {
+        return RouteHealth {
+            ready: true,
+            known: true,
+            detail: format!("{}; TUN address exists (auto-redirect mode)", health.detail),
+        };
+    }
+    health
+}
+
+fn tun_address_present(ip: &str, device: &str) -> bool {
+    command_text(ip, &["-4", "addr", "show", "dev", device])
+        .map(|text| {
+            text.lines()
+                .any(|line| line.trim_start().starts_with("inet "))
+        })
+        .unwrap_or(false)
 }
 
 fn health_from_output(
@@ -238,7 +267,7 @@ fn parse_routes(text: &str) -> Vec<RouteEntry<'_>> {
     text.lines()
         .filter_map(|line| {
             let line = line.trim_start();
-            let kind = if line.starts_with("default") {
+            let kind = if line.starts_with("default") || line.starts_with("0.0.0.0/0") {
                 RouteKind::Default
             } else if line.starts_with("0.0.0.0/1") {
                 RouteKind::Low
