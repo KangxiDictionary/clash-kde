@@ -37,6 +37,11 @@
 #include <unistd.h>
 
 namespace {
+QString localized(const char *text)
+{
+    return ki18nd("kcm_clashkde", text).toString();
+}
+
 QVariantList jsonArray(const QString &text)
 {
     const auto document = QJsonDocument::fromJson(text.toUtf8());
@@ -1073,7 +1078,7 @@ void ClashClient::openLogFolder()
 {
     QDir dir(runtimeDirectory());
     if (!dir.exists() && !dir.mkpath(QStringLiteral("."))) {
-        reportError(QStringLiteral("无法创建日志目录: %1").arg(dir.absolutePath()));
+        reportError(localized("Cannot create the log directory: %1").arg(dir.absolutePath()));
         return;
     }
     QDesktopServices::openUrl(QUrl::fromLocalFile(dir.absolutePath()));
@@ -1093,7 +1098,7 @@ void ClashClient::restoreSystemProxy()
             setBusy(false);
             const QDBusPendingReply<> reply = *call;
             if (reply.isValid()) {
-                showHint(QStringLiteral("系统代理已关闭。"));
+                showHint(localized("The system proxy is off."));
                 refreshStatus();
                 return;
             }
@@ -1111,26 +1116,26 @@ void ClashClient::runRestoreProxyCommand()
         exe = QStringLiteral("/usr/bin/clash-kde");
     }
     if (!QFileInfo(exe).isExecutable()) {
-        reportError(QStringLiteral("找不到 clash-kde，无法自动恢复代理。请手动执行：kwriteconfig6 --file ~/.config/kioslaverc --group \"Proxy Settings\" --key ProxyType 0"));
+        reportError(localized("clash-kde could not be found, so the proxy cannot be restored automatically. Run manually: kwriteconfig6 --file ~/.config/kioslaverc --group \"Proxy Settings\" --key ProxyType 0"));
         return;
     }
     QProcess process;
     process.start(exe, {QStringLiteral("--restore-proxy")});
     if (!process.waitForStarted(2000)) {
-        reportError(QStringLiteral("无法执行 clash-kde --restore-proxy。"));
+        reportError(localized("Could not run clash-kde --restore-proxy."));
         return;
     }
     if (!process.waitForFinished(5000)) {
         process.kill();
-        reportError(QStringLiteral("clash-kde --restore-proxy 超时。"));
+        reportError(localized("clash-kde --restore-proxy timed out."));
         return;
     }
     if (process.exitStatus() != QProcess::NormalExit || process.exitCode() != 0) {
         const QString error = QString::fromUtf8(process.readAllStandardError()).trimmed();
-        reportError(error.isEmpty() ? QStringLiteral("clash-kde --restore-proxy 失败。") : error);
+        reportError(error.isEmpty() ? localized("clash-kde --restore-proxy failed.") : error);
         return;
     }
-    showHint(QStringLiteral("系统代理已关闭。"));
+    showHint(localized("The system proxy is off."));
     refreshStatus();
 }
 
@@ -1410,7 +1415,7 @@ void ClashClient::shiftOwnRuleNotes(int removed)
 bool ClashClient::addRoute(const QString &group, const QString &name, const QString &kind, const QString &server, int port, const QString &secret)
 {
     if (port < 1 || port > 65535) {
-        reportError(QStringLiteral("端口无效"));
+        reportError(localized("Invalid port."));
         return false;
     }
     const QDBusReply<void> reply = m_iface->call(QStringLiteral("AddRoute"),
@@ -1448,7 +1453,7 @@ void ClashClient::removeRoute(const QString &name)
 bool ClashClient::saveRoute(const QString &previous, const QString &name, const QString &kind, const QString &server, int port, const QString &secret)
 {
     if (port < 1 || port > 65535) {
-        reportError(QStringLiteral("端口无效"));
+        reportError(localized("Invalid port."));
         return false;
     }
     const QDBusReply<void> reply = m_iface->call(QStringLiteral("UpdateRoute"),
@@ -2211,11 +2216,11 @@ bool ClashClient::addOwnRule(const QString &type, const QString &payload, const 
     const QString value = kind == QLatin1String("MATCH") ? QString() : payload.trimmed();
     const QString policy = target.trimmed();
     if (kind != QLatin1String("MATCH") && value.isEmpty()) {
-        reportError(QStringLiteral("匹配内容不能为空"));
+        reportError(localized("The match value cannot be empty."));
         return false;
     }
     if (policy.isEmpty()) {
-        reportError(QStringLiteral("目标不能为空"));
+        reportError(localized("The target cannot be empty."));
         return false;
     }
     if (m_ruleImporting) {
@@ -2303,7 +2308,7 @@ int ClashClient::openRulesSpreadsheet()
     file->setAutoRemove(false);
     if (!file->open() || file->write(csv.value().toUtf8()) < 0) {
         delete file;
-        reportError(QStringLiteral("无法写入表格"));
+        reportError(localized("Could not write the spreadsheet."));
         return -1;
     }
     const QString path = file->fileName();
@@ -2316,7 +2321,7 @@ int ClashClient::openRulesSpreadsheet()
     if (!process->waitForStarted(3000)) {
         QFile::remove(path);
         process->deleteLater();
-        reportError(QStringLiteral("无法打开表格"));
+        reportError(localized("Could not open the spreadsheet."));
         return -1;
     }
     m_sheetPath = path;
@@ -2326,11 +2331,11 @@ int ClashClient::openRulesSpreadsheet()
 QString ClashClient::finishRulesSpreadsheet()
 {
     if (m_sheetPath.isEmpty()) {
-        return QStringLiteral("无法读取表格");
+        return localized("Could not read the spreadsheet.");
     }
     QFile file(m_sheetPath);
     if (!file.open(QIODevice::ReadOnly)) {
-        return QStringLiteral("无法读取表格");
+        return localized("Could not read the spreadsheet.");
     }
     const QString text = QString::fromUtf8(file.readAll());
     file.close();
@@ -2506,7 +2511,7 @@ bool ClashClient::draftIsDefaults() const
 bool ClashClient::commitSettings()
 {
     if (m_tunPending) {
-        reportError(QStringLiteral("正在应用 TUN 设置，请稍候"));
+        reportError(localized("Applying TUN settings, please wait."));
         return false;
     }
     auto failed = [this](const QDBusError &error) {
@@ -2517,7 +2522,7 @@ bool ClashClient::commitSettings()
     const QString lanPassword = m_draftLanPassword;
     const bool lanEmpty = lanUser.isEmpty() && lanPassword.isEmpty();
     if (!lanEmpty && (lanUser.isEmpty() || lanPassword.isEmpty() || lanUser.contains(QLatin1Char(':')) || lanPassword.contains(QLatin1Char(':')))) {
-        reportError(QStringLiteral("局域网账号和密码要一起填写，且不能包含冒号"));
+        reportError(localized("Fill in both the LAN username and password, and do not use colons."));
         return false;
     }
     if (m_preferReset && draftIsDefaults()) {
@@ -2564,7 +2569,7 @@ bool ClashClient::commitSettings()
         const QVariantMap edit = it.value().toMap();
         const int port = edit.value(QStringLiteral("port")).toInt();
         if (port < 1 || port > 65535) {
-            reportError(QStringLiteral("端口无效"));
+            reportError(localized("Invalid port."));
             return false;
         }
         const QString renamed = edit.value(QStringLiteral("name")).toString();
@@ -2615,21 +2620,21 @@ bool ClashClient::commitSettings()
     const QString draftDevice = m_draftTunDevice.trimmed();
     const QString draftOverride = m_draftOverridePath.trimmed();
     if (!tunDeviceAcceptable(draftDevice)) {
-        reportError(QStringLiteral("网卡名称只允许 1 到 15 个字母、数字、下划线或连字符"));
+        reportError(localized("The interface name must be 1 to 15 letters, digits, underscores, or hyphens."));
         return false;
     }
     if (!draftOverride.isEmpty()) {
         const QFileInfo info(draftOverride);
         if (!info.isAbsolute()) {
-            reportError(QStringLiteral("覆盖文件需要绝对路径"));
+            reportError(localized("The override file needs an absolute path."));
             return false;
         }
         if (info.fileName().isEmpty()) {
-            reportError(QStringLiteral("覆盖文件需要文件名"));
+            reportError(localized("The override path needs a file name."));
             return false;
         }
         if (info.isDir()) {
-            reportError(QStringLiteral("覆盖路径是文件夹"));
+            reportError(localized("The override path is a folder."));
             return false;
         }
     }
@@ -2680,7 +2685,7 @@ bool ClashClient::commitSettings()
             const QDBusPendingReply<> reply = *call;
             if (!reply.isValid()) {
                 const QString message = reply.error().message().trimmed().isEmpty()
-                    ? QStringLiteral("应用 TUN 设置失败（没有返回错误信息）")
+                    ? localized("Applying TUN settings failed (no error message was returned).")
                     : reply.error().message();
                 m_draftDirty = true;
                 Q_EMIT draftChanged();
@@ -3068,7 +3073,7 @@ void ClashClient::reportError(const QString &message)
         text = text.mid(prefix.size());
     }
     if (text.trimmed().isEmpty()) {
-        text = QStringLiteral("操作失败（没有返回错误信息）");
+        text = localized("The operation failed (no error message was returned).");
     }
     m_message = text;
     Q_EMIT statusChanged();
