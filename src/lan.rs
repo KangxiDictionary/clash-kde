@@ -34,23 +34,23 @@ pub fn set_user(dir: &Path, uid: u32, allow: bool) -> io::Result<()> {
     write_flag(&dir.join(uid.to_string()), allow)
 }
 
-pub fn normalize_auth(username: &str, password: &str) -> Result<(String, String), String> {
+pub fn normalize_auth(username: &str, password: &str) -> Result<(String, String), crate::error::ServiceError> {
     let username = username.trim();
     let password = password.trim();
     if username.is_empty() && password.is_empty() {
         return Ok((String::new(), String::new()));
     }
     if username.is_empty() || password.is_empty() {
-        return Err("局域网账号和密码要一起填写".to_string());
+        return Err(crate::error::ServiceError::new(crate::error::codes::LAN_AUTH_BOTH));
     }
     if username.contains(':') || password.contains(':') {
-        return Err("局域网账号和密码不能包含冒号".to_string());
+        return Err(crate::error::ServiceError::new(crate::error::codes::LAN_AUTH_COLON));
     }
     if username.chars().count() > 64 {
-        return Err("局域网账号不能超过 64 个字符".to_string());
+        return Err(crate::error::ServiceError::new(crate::error::codes::LAN_USERNAME_TOO_LONG));
     }
     if password.chars().count() > 128 {
-        return Err("局域网密码不能超过 128 个字符".to_string());
+        return Err(crate::error::ServiceError::new(crate::error::codes::LAN_PASSWORD_TOO_LONG));
     }
     Ok((username.to_string(), password.to_string()))
 }

@@ -289,26 +289,26 @@ pub fn ensure_secret(settings: &mut Settings) -> bool {
     true
 }
 
-pub fn validate_ports(mixed_port: u32, controller_port: u32) -> Result<(u16, u16), String> {
-    let mixed = u16::try_from(mixed_port).map_err(|_| "端口无效".to_string())?;
-    let controller = u16::try_from(controller_port).map_err(|_| "端口无效".to_string())?;
+pub fn validate_ports(mixed_port: u32, controller_port: u32) -> Result<(u16, u16), crate::error::ServiceError> {
+    let mixed = u16::try_from(mixed_port).map_err(|_| crate::error::ServiceError::new(crate::error::codes::SETTINGS_PORT_INVALID))?;
+    let controller = u16::try_from(controller_port).map_err(|_| crate::error::ServiceError::new(crate::error::codes::SETTINGS_PORT_INVALID))?;
     if mixed == 0 || controller == 0 {
-        return Err("端口无效".to_string());
+        return Err(crate::error::ServiceError::new(crate::error::codes::SETTINGS_PORT_INVALID));
     }
     if mixed == controller {
-        return Err("混合端口和控制器端口不能相同".to_string());
+        return Err(crate::error::ServiceError::new(crate::error::codes::SETTINGS_PORT_SAME));
     }
     Ok((mixed, controller))
 }
 
-pub fn normalize_mode(mode: &str) -> Result<String, String> {
+pub fn normalize_mode(mode: &str) -> Result<String, crate::error::ServiceError> {
     match mode {
         "rule" | "global" | "direct" => Ok(mode.to_string()),
-        _ => Err("模式只能是 rule、global 或 direct".to_string()),
+        _ => Err(crate::error::ServiceError::new(crate::error::codes::SETTINGS_MODE_INVALID)),
     }
 }
 
-pub fn normalize_tun_device(name: &str) -> Result<String, String> {
+pub fn normalize_tun_device(name: &str) -> Result<String, crate::error::ServiceError> {
     let name = name.trim();
     if name.is_empty() {
         return Ok(String::new());
@@ -318,7 +318,7 @@ pub fn normalize_tun_device(name: &str) -> Result<String, String> {
             .chars()
             .all(|ch| ch.is_ascii_alphanumeric() || ch == '_' || ch == '-');
     if !ok {
-        return Err("网卡名称只允许 1 到 15 个字母、数字、下划线或连字符".to_string());
+        return Err(crate::error::ServiceError::new(crate::error::codes::SETTINGS_TUN_DEVICE_INVALID));
     }
     Ok(name.to_string())
 }
@@ -332,20 +332,20 @@ pub fn effective_override(paths: &Paths, stored: &str) -> PathBuf {
     }
 }
 
-pub fn normalize_override_path(paths: &Paths, text: &str) -> Result<String, String> {
+pub fn normalize_override_path(paths: &Paths, text: &str) -> Result<String, crate::error::ServiceError> {
     let text = text.trim();
     if text.is_empty() {
         return Ok(String::new());
     }
     let path = PathBuf::from(text);
     if !path.is_absolute() {
-        return Err("覆盖文件需要绝对路径".to_string());
+        return Err(crate::error::ServiceError::new(crate::error::codes::SETTINGS_OVERRIDE_ABSOLUTE));
     }
     if path.file_name().is_none_or(|name| name.is_empty()) {
-        return Err("覆盖文件需要文件名".to_string());
+        return Err(crate::error::ServiceError::new(crate::error::codes::SETTINGS_OVERRIDE_FILENAME));
     }
     if path.is_dir() {
-        return Err("覆盖路径是文件夹".to_string());
+        return Err(crate::error::ServiceError::new(crate::error::codes::SETTINGS_OVERRIDE_IS_DIR));
     }
     if path == paths.override_file() {
         return Ok(String::new());
@@ -401,7 +401,7 @@ mod tests {
         let dir = std::env::temp_dir().join("clash-kde-override-dir-test");
         fs::create_dir_all(&dir).unwrap();
         let error = normalize_override_path(&paths, dir.to_str().unwrap()).unwrap_err();
-        assert!(error.contains("文件夹"));
+        assert_eq!(error.code, crate::error::codes::SETTINGS_OVERRIDE_IS_DIR);
         let _ = fs::remove_dir(&dir);
     }
 

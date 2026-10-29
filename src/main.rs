@@ -13,6 +13,7 @@ mod controller;
 mod core;
 mod dbus_api;
 mod diagnostics;
+mod error;
 mod lan;
 mod paths;
 mod privilege;
