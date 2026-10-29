@@ -31,6 +31,22 @@ pub mod codes {
     pub const LAN_USERNAME_TOO_LONG: &str = "lan.username_too_long";
     pub const LAN_PASSWORD_TOO_LONG: &str = "lan.password_too_long";
 
+    pub const ACCOUNT_NOT_FOUND: &str = "account.not_found";
+    pub const TUN_BINARY_NOT_SYSTEM: &str = "tun.binary_not_system";
+    pub const TUN_SYSTEM_BINARY_MISSING: &str = "tun.system_binary_missing";
+    pub const TUN_BINARY_MISSING: &str = "tun.binary_missing";
+    pub const TUN_CONFIG_NOT_OWNED: &str = "tun.config_not_owned";
+    pub const TUN_CONFIG_PARSE: &str = "tun.config_parse";
+    pub const TUN_CONFIG_MISSING: &str = "tun.config_missing";
+    pub const TUN_CONFIG_DISABLED: &str = "tun.config_disabled";
+    pub const TUN_MACHINE_INCLUDE_UID: &str = "tun.machine_include_uid";
+    pub const TUN_MACHINE_EXCLUDE_UID: &str = "tun.machine_exclude_uid";
+    pub const TUN_INCLUDE_UID_INVALID: &str = "tun.include_uid_invalid";
+    pub const TUN_ALREADY_OTHER_USER: &str = "tun.already_other_user";
+    pub const TUN_LOG_SYMLINK: &str = "tun.log_symlink";
+    pub const TUN_LOG_CHECK: &str = "tun.log_check";
+    pub const TUN_NOT_AUTHORIZED: &str = "tun.not_authorized";
+
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
@@ -87,6 +103,12 @@ impl fmt::Display for ServiceError {
 }
 
 impl std::error::Error for ServiceError {}
+
+impl From<ServiceError> for zbus::fdo::Error {
+    fn from(error: ServiceError) -> Self {
+        error.into_fdo()
+    }
+}
 
 impl From<ServiceError> for String {
     fn from(error: ServiceError) -> Self {

@@ -142,9 +142,9 @@ impl Admin {
             Path::new(&config),
             uid,
         )
-        .map_err(fdo::Error::Failed)?;
+        .map_err(crate::error::ServiceError::into_fdo)?;
         privilege::log_path_is_runtime(Path::new(&log), Path::new(&runtime))
-            .map_err(fdo::Error::Failed)?;
+            .map_err(crate::error::ServiceError::into_fdo)?;
         let (pid, child) = launch(uid, &binary, &runtime, &config, &log)
             .await
             .map_err(fdo::Error::Failed)?;

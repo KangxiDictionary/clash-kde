@@ -9,6 +9,7 @@ use std::path::{Path, PathBuf};
 
 use serde_yaml::Value;
 
+use crate::error::{ServiceError, codes};
 use crate::state::write_private;
 
 pub const SYSTEM_MIHOMO: &str = "/usr/bin/mihomo";
@@ -20,7 +21,7 @@ pub struct Account {
     pub home: PathBuf,
 }
 
-pub fn lookup_account(uid: u32) -> Result<Account, String> {
+pub fn lookup_account(uid: u32) -> Result<Account, ServiceError> {
     let mut pwd = unsafe { std::mem::zeroed::<libc::passwd>() };
     let mut buf = vec![0u8; 16 * 1024];
     let mut result: *mut libc::passwd = std::ptr::null_mut();
@@ -34,7 +35,7 @@ pub fn lookup_account(uid: u32) -> Result<Account, String> {
         )
     };
     if rc != 0 || result.is_null() {
-        return Err(format!("找不到账户 {uid}"));
+        return Err(ServiceError::new(codes::ACCOUNT_NOT_FOUND).param("uid", uid.to_string()));
     }
     let name = unsafe { std::ffi::CStr::from_ptr(pwd.pw_name) }
         .to_string_lossy()
@@ -43,7 +44,7 @@ pub fn lookup_account(uid: u32) -> Result<Account, String> {
         .to_string_lossy()
         .into_owned();
     if name.is_empty() || home.is_empty() {
-        return Err(format!("找不到账户 {uid}"));
+        return Err(ServiceError::new(codes::ACCOUNT_NOT_FOUND).param("uid", uid.to_string()));
     }
     Ok(Account {
         gid: pwd.pw_gid,
@@ -56,18 +57,20 @@ pub fn runtime_dir_for(account: &Account) -> PathBuf {
     account.home.join(".local/share/clash-kde/runtime")
 }
 
-pub fn judge_binary(canonical: &Path, uid: u32, mode: u32, allowed: &Path) -> Result<(), String> {
+pub fn judge_binary(canonical: &Path, uid: u32, mode: u32, allowed: &Path) -> Result<(), ServiceError> {
     if canonical != allowed || uid != 0 || mode & 0o022 != 0 {
-        return Err("TUN 只能使用系统里的 /usr/bin/mihomo".to_string());
+        return Err(ServiceError::new(codes::TUN_BINARY_NOT_SYSTEM));
     }
     Ok(())
 }
 
-pub fn ensure_system_binary(path: &Path) -> Result<(), String> {
-    let allowed =
-        fs::canonicalize(SYSTEM_MIHOMO).map_err(|_| "系统里没有 /usr/bin/mihomo".to_string())?;
-    let canonical = fs::canonicalize(path).map_err(|error| format!("找不到 mihomo：{error}"))?;
-    let meta = fs::metadata(&canonical).map_err(|error| error.to_string())?;
+pub fn ensure_system_binary(path: &Path) -> Result<(), ServiceError> {
+    let allowed = fs::canonicalize(SYSTEM_MIHOMO)
+        .map_err(|_| ServiceError::new(codes::TUN_SYSTEM_BINARY_MISSING))?;
+    let canonical = fs::canonicalize(path).map_err(|error| {
+        ServiceError::new(codes::TUN_BINARY_MISSING).detail(error.to_string())
+    })?;
+    let meta = fs::metadata(&canonical).map_err(ServiceError::from_io)?;
     judge_binary(&canonical, meta.uid(), meta.mode(), &allowed)
 }
 
@@ -76,46 +79,48 @@ pub fn judge_runtime(
     runtime: &Path,
     expected_runtime: &Path,
     owner: u32,
-) -> Result<(), String> {
+) -> Result<(), ServiceError> {
     if runtime != expected_runtime
         || config.parent() != Some(runtime)
         || config.file_name() != Some(std::ffi::OsStr::new("config.yaml"))
     {
-        return Err("TUN 只能使用这个账户自己的运行配置".to_string());
+        return Err(ServiceError::new(codes::TUN_CONFIG_NOT_OWNED));
     }
-    let meta = fs::metadata(config).map_err(|error| error.to_string())?;
+    let meta = fs::metadata(config).map_err(ServiceError::from_io)?;
     if !meta.is_file() || meta.uid() != owner {
-        return Err("TUN 只能使用这个账户自己的运行配置".to_string());
+        return Err(ServiceError::new(codes::TUN_CONFIG_NOT_OWNED));
     }
     Ok(())
 }
 
-pub fn assess_tun_document(text: &str, uid: u32, scope: &str) -> Result<(), String> {
-    let value: Value =
-        serde_yaml::from_str(text).map_err(|error| format!("运行配置无法解析: {error}"))?;
-    let tun = value.get("tun").ok_or("运行配置里没有 TUN")?;
+pub fn assess_tun_document(text: &str, uid: u32, scope: &str) -> Result<(), ServiceError> {
+    let value: Value = serde_yaml::from_str(text)
+        .map_err(|error| ServiceError::new(codes::TUN_CONFIG_PARSE).detail(error.to_string()))?;
+    let tun = value
+        .get("tun")
+        .ok_or_else(|| ServiceError::new(codes::TUN_CONFIG_MISSING))?;
     if tun.get("enable").and_then(Value::as_bool) != Some(true) {
-        return Err("运行配置没有打开 TUN".to_string());
+        return Err(ServiceError::new(codes::TUN_CONFIG_DISABLED));
     }
     if scope == "machine" {
         if tun.get("include-uid").is_some() {
-            return Err("整机捕获不能限制账户".to_string());
+            return Err(ServiceError::new(codes::TUN_MACHINE_INCLUDE_UID));
         }
         let excludes_us = tun
             .get("exclude-uid")
             .and_then(Value::as_sequence)
             .is_some_and(|ids| ids.iter().any(|id| id.as_u64() == Some(u64::from(uid))));
         if excludes_us {
-            return Err("整机捕获不能排除这个账户".to_string());
+            return Err(ServiceError::new(codes::TUN_MACHINE_EXCLUDE_UID));
         }
         return Ok(());
     }
     let ids = tun
         .get("include-uid")
         .and_then(Value::as_sequence)
-        .ok_or("TUN 只能包含这个账户")?;
+        .ok_or_else(|| ServiceError::new(codes::TUN_INCLUDE_UID_INVALID))?;
     if ids.len() != 1 || ids[0].as_u64() != Some(u64::from(uid)) {
-        return Err("TUN 只能包含这个账户".to_string());
+        return Err(ServiceError::new(codes::TUN_INCLUDE_UID_INVALID).param("uid", uid.to_string()));
     }
     Ok(())
 }
@@ -145,41 +150,43 @@ pub fn ensure_tun_launch(
     runtime: &Path,
     config: &Path,
     uid: u32,
-) -> Result<(), String> {
+) -> Result<(), ServiceError> {
     ensure_system_binary(binary)?;
     let account = lookup_account(uid)?;
     let expected = fs::canonicalize(runtime_dir_for(&account))
-        .map_err(|_| "TUN 只能使用这个账户自己的运行配置".to_string())?;
+        .map_err(|_| ServiceError::new(codes::TUN_CONFIG_NOT_OWNED))?;
     let runtime =
-        fs::canonicalize(runtime).map_err(|_| "TUN 只能使用这个账户自己的运行配置".to_string())?;
+        fs::canonicalize(runtime).map_err(|_| ServiceError::new(codes::TUN_CONFIG_NOT_OWNED))?;
     let config_path =
-        fs::canonicalize(config).map_err(|_| "TUN 只能使用这个账户自己的运行配置".to_string())?;
+        fs::canonicalize(config).map_err(|_| ServiceError::new(codes::TUN_CONFIG_NOT_OWNED))?;
     judge_runtime(&config_path, &runtime, &expected, uid)?;
     let scope = grant_scope(Path::new(STAMP_DIR), uid)?;
     if scope == "machine" && other_personal_tun(uid) {
-        return Err("已有账户开着自己的 TUN".to_string());
+        return Err(ServiceError::new(codes::TUN_ALREADY_OTHER_USER));
     }
-    let text = fs::read_to_string(&config_path).map_err(|error| error.to_string())?;
+    let text = fs::read_to_string(&config_path).map_err(ServiceError::from_io)?;
     assess_tun_document(&text, uid, scope)
 }
 
-pub fn log_path_is_runtime(log: &Path, runtime: &Path) -> Result<(), String> {
-    let runtime = fs::canonicalize(runtime).map_err(|error| error.to_string())?;
+pub fn log_path_is_runtime(log: &Path, runtime: &Path) -> Result<(), ServiceError> {
+    let runtime = fs::canonicalize(runtime).map_err(ServiceError::from_io)?;
     let parent = log
         .parent()
-        .ok_or_else(|| "TUN 只能使用这个账户自己的运行配置".to_string())?;
+        .ok_or_else(|| ServiceError::new(codes::TUN_CONFIG_NOT_OWNED))?;
     let parent =
-        fs::canonicalize(parent).map_err(|_| "TUN 只能使用这个账户自己的运行配置".to_string())?;
+        fs::canonicalize(parent).map_err(|_| ServiceError::new(codes::TUN_CONFIG_NOT_OWNED))?;
     if parent != runtime || log.file_name() != Some(std::ffi::OsStr::new("mihomo.log")) {
-        return Err("TUN 只能使用这个账户自己的运行配置".to_string());
+        return Err(ServiceError::new(codes::TUN_CONFIG_NOT_OWNED));
     }
     match fs::symlink_metadata(log) {
         Ok(meta) if meta.file_type().is_symlink() => {
-            return Err("TUN 日志不能是符号链接".to_string());
+            return Err(ServiceError::new(codes::TUN_LOG_SYMLINK));
         }
         Ok(_) => {}
         Err(error) if error.kind() == io::ErrorKind::NotFound => {}
-        Err(error) => return Err(format!("无法检查内核日志: {error}")),
+        Err(error) => {
+            return Err(ServiceError::new(codes::TUN_LOG_CHECK).detail(error.to_string()));
+        }
     }
     Ok(())
 }
@@ -201,13 +208,14 @@ fn write_grant(root: &Path, uid: u32, scope: &str) -> io::Result<()> {
     write_private(&stamp_path(root, uid), scope.as_bytes())
 }
 
-pub fn grant_scope(root: &Path, uid: u32) -> Result<&'static str, String> {
+pub fn grant_scope(root: &Path, uid: u32) -> Result<&'static str, ServiceError> {
     let text =
-        fs::read_to_string(stamp_path(root, uid)).map_err(|_| "TUN 还没有得到授权".to_string())?;
+        fs::read_to_string(stamp_path(root, uid))
+        .map_err(|_| ServiceError::new(codes::TUN_NOT_AUTHORIZED))?;
     match text.trim() {
         "machine" => Ok("machine"),
         "user" | "" => Ok("user"),
-        _ => Err("TUN 还没有得到授权".to_string()),
+        _ => Err(ServiceError::new(codes::TUN_NOT_AUTHORIZED)),
     }
 }
 
@@ -448,6 +456,6 @@ mod tests {
         fs::write(&target, b"x").unwrap();
         std::os::unix::fs::symlink(&target, runtime.join("mihomo.log")).unwrap();
         let error = log_path_is_runtime(&runtime.join("mihomo.log"), &runtime).unwrap_err();
-        assert!(error.contains("符号链接"));
+        assert_eq!(error.code, codes::TUN_LOG_SYMLINK);
     }
 }
