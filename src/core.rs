@@ -8,6 +8,7 @@ use std::time::Duration;
 
 use tokio::process::{Child, Command};
 
+use crate::error::{ServiceError, codes};
 use crate::paths::Paths;
 
 pub struct CoreProcess {
@@ -16,15 +17,15 @@ pub struct CoreProcess {
 }
 
 impl CoreProcess {
-    pub fn spawn(paths: &Paths, binary: &Path) -> Result<Self, String> {
+    pub fn spawn(paths: &Paths, binary: &Path) -> Result<Self, ServiceError> {
         let log = std::fs::OpenOptions::new()
             .create(true)
             .append(true)
             .open(paths.core_log())
-            .map_err(|error| format!("无法打开内核日志: {error}"))?;
+            .map_err(|error| ServiceError::new(codes::CORE_LOG_OPEN).detail(error.to_string()))?;
         let stderr = log
             .try_clone()
-            .map_err(|error| format!("无法打开内核日志: {error}"))?;
+            .map_err(|error| ServiceError::new(codes::CORE_LOG_OPEN).detail(error.to_string()))?;
         let child = Command::new(binary)
             .arg("-d")
             .arg(paths.runtime_dir())
@@ -36,8 +37,12 @@ impl CoreProcess {
             .stderr(Stdio::from(stderr))
             .kill_on_drop(true)
             .spawn()
-            .map_err(|error| format!("无法启动 mihomo: {error} ({})", binary.display()))?;
-        let pid = child.id().ok_or_else(|| "mihomo 没有进程号".to_string())?;
+            .map_err(|error| {
+                ServiceError::new(codes::CORE_SPAWN_FAILED)
+                    .param("binary", binary.display().to_string())
+                    .detail(error.to_string())
+            })?;
+        let pid = child.id().ok_or_else(|| ServiceError::new(codes::CORE_NO_PID))?;
         Ok(Self {
             child: Some(child),
             pid,
@@ -99,13 +104,13 @@ pub(crate) fn process_alive(pid: u32) -> bool {
     std::io::Error::last_os_error().raw_os_error() != Some(libc::ESRCH)
 }
 
-pub fn resolve_binary(requested: &str) -> Result<std::path::PathBuf, String> {
+pub fn resolve_binary(requested: &str) -> Result<std::path::PathBuf, ServiceError> {
     let path = Path::new(requested);
     if requested.contains('/') {
         if path.is_file() {
             return Ok(path.to_path_buf());
         }
-        return Err(format!("找不到 mihomo：{requested}"));
+        return Err(ServiceError::new(codes::CORE_BINARY_MISSING).param("path", requested));
     }
     let path_env = std::env::var("PATH").unwrap_or_else(|_| "/usr/bin:/bin".to_string());
     for dir in path_env.split(':').filter(|dir| !dir.is_empty()) {
@@ -114,7 +119,7 @@ pub fn resolve_binary(requested: &str) -> Result<std::path::PathBuf, String> {
             return Ok(candidate);
         }
     }
-    Err("找不到 mihomo，请先安装 mihomo 包".to_string())
+    Err(ServiceError::new(codes::CORE_BINARY_MISSING))
 }
 
 pub fn log_tail(path: &Path) -> String {

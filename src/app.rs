@@ -772,7 +772,7 @@ impl App {
     }
 
     pub async fn close_connection(&self, id: &str) -> Result<(), String> {
-        self.running_controller().await?.close_connection(id).await
+        self.running_controller().await?.close_connection(id).await.map_err(String::from)
     }
 
     pub async fn close_all_connections(&self) -> Result<(), String> {
@@ -780,6 +780,7 @@ impl App {
             .await?
             .close_all_connections()
             .await
+            .map_err(String::from)
     }
 
     pub async fn proxy_providers_json(&self) -> String {
@@ -794,6 +795,7 @@ impl App {
             .await?
             .update_proxy_provider(name)
             .await
+            .map_err(String::from)
     }
 
     pub async fn update_rule_provider(&self, name: &str) -> Result<(), String> {
@@ -801,6 +803,7 @@ impl App {
             .await?
             .update_rule_provider(name)
             .await
+            .map_err(String::from)
     }
 
     pub async fn rule_view_json(&self) -> Result<String, String> {
@@ -1353,10 +1356,10 @@ impl App {
             }
             Err(error) => {
                 if self.region_epoch.load(Ordering::Relaxed) == epoch {
-                    self.set_message(error.clone()).await;
+                    self.set_message(String::from(error.clone())).await;
                     self.emit(Event::Status);
                 }
-                Err(error)
+                Err(String::from(error))
             }
         }
     }
@@ -1385,7 +1388,7 @@ impl App {
                 }
                 Err(error) => {
                     inner.exit_region.clear();
-                    inner.message = error;
+                    inner.message = String::from(error);
                 }
             }
             drop(inner);
@@ -1640,7 +1643,7 @@ impl App {
         );
         let binary = match core::resolve_binary(&settings.mihomo_path) {
             Ok(binary) => binary,
-            Err(error) => return self.fail_before_start(error).await,
+            Err(error) => return self.fail_before_start(String::from(error)).await,
         };
         if let Err(error) = profile::write_runtime_config(&self.paths, &settings) {
             return self.fail_before_start(String::from(error)).await;

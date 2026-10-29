@@ -96,6 +96,31 @@ pub mod codes {
     pub const RULES_ENABLED: &str = "rules.csv_enabled";
     pub const RULES_KIND: &str = "rules.csv_kind";
 
+    pub const CONTROLLER_MODE: &str = "controller.mode_switch";
+    pub const CONTROLLER_SELECT: &str = "controller.select_proxy";
+    pub const CONTROLLER_READ_GROUPS: &str = "controller.read_groups";
+    pub const CONTROLLER_PARSE_GROUPS: &str = "controller.parse_groups";
+    pub const CONTROLLER_READ_TRAFFIC: &str = "controller.read_traffic";
+    pub const CONTROLLER_READ_CONNECTIONS: &str = "controller.read_connections";
+    pub const CONTROLLER_PARSE_CONNECTIONS: &str = "controller.parse_connections";
+    pub const CONTROLLER_CLOSE_CONNECTION: &str = "controller.close_connection";
+    pub const CONTROLLER_NO_CONNECTION: &str = "controller.no_connection";
+    pub const CONTROLLER_READ_PROVIDERS: &str = "controller.read_providers";
+    pub const CONTROLLER_PARSE_PROVIDERS: &str = "controller.parse_providers";
+    pub const CONTROLLER_UPDATE_PROVIDER: &str = "controller.update_provider";
+    pub const CONTROLLER_SUBSCRIPTION_DOWNLOAD: &str = "controller.subscription_download";
+    pub const CONTROLLER_SUBSCRIPTION_READ: &str = "controller.subscription_read";
+    pub const CONTROLLER_REGION_FAILED: &str = "controller.region_failed";
+    pub const CONTROLLER_REGION_EMPTY: &str = "controller.region_empty";
+    pub const CONTROLLER_REGION_HTTP: &str = "controller.region_http";
+    pub const CONTROLLER_REGION_PARSE: &str = "controller.region_parse";
+    pub const CONTROLLER_REGION_PROXY: &str = "controller.region_proxy";
+
+    pub const CORE_LOG_OPEN: &str = "core.log_open";
+    pub const CORE_SPAWN_FAILED: &str = "core.spawn_failed";
+    pub const CORE_NO_PID: &str = "core.no_pid";
+    pub const CORE_BINARY_MISSING: &str = "core.binary_missing";
+
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]

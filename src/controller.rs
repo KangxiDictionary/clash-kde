@@ -8,6 +8,8 @@ use futures_util::Stream;
 use reqwest::Client;
 use serde_json::{Value, json};
 
+use crate::error::{ServiceError, codes};
+
 const DELAY_URL: &str = "http://www.gstatic.com/generate_204";
 
 #[derive(Clone)]
@@ -50,50 +52,50 @@ impl Controller {
             .is_ok()
     }
 
-    pub async fn set_mode(&self, mode: &str) -> Result<(), String> {
+    pub async fn set_mode(&self, mode: &str) -> Result<(), ServiceError> {
         let response = self
             .client
             .patch(format!("{}/configs", self.base))
             .json(&json!({ "mode": mode }))
             .send()
             .await
-            .map_err(|error| format!("无法切换模式: {error}"))?;
+            .map_err(|error| ServiceError::new(codes::CONTROLLER_MODE).detail(error.to_string()))?;
         if response.status().is_success() {
             Ok(())
         } else {
-            Err(format!("无法切换模式: HTTP {}", response.status()))
+            Err(ServiceError::new(codes::CONTROLLER_MODE).detail(format!("HTTP {}", response.status())))
         }
     }
 
-    pub async fn select_proxy(&self, group: &str, name: &str) -> Result<(), String> {
+    pub async fn select_proxy(&self, group: &str, name: &str) -> Result<(), ServiceError> {
         let response = self
             .client
             .put(format!("{}/proxies/{}", self.base, path_segment(group)))
             .json(&json!({ "name": name }))
             .send()
             .await
-            .map_err(|error| format!("无法选择节点: {error}"))?;
+            .map_err(|error| ServiceError::new(codes::CONTROLLER_SELECT).detail(error.to_string()))?;
         if response.status().is_success() {
             Ok(())
         } else {
-            Err(format!("无法选择节点: HTTP {}", response.status()))
+            Err(ServiceError::new(codes::CONTROLLER_SELECT).detail(format!("HTTP {}", response.status())))
         }
     }
 
-    pub async fn proxies(&self) -> Result<Vec<ProxyGroup>, String> {
+    pub async fn proxies(&self) -> Result<Vec<ProxyGroup>, ServiceError> {
         let response = self
             .client
             .get(format!("{}/proxies", self.base))
             .send()
             .await
-            .map_err(|error| format!("无法读取策略组: {error}"))?;
+            .map_err(|error| ServiceError::new(codes::CONTROLLER_READ_GROUPS).detail(error.to_string()))?;
         if !response.status().is_success() {
-            return Err(format!("无法读取策略组: HTTP {}", response.status()));
+            return Err(ServiceError::new(codes::CONTROLLER_READ_GROUPS).detail(format!("HTTP {}", response.status())));
         }
         let body: Value = response
             .json()
             .await
-            .map_err(|error| format!("策略组响应无法解析: {error}"))?;
+            .map_err(|error| ServiceError::new(codes::CONTROLLER_PARSE_GROUPS).detail(error.to_string()))?;
         Ok(parse_groups(&body))
     }
 
@@ -122,73 +124,73 @@ impl Controller {
 
     pub async fn traffic_stream(
         &self,
-    ) -> Result<impl Stream<Item = Result<Bytes, reqwest::Error>>, String> {
+    ) -> Result<impl Stream<Item = Result<Bytes, reqwest::Error>>, ServiceError> {
         let response = self
             .traffic
             .get(format!("{}/traffic", self.base))
             .send()
             .await
-            .map_err(|error| format!("无法读取流量: {error}"))?;
+            .map_err(|error| ServiceError::new(codes::CONTROLLER_READ_TRAFFIC).detail(error.to_string()))?;
         if !response.status().is_success() {
-            return Err(format!("无法读取流量: HTTP {}", response.status()));
+            return Err(ServiceError::new(codes::CONTROLLER_READ_TRAFFIC).detail(format!("HTTP {}", response.status())));
         }
         Ok(response.bytes_stream())
     }
 
-    pub async fn connections(&self) -> Result<Vec<ConnectionRow>, String> {
+    pub async fn connections(&self) -> Result<Vec<ConnectionRow>, ServiceError> {
         let response = self
             .client
             .get(format!("{}/connections", self.base))
             .send()
             .await
-            .map_err(|error| format!("无法读取连接: {error}"))?;
+            .map_err(|error| ServiceError::new(codes::CONTROLLER_READ_CONNECTIONS).detail(error.to_string()))?;
         if !response.status().is_success() {
-            return Err(format!("无法读取连接: HTTP {}", response.status()));
+            return Err(ServiceError::new(codes::CONTROLLER_READ_CONNECTIONS).detail(format!("HTTP {}", response.status())));
         }
         let body: Value = response
             .json()
             .await
-            .map_err(|error| format!("连接响应无法解析: {error}"))?;
+            .map_err(|error| ServiceError::new(codes::CONTROLLER_PARSE_CONNECTIONS).detail(error.to_string()))?;
         Ok(parse_connections(&body))
     }
 
-    pub async fn close_connection(&self, id: &str) -> Result<(), String> {
+    pub async fn close_connection(&self, id: &str) -> Result<(), ServiceError> {
         let id = id.trim();
         if id.is_empty() {
-            return Err("没有这条连接".to_string());
+            return Err(ServiceError::new(codes::CONTROLLER_NO_CONNECTION));
         }
         let response = self
             .client
             .delete(format!("{}/connections/{}", self.base, path_segment(id)))
             .send()
             .await
-            .map_err(|error| format!("无法关闭连接: {error}"))?;
+            .map_err(|error| ServiceError::new(codes::CONTROLLER_CLOSE_CONNECTION).detail(error.to_string()))?;
         if response.status().is_success() {
             Ok(())
         } else {
-            Err(format!("无法关闭连接: HTTP {}", response.status()))
+            Err(ServiceError::new(codes::CONTROLLER_CLOSE_CONNECTION).detail(format!("HTTP {}", response.status())))
         }
     }
 
-    pub async fn close_all_connections(&self) -> Result<(), String> {
+    pub async fn close_all_connections(&self) -> Result<(), ServiceError> {
         let response = self
             .client
             .delete(format!("{}/connections", self.base))
             .send()
             .await
-            .map_err(|error| format!("无法关闭连接: {error}"))?;
+            .map_err(|error| ServiceError::new(codes::CONTROLLER_CLOSE_CONNECTION).detail(error.to_string()))?;
         if response.status().is_success() {
             Ok(())
         } else {
-            Err(format!("无法关闭连接: HTTP {}", response.status()))
+            Err(ServiceError::new(codes::CONTROLLER_CLOSE_CONNECTION).detail(format!("HTTP {}", response.status())))
         }
     }
 
-    pub async fn proxy_providers(&self) -> Result<Vec<LiveProvider>, String> {
+    pub async fn proxy_providers(&self) -> Result<Vec<LiveProvider>, ServiceError> {
         self.provider_list("proxies", ProviderKind::Proxy).await
     }
 
-    pub async fn rule_providers(&self) -> Result<Vec<LiveProvider>, String> {
+    pub async fn rule_providers(&self) -> Result<Vec<LiveProvider>, ServiceError> {
         self.provider_list("rules", ProviderKind::Rule).await
     }
 
@@ -196,35 +198,35 @@ impl Controller {
         &self,
         kind: &str,
         count: ProviderKind,
-    ) -> Result<Vec<LiveProvider>, String> {
+    ) -> Result<Vec<LiveProvider>, ServiceError> {
         let response = self
             .client
             .get(format!("{}/providers/{kind}", self.base))
             .send()
             .await
-            .map_err(|error| format!("无法读取节点列表: {error}"))?;
+            .map_err(|error| ServiceError::new(codes::CONTROLLER_READ_PROVIDERS).detail(error.to_string()))?;
         if !response.status().is_success() {
-            return Err(format!("无法读取节点列表: HTTP {}", response.status()));
+            return Err(ServiceError::new(codes::CONTROLLER_READ_PROVIDERS).detail(format!("HTTP {}", response.status())));
         }
         let body: Value = response
             .json()
             .await
-            .map_err(|error| format!("节点列表无法解析: {error}"))?;
+            .map_err(|error| ServiceError::new(codes::CONTROLLER_PARSE_PROVIDERS).detail(error.to_string()))?;
         Ok(parse_providers(&body, count))
     }
 
-    pub async fn update_proxy_provider(&self, name: &str) -> Result<(), String> {
+    pub async fn update_proxy_provider(&self, name: &str) -> Result<(), ServiceError> {
         self.update_provider("proxies", name).await
     }
 
-    pub async fn update_rule_provider(&self, name: &str) -> Result<(), String> {
+    pub async fn update_rule_provider(&self, name: &str) -> Result<(), ServiceError> {
         self.update_provider("rules", name).await
     }
 
-    async fn update_provider(&self, kind: &str, name: &str) -> Result<(), String> {
+    async fn update_provider(&self, kind: &str, name: &str) -> Result<(), ServiceError> {
         let name = name.trim();
         if name.is_empty() {
-            return Err("没有这个列表".to_string());
+            return Err(ServiceError::new(codes::CONTROLLER_UPDATE_PROVIDER));
         }
         let response = self
             .client
@@ -235,11 +237,11 @@ impl Controller {
             ))
             .send()
             .await
-            .map_err(|error| format!("无法更新列表: {error}"))?;
+            .map_err(|error| ServiceError::new(codes::CONTROLLER_UPDATE_PROVIDER).detail(error.to_string()))?;
         if response.status().is_success() {
             Ok(())
         } else {
-            Err(format!("无法更新列表: HTTP {}", response.status()))
+            Err(ServiceError::new(codes::CONTROLLER_UPDATE_PROVIDER).detail(format!("HTTP {}", response.status())))
         }
     }
 }
@@ -517,7 +519,7 @@ pub fn parse_subscription_userinfo(header: &str) -> SubscriptionUsage {
     usage
 }
 
-pub async fn fetch_subscription(url: &str) -> Result<SubscriptionDocument, String> {
+pub async fn fetch_subscription(url: &str) -> Result<SubscriptionDocument, ServiceError> {
     let client = Client::builder()
         .timeout(Duration::from_secs(30))
         .user_agent("clash.meta")
@@ -528,9 +530,9 @@ pub async fn fetch_subscription(url: &str) -> Result<SubscriptionDocument, Strin
         .get(url)
         .send()
         .await
-        .map_err(|error| format!("无法下载订阅: {error}"))?;
+        .map_err(|error| ServiceError::new(codes::CONTROLLER_SUBSCRIPTION_DOWNLOAD).detail(error.to_string()))?;
     if !response.status().is_success() {
-        return Err(format!("无法下载订阅: HTTP {}", response.status()));
+        return Err(ServiceError::new(codes::CONTROLLER_SUBSCRIPTION_DOWNLOAD).detail(format!("HTTP {}", response.status())));
     }
     let usage = response
         .headers()
@@ -541,7 +543,7 @@ pub async fn fetch_subscription(url: &str) -> Result<SubscriptionDocument, Strin
     let body = response
         .text()
         .await
-        .map_err(|error| format!("无法读取订阅: {error}"))?;
+        .map_err(|error| ServiceError::new(codes::CONTROLLER_SUBSCRIPTION_READ).detail(error.to_string()))?;
     Ok(SubscriptionDocument { body, usage })
 }
 
@@ -617,7 +619,7 @@ pub fn region_probe(system_proxy_applied: bool, tun_active: bool, port: u16) -> 
     }
 }
 
-fn region_client(probe: RegionProbe) -> Result<Client, String> {
+fn region_client(probe: RegionProbe) -> Result<Client, ServiceError> {
     let builder = Client::builder()
         .timeout(Duration::from_secs(8))
         .user_agent(
@@ -627,21 +629,23 @@ fn region_client(probe: RegionProbe) -> Result<Client, String> {
         RegionProbe::Direct => builder.no_proxy(),
         RegionProbe::Proxy(port) => {
             let proxy = reqwest::Proxy::all(format!("http://127.0.0.1:{port}"))
-                .map_err(|error| format!("无法设置出口检测代理: {error}"))?;
+                .map_err(|error| ServiceError::new(codes::CONTROLLER_REGION_PROXY).detail(error.to_string()))?;
             builder.proxy(proxy)
         }
     };
-    builder.build().map_err(|error| error.to_string())
+    builder
+        .build()
+        .map_err(|error| ServiceError::new(codes::CONTROLLER_REGION_PROXY).detail(error.to_string()))
 }
 
-pub async fn lookup_exit_region(probe: RegionProbe) -> Result<String, String> {
+pub async fn lookup_exit_region(probe: RegionProbe) -> Result<String, ServiceError> {
     let client = region_client(probe)?;
     let mut tasks = tokio::task::JoinSet::new();
     for url in REGION_URLS {
         let client = client.clone();
         tasks.spawn(async move { fetch_region(&client, url).await });
     }
-    let mut last_error = "出口地区检测失败".to_string();
+    let mut last_error = ServiceError::new(codes::CONTROLLER_REGION_FAILED);
     while let Some(joined) = tasks.join_next().await {
         match joined {
             Ok(Ok(region)) => {
@@ -655,20 +659,20 @@ pub async fn lookup_exit_region(probe: RegionProbe) -> Result<String, String> {
     Err(last_error)
 }
 
-async fn fetch_region(client: &Client, url: &str) -> Result<String, String> {
+async fn fetch_region(client: &Client, url: &str) -> Result<String, ServiceError> {
     let response = client
         .get(url)
         .send()
         .await
-        .map_err(|error| format!("出口地区检测失败: {error}"))?;
+        .map_err(|error| ServiceError::new(codes::CONTROLLER_REGION_FAILED).detail(error.to_string()))?;
     if !response.status().is_success() {
-        return Err(format!("出口地区检测失败: HTTP {}", response.status()));
+        return Err(ServiceError::new(codes::CONTROLLER_REGION_HTTP).detail(format!("HTTP {}", response.status())));
     }
     let body: Value = response
         .json()
         .await
-        .map_err(|error| format!("出口地区检测失败: {error}"))?;
-    describe_region(&body).ok_or_else(|| "出口地区检测没有返回结果".to_string())
+        .map_err(|error| ServiceError::new(codes::CONTROLLER_REGION_PARSE).detail(error.to_string()))?;
+    describe_region(&body).ok_or_else(|| ServiceError::new(codes::CONTROLLER_REGION_EMPTY))
 }
 
 #[cfg(test)]
