@@ -11,6 +11,7 @@ use serde_yaml::{Mapping, Value};
 use crate::controller::{ProxyGroup, ProxyNode};
 use crate::paths::Paths;
 use crate::state::{Settings, write_private};
+use crate::error::{ServiceError, codes};
 use crate::tun::{self, TunOptions};
 
 const OVERRIDE_TEMPLATE: &str = "\
@@ -62,28 +63,28 @@ pub fn write_subscription_body(paths: &Paths, id: &str, body: &str) -> std::io::
     write_private(&subscription_body_path(paths, id), body.as_bytes())
 }
 
-pub fn explain_io(action: &str, error: &std::io::Error) -> String {
-    let reason = match error.kind() {
-        std::io::ErrorKind::NotFound => "找不到文件",
-        std::io::ErrorKind::PermissionDenied => "没有权限",
-        _ => return format!("{action}：{error}"),
+pub fn explain_io(action: &str, error: &std::io::Error) -> ServiceError {
+    let code = match error.kind() {
+        std::io::ErrorKind::NotFound => codes::IO_NOT_FOUND,
+        std::io::ErrorKind::PermissionDenied => codes::IO_DENIED,
+        _ => codes::IO_FAILED,
     };
-    format!("{action}：{reason}")
+    ServiceError::new(code).detail(format!("{action}: {error}"))
 }
 
 /// The last downloaded subscription, kept apart from the working profile.
 /// An older profile gets a snapshot of its current file the first time this is read.
-pub fn read_subscription_body(paths: &Paths, id: &str) -> Result<String, String> {
+pub fn read_subscription_body(paths: &Paths, id: &str) -> Result<String, ServiceError> {
     let path = subscription_body_path(paths, id);
     if path.exists() {
         return fs::read_to_string(&path).map_err(|error| explain_io("无法读取订阅", &error));
     }
     let profiles = load_profiles(paths);
     let Some(profile) = profiles.iter().find(|profile| profile.id == id) else {
-        return Err("找不到这个配置".to_string());
+        return Err(ServiceError::new(codes::PROFILE_NOT_FOUND));
     };
     if profile.url.is_empty() {
-        return Err("这个配置没有订阅地址".to_string());
+        return Err(ServiceError::new(codes::PROFILE_NO_URL));
     }
     let body = read_profile_body(paths, id).map_err(|error| explain_io("无法读取配置", &error))?;
     write_subscription_body(paths, id, &body)
@@ -110,7 +111,7 @@ pub fn ensure_override_file(path: &Path) -> std::io::Result<()> {
     write_private(path, OVERRIDE_TEMPLATE.as_bytes())
 }
 
-pub fn subscription_yaml(body: &str) -> Result<String, String> {
+pub fn subscription_yaml(body: &str) -> Result<String, ServiceError> {
     let trimmed = body.trim().trim_start_matches('\u{feff}');
     if parse_mapping(trimmed).is_some() {
         return Ok(trimmed.to_string());
@@ -123,33 +124,33 @@ pub fn subscription_yaml(body: &str) -> Result<String, String> {
         .or_else(|_| {
             base64::Engine::decode(&base64::engine::general_purpose::URL_SAFE_NO_PAD, &compact)
         })
-        .map_err(|_| "订阅不是有效的 YAML".to_string())?;
-    let text = String::from_utf8(bytes).map_err(|_| "订阅不是有效的 YAML".to_string())?;
+        .map_err(|_| ServiceError::new(codes::PROFILE_YAML_INVALID))?;
+    let text = String::from_utf8(bytes).map_err(|_| ServiceError::new(codes::PROFILE_YAML_INVALID))?;
     let text = text.trim().trim_start_matches('\u{feff}');
     if parse_mapping(text).is_none() {
-        return Err("订阅不是有效的 YAML".to_string());
+        return Err(ServiceError::new(codes::PROFILE_YAML_INVALID));
     }
     Ok(text.to_string())
 }
 
-pub fn decode_subscription(body: &str) -> Result<Value, String> {
+pub fn decode_subscription(body: &str) -> Result<Value, ServiceError> {
     let text = subscription_yaml(body)?;
-    parse_mapping(&text).ok_or_else(|| "订阅不是有效的 YAML".to_string())
+    parse_mapping(&text).ok_or_else(|| ServiceError::new(codes::PROFILE_YAML_INVALID))
 }
 
-pub fn check_profile_text(body: &str) -> Result<(), String> {
+pub fn check_profile_text(body: &str) -> Result<(), ServiceError> {
     let text = body.trim().trim_start_matches('\u{feff}');
     if text.is_empty() {
-        return Err("配置不能为空".to_string());
+        return Err(ServiceError::new(codes::PROFILE_EMPTY));
     }
     match serde_yaml::from_str::<Value>(text) {
         Ok(value) if value.as_mapping().is_some() => Ok(()),
-        Ok(_) => Err("配置需要是一组键值".to_string()),
+        Ok(_) => Err(ServiceError::new(codes::PROFILE_NOT_MAPPING)),
         Err(error) => {
             if subscription_yaml(text).is_ok() {
                 Ok(())
             } else {
-                Err(format!("YAML 读不出来: {error}"))
+                Err(ServiceError::new(codes::PROFILE_CONFIG_PARSE).detail(error.to_string()))
             }
         }
     }
@@ -209,19 +210,19 @@ fn parse_mapping(text: &str) -> Option<Value> {
     Some(value)
 }
 
-pub fn load_override(path: &Path) -> Result<Value, String> {
+pub fn load_override(path: &Path) -> Result<Value, ServiceError> {
     if !path.exists() {
         return Ok(Value::Mapping(Mapping::new()));
     }
-    let text = fs::read_to_string(path).map_err(|error| format!("无法读取本地覆盖: {error}"))?;
+    let text = fs::read_to_string(path).map_err(|error| explain_io("read override", &error))?;
     if text.trim().is_empty() {
         return Ok(Value::Mapping(Mapping::new()));
     }
     match serde_yaml::from_str::<Value>(&text) {
         Ok(Value::Null) => Ok(Value::Mapping(Mapping::new())),
         Ok(value) if value.as_mapping().is_some() => Ok(value),
-        Ok(_) => Err("本地覆盖必须是 YAML 映射".to_string()),
-        Err(error) => Err(format!("本地覆盖无法解析: {error}")),
+        Ok(_) => Err(ServiceError::new(codes::PROFILE_OVERRIDE_MAPPING)),
+        Err(error) => Err(ServiceError::new(codes::PROFILE_OVERRIDE_PARSE).detail(error.to_string())),
     }
 }
 
@@ -372,12 +373,12 @@ fn managed_keys(settings: &Settings, lan_open: bool) -> Value {
     Value::Mapping(managed)
 }
 
-pub fn write_runtime_config(paths: &Paths, settings: &Settings) -> Result<(), String> {
+pub fn write_runtime_config(paths: &Paths, settings: &Settings) -> Result<(), ServiceError> {
     if settings.active_profile.is_empty() {
-        return Err("没有选择配置".to_string());
+        return Err(ServiceError::new(codes::PROFILE_NOT_FOUND));
     }
     let body = read_profile_body(paths, &settings.active_profile)
-        .map_err(|_| "找不到所选配置的原文".to_string())?;
+        .map_err(|error| ServiceError::new(codes::PROFILE_NOT_FOUND).detail(error.to_string()))?;
     let profile = decode_subscription(&body)?;
     let overlay = load_override(&crate::state::effective_override(
         paths,
@@ -403,9 +404,10 @@ pub fn write_runtime_config(paths: &Paths, settings: &Settings) -> Result<(), St
         tracing::info!("没有 MMDB，使用 geoip.dat/geosite.dat 作为地理数据");
     }
     let text =
-        serde_yaml::to_string(&config).map_err(|error| format!("无法生成运行配置: {error}"))?;
-    fs::create_dir_all(paths.runtime_dir()).map_err(|error| error.to_string())?;
-    write_private(&paths.runtime_config(), text.as_bytes()).map_err(|error| error.to_string())
+        serde_yaml::to_string(&config)
+        .map_err(|error| ServiceError::new(codes::PROFILE_RUNTIME_WRITE).detail(error.to_string()))?;
+    fs::create_dir_all(paths.runtime_dir()).map_err(ServiceError::from_io)?;
+    write_private(&paths.runtime_config(), text.as_bytes()).map_err(ServiceError::from_io)
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -417,7 +419,7 @@ pub struct RouteFields {
     pub secret: String,
 }
 
-pub fn route_fields(body: &str, name: &str) -> Result<Option<RouteFields>, String> {
+pub fn route_fields(body: &str, name: &str) -> Result<Option<RouteFields>, ServiceError> {
     let value = decode_subscription(body)?;
     let Some(list) = value.get("proxies").and_then(Value::as_sequence) else {
         return Ok(None);
@@ -427,14 +429,14 @@ pub fn route_fields(body: &str, name: &str) -> Result<Option<RouteFields>, Strin
     }))
 }
 
-pub fn add_route(body: &str, group: &str, fields: &RouteFields) -> Result<String, String> {
+pub fn add_route(body: &str, group: &str, fields: &RouteFields) -> Result<String, ServiceError> {
     let fields = checked_route(fields)?;
     edit_document(body, |map| {
         if route_exists(map, &fields.name) {
-            return Err("已经有同名路线".to_string());
+            return Err(ServiceError::new(codes::PROFILE_ROUTE_DUPLICATE));
         }
         if group_named(map, &fields.name) {
-            return Err("已经有同名策略组".to_string());
+            return Err(ServiceError::new(codes::PROFILE_GROUP_DUPLICATE));
         }
         proxy_list(map).push(route_mapping(&fields));
         append_group_member(map, group, &fields.name);
@@ -442,10 +444,10 @@ pub fn add_route(body: &str, group: &str, fields: &RouteFields) -> Result<String
     })
 }
 
-pub fn remove_route(body: &str, name: &str) -> Result<String, String> {
+pub fn remove_route(body: &str, name: &str) -> Result<String, ServiceError> {
     let name = name.trim();
     if name.is_empty() || reserved_route(name) || group_name_in(body, name) {
-        return Err("这条路线不能移除".to_string());
+        return Err(ServiceError::new(codes::PROFILE_ROUTE_NOT_REMOVABLE));
     }
     edit_document(body, |map| {
         let removed = {
@@ -455,25 +457,25 @@ pub fn remove_route(body: &str, name: &str) -> Result<String, String> {
             list.len() != before
         };
         if !removed {
-            return Err("这条路线不在配置文件里".to_string());
+            return Err(ServiceError::new(codes::PROFILE_ROUTE_NOT_FOUND));
         }
         drop_member(map, name);
         Ok(())
     })
 }
 
-pub fn update_route(body: &str, previous: &str, fields: &RouteFields) -> Result<String, String> {
+pub fn update_route(body: &str, previous: &str, fields: &RouteFields) -> Result<String, ServiceError> {
     let previous = previous.trim().to_string();
     if previous.is_empty() || reserved_route(&previous) {
-        return Err("这条路线不能修改".to_string());
+        return Err(ServiceError::new(codes::PROFILE_ROUTE_NOT_EDITABLE));
     }
     let fields = checked_route(fields)?;
     edit_document(body, |map| {
         if fields.name != previous && route_exists(map, &fields.name) {
-            return Err("已经有同名路线".to_string());
+            return Err(ServiceError::new(codes::PROFILE_ROUTE_DUPLICATE));
         }
         if fields.name != previous && group_named(map, &fields.name) {
-            return Err("已经有同名路线".to_string());
+            return Err(ServiceError::new(codes::PROFILE_ROUTE_DUPLICATE));
         }
         let found = {
             let list = proxy_list(map);
@@ -482,7 +484,7 @@ pub fn update_route(body: &str, previous: &str, fields: &RouteFields) -> Result<
                 .find(|item| route_name(item) == previous)
                 .and_then(Value::as_mapping_mut)
             else {
-                return Err("这条路线不在配置文件里".to_string());
+                return Err(ServiceError::new(codes::PROFILE_ROUTE_NOT_FOUND));
             };
             write_route(item, &fields);
             true
@@ -494,25 +496,25 @@ pub fn update_route(body: &str, previous: &str, fields: &RouteFields) -> Result<
     })
 }
 
-pub fn restore_route(working: &str, snapshot: &str, name: &str) -> Result<String, String> {
+pub fn restore_route(working: &str, snapshot: &str, name: &str) -> Result<String, ServiceError> {
     let name = name.trim();
     if name.is_empty() || reserved_route(name) {
-        return Err("这条路线不能还原".to_string());
+        return Err(ServiceError::new(codes::PROFILE_ROUTE_NOT_RESTORABLE));
     }
     let snapshot_value = decode_subscription(snapshot)?;
     let Some(snapshot_map) = snapshot_value.as_mapping() else {
-        return Err("订阅原文无法解析".to_string());
+        return Err(ServiceError::new(codes::PROFILE_SUBSCRIPTION_UNPARSEABLE));
     };
     let original = snapshot_map
         .get(Value::String("proxies".into()))
         .and_then(Value::as_sequence)
         .and_then(|list| list.iter().find(|item| route_name(item) == name))
         .cloned()
-        .ok_or_else(|| "订阅里没有这条路线".to_string())?;
+        .ok_or_else(|| ServiceError::new(codes::PROFILE_SUBSCRIPTION_MISSING))?;
     edit_document(working, |map| {
         let list = proxy_list(map);
         let Some(item) = list.iter_mut().find(|item| route_name(item) == name) else {
-            return Err("这条路线不在配置文件里".to_string());
+            return Err(ServiceError::new(codes::PROFILE_ROUTE_NOT_FOUND));
         };
         *item = original;
         Ok(())
@@ -568,21 +570,21 @@ fn sequence_item<'a>(document: &'a Value, key: &str, index: usize) -> Option<&'a
         .get(index)
 }
 
-pub fn restore_profile_rule(working: &str, snapshot: &str, index: usize) -> Result<String, String> {
+pub fn restore_profile_rule(working: &str, snapshot: &str, index: usize) -> Result<String, ServiceError> {
     let snapshot_value = decode_subscription(snapshot)?;
     let original = snapshot_value
         .as_mapping()
         .and_then(|map| map.get(Value::String("rules".into())))
         .and_then(Value::as_sequence)
         .and_then(|list| list.get(index).cloned())
-        .ok_or_else(|| "订阅里没有这条规则".to_string())?;
+        .ok_or_else(|| ServiceError::new(codes::PROFILE_RULE_SUBSCRIPTION_MISSING))?;
     edit_document(working, |map| {
         let key = Value::String("rules".into());
         let Some(list) = map.get_mut(&key).and_then(Value::as_sequence_mut) else {
-            return Err("配置里没有规则".to_string());
+            return Err(ServiceError::new(codes::PROFILE_NO_RULES));
         };
         let Some(item) = list.get_mut(index) else {
-            return Err("配置里没有这条规则".to_string());
+            return Err(ServiceError::new(codes::PROFILE_RULE_MISSING));
         };
         *item = original;
         Ok(())
@@ -596,30 +598,30 @@ fn group_name_in(body: &str, name: &str) -> bool {
         .is_some_and(|map| group_named(&map, name))
 }
 
-fn checked_route(fields: &RouteFields) -> Result<RouteFields, String> {
+fn checked_route(fields: &RouteFields) -> Result<RouteFields, ServiceError> {
     let name = fields.name.trim();
     if name.is_empty() || reserved_route(name) {
-        return Err("路线名称不能是空的或内置名称".to_string());
+        return Err(ServiceError::new(codes::PROFILE_ROUTE_NAME_EMPTY));
     }
     if name.chars().count() > 128 {
-        return Err("路线名称不能超过 128 个字符".to_string());
+        return Err(ServiceError::new(codes::PROFILE_ROUTE_NAME_TOO_LONG).param("limit", "128"));
     }
     let kind = fields.kind.trim().to_ascii_lowercase();
     if !matches!(kind.as_str(), "http" | "socks5" | "ss" | "vmess" | "trojan") {
-        return Err("不支持这种路线类型".to_string());
+        return Err(ServiceError::new(codes::PROFILE_ROUTE_KIND));
     }
     let server = fields.server.trim();
     if server.is_empty() {
-        return Err("服务器不能为空".to_string());
+        return Err(ServiceError::new(codes::PROFILE_SERVER_EMPTY));
     }
     if server.chars().count() > 255 {
-        return Err("服务器地址不能超过 255 个字符".to_string());
+        return Err(ServiceError::new(codes::PROFILE_SERVER_TOO_LONG).param("limit", "255"));
     }
     if fields.secret.chars().count() > 512 {
-        return Err("密码或 UUID 不能超过 512 个字符".to_string());
+        return Err(ServiceError::new(codes::PROFILE_SECRET_TOO_LONG).param("limit", "512"));
     }
     if fields.port == 0 {
-        return Err("端口无效".to_string());
+        return Err(ServiceError::new(codes::PROFILE_PORT_INVALID));
     }
     Ok(RouteFields {
         name: name.to_string(),
@@ -719,16 +721,17 @@ fn write_route(item: &mut Mapping, fields: &RouteFields) {
 
 fn edit_document(
     body: &str,
-    edit: impl FnOnce(&mut Mapping) -> Result<(), String>,
-) -> Result<String, String> {
+    edit: impl FnOnce(&mut Mapping) -> Result<(), ServiceError>,
+) -> Result<String, ServiceError> {
     let mut value = decode_subscription(body)?;
     {
         let Some(map) = value.as_mapping_mut() else {
-            return Err("配置需要是一组键值".to_string());
+            return Err(ServiceError::new(codes::PROFILE_NOT_MAPPING));
         };
         edit(map)?;
     }
-    serde_yaml::to_string(&value).map_err(|error| format!("无法写回配置: {error}"))
+    serde_yaml::to_string(&value)
+        .map_err(|error| ServiceError::new(codes::PROFILE_RUNTIME_WRITE).detail(error.to_string()))
 }
 
 fn proxy_list(map: &mut Mapping) -> &mut Vec<Value> {
@@ -842,7 +845,7 @@ mod tests {
     fn check_profile_text_reports_the_yaml_error() {
         assert!(check_profile_text("mode: rule\n").is_ok());
         let error = check_profile_text("mode: [\n").expect_err("broken");
-        assert!(error.contains("YAML"));
+        assert_eq!(error.code, codes::PROFILE_CONFIG_PARSE);
         assert!(check_profile_text("").is_err());
     }
 
@@ -1244,15 +1247,13 @@ proxy-groups:
     fn a_missing_file_is_explained_without_english_errno_text() {
         let missing =
             std::io::Error::new(std::io::ErrorKind::NotFound, "No such file or directory");
-        assert_eq!(
-            explain_io("无法读取配置", &missing),
-            "无法读取配置：找不到文件"
-        );
+        let error = explain_io("read profile", &missing);
+        assert_eq!(error.code, codes::IO_NOT_FOUND);
+        assert!(error.detail.contains("read profile"));
         let denied = std::io::Error::new(std::io::ErrorKind::PermissionDenied, "Permission denied");
-        assert_eq!(
-            explain_io("无法写入配置", &denied),
-            "无法写入配置：没有权限"
-        );
+        let error = explain_io("write profile", &denied);
+        assert_eq!(error.code, codes::IO_DENIED);
+        assert!(error.detail.contains("write profile"));
     }
 
     #[test]
@@ -1265,13 +1266,13 @@ proxy-groups:
         assert_eq!(rules[0].as_str(), Some("DOMAIN,a.com,DIRECT"));
         assert_eq!(rules[1].as_str(), Some("MATCH,DIRECT"));
         assert_eq!(
-            restore_profile_rule(working, snapshot, 4).unwrap_err(),
-            "订阅里没有这条规则"
+            restore_profile_rule(working, snapshot, 4).unwrap_err().code,
+            codes::PROFILE_RULE_SUBSCRIPTION_MISSING
         );
         let short = "rules:\n- DOMAIN,b.com,PROXY\n";
         assert_eq!(
-            restore_profile_rule(short, snapshot, 1).unwrap_err(),
-            "配置里没有这条规则"
+            restore_profile_rule(short, snapshot, 1).unwrap_err().code,
+            codes::PROFILE_RULE_MISSING
         );
     }
 }

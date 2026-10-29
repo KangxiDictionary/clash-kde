@@ -1232,6 +1232,7 @@ impl App {
         }
         profile::read_profile_body(&self.paths, id)
             .map_err(|error| profile::explain_io("无法读取配置", &error))
+            .map_err(String::from)
     }
 
     pub async fn set_profile_body(self: &Arc<Self>, id: &str, body: String) -> Result<(), String> {
@@ -1642,7 +1643,7 @@ impl App {
             Err(error) => return self.fail_before_start(error).await,
         };
         if let Err(error) = profile::write_runtime_config(&self.paths, &settings) {
-            return self.fail_before_start(error).await;
+            return self.fail_before_start(String::from(error)).await;
         }
         // A restart closes the old listener. Stop advertising it before the
         // stop/launch window; sync_system_proxy puts it back only after the new

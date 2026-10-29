@@ -152,7 +152,7 @@ fn report(paths: &Paths, settings: &Settings) -> String {
         "override: {}",
         match profile::load_override(&override_path) {
             Ok(_) => "ok".to_string(),
-            Err(error) => error,
+            Err(error) => error.to_string(),
         }
     );
     let _ = writeln!(
@@ -160,7 +160,7 @@ fn report(paths: &Paths, settings: &Settings) -> String {
         "own rules: {}",
         match rules::load_rules(&rules::rules_file(paths)) {
             Ok(items) => format!("{} parsed", items.len()),
-            Err(error) => error,
+            Err(error) => error.to_string(),
         }
     );
     let _ = writeln!(out);

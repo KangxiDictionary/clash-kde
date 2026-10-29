@@ -7,6 +7,8 @@ use std::net::IpAddr;
 use std::path::Path;
 
 use serde::{Deserialize, Serialize};
+
+use crate::error::{ServiceError, codes};
 use serde_yaml::{Mapping, Value};
 
 use crate::paths::Paths;
@@ -64,30 +66,33 @@ pub fn rules_file(paths: &Paths) -> std::path::PathBuf {
     paths.config_dir.join("rules.yaml")
 }
 
-pub fn load_rules(path: &Path) -> Result<Vec<OwnRule>, String> {
+pub fn load_rules(path: &Path) -> Result<Vec<OwnRule>, ServiceError> {
     if !path.exists() {
         return Ok(Vec::new());
     }
-    let text = fs::read_to_string(path).map_err(|error| format!("无法读取自己的规则: {error}"))?;
+    let text = fs::read_to_string(path)
+        .map_err(|error| ServiceError::new(codes::RULES_READ).detail(error.to_string()))?;
     if text.trim().is_empty() {
         return Ok(Vec::new());
     }
     match serde_yaml::from_str::<RulesFile>(&text) {
         Ok(file) => Ok(file.rules),
-        Err(error) => Err(format!("自己的规则无法解析: {error}")),
+        Err(error) => Err(ServiceError::new(codes::RULES_PARSE).detail(error.to_string())),
     }
 }
 
-pub fn save_rules(path: &Path, rules: &[OwnRule]) -> Result<(), String> {
+pub fn save_rules(path: &Path, rules: &[OwnRule]) -> Result<(), ServiceError> {
     let text = serde_yaml::to_string(&RulesFile {
         rules: rules.to_vec(),
     })
-    .map_err(|error| format!("无法写入自己的规则: {error}"))?;
-    write_private(path, text.as_bytes()).map_err(|error| format!("无法写入自己的规则: {error}"))
+    .map_err(|error| ServiceError::new(codes::RULES_WRITE).detail(error.to_string()))?;
+    write_private(path, text.as_bytes())
+        .map_err(|error| ServiceError::new(codes::RULES_WRITE).detail(error.to_string()))
 }
 
-pub fn rules_from_json(text: &str) -> Result<Vec<OwnRule>, String> {
-    serde_json::from_str(text).map_err(|_| "规则读不出来".to_string())
+pub fn rules_from_json(text: &str) -> Result<Vec<OwnRule>, ServiceError> {
+    serde_json::from_str(text)
+        .map_err(|error| ServiceError::new(codes::RULES_JSON_PARSE).detail(error.to_string()))
 }
 
 pub fn insert_own_rules(config: &mut Value, rules: &[OwnRule]) {
@@ -307,53 +312,62 @@ pub fn policy_names(profile: &Value) -> BTreeSet<String> {
     names
 }
 
-pub fn validate_rules(rules: &[OwnRule], names: &BTreeSet<String>) -> Result<(), String> {
+pub fn validate_rules(rules: &[OwnRule], names: &BTreeSet<String>) -> Result<(), ServiceError> {
     for (index, rule) in rules.iter().enumerate() {
-        check_rule(rule, names).map_err(|error| format!("第 {} 行：{error}", index + 1))?;
+        check_rule(rule, names).map_err(|inner| {
+            ServiceError::new(codes::RULES_ROW_PREFIX)
+                .param("row", (index + 1).to_string())
+                .param("inner_code", inner.code)
+                .param(
+                    "inner_params",
+                    serde_json::to_string(&inner.params).unwrap_or_default(),
+                )
+                .detail(inner.detail)
+        })?;
     }
     Ok(())
 }
 
-fn check_rule(rule: &OwnRule, names: &BTreeSet<String>) -> Result<(), String> {
+fn check_rule(rule: &OwnRule, names: &BTreeSet<String>) -> Result<(), ServiceError> {
     check_shape(rule)?;
     if rule.target.is_empty() {
-        return Err("目标不能为空".to_string());
+        return Err(ServiceError::new(codes::RULES_TARGET_EMPTY));
     }
     if !names.contains(&rule.target) {
-        return Err("没有这个目标".to_string());
+        return Err(ServiceError::new(codes::RULES_TARGET_UNKNOWN));
     }
     Ok(())
 }
 
-fn check_shape(rule: &OwnRule) -> Result<(), String> {
+fn check_shape(rule: &OwnRule) -> Result<(), ServiceError> {
     if !KINDS.contains(&rule.kind.as_str()) {
-        return Err("不认识的类型".to_string());
+        return Err(ServiceError::new(codes::RULES_TYPE_UNKNOWN));
     }
     if rule.payload.contains([',', '\n', '\r']) || rule.target.contains([',', '\n', '\r']) {
-        return Err("匹配内容不能包含逗号".to_string());
+        return Err(ServiceError::new(codes::RULES_COMMA));
     }
     if rule.payload.chars().count() > 512 {
-        return Err("匹配内容太长".to_string());
+        return Err(ServiceError::new(codes::RULES_PAYLOAD_TOO_LONG));
     }
     if rule.target.chars().count() > 128 {
-        return Err("目标名称太长".to_string());
+        return Err(ServiceError::new(codes::RULES_TARGET_TOO_LONG));
     }
     if rule.kind == "MATCH" {
         if rule.target.is_empty() {
-            return Err("目标不能为空".to_string());
+            return Err(ServiceError::new(codes::RULES_TARGET_EMPTY));
         }
         return Ok(());
     }
     if rule.payload.is_empty() {
-        return Err("匹配内容不能为空".to_string());
+        return Err(ServiceError::new(codes::RULES_PAYLOAD_EMPTY));
     }
     if rule.target.is_empty() {
-        return Err("目标不能为空".to_string());
+        return Err(ServiceError::new(codes::RULES_TARGET_EMPTY));
     }
     match rule.kind.as_str() {
-        "IP-CIDR" if !valid_cidr(&rule.payload) => Err("IP 段不合法".to_string()),
-        "DST-PORT" if !valid_port(&rule.payload) => Err("端口不合法".to_string()),
-        "GEOIP" if !valid_geoip(&rule.payload) => Err("国家代码不合法".to_string()),
+        "IP-CIDR" if !valid_cidr(&rule.payload) => Err(ServiceError::new(codes::RULES_CIDR)),
+        "DST-PORT" if !valid_port(&rule.payload) => Err(ServiceError::new(codes::RULES_PORT)),
+        "GEOIP" if !valid_geoip(&rule.payload) => Err(ServiceError::new(codes::RULES_GEOIP)),
         _ => Ok(()),
     }
 }
@@ -417,7 +431,7 @@ fn csv_field(text: &str) -> String {
     }
 }
 
-pub fn rules_from_csv(text: &str) -> Result<Vec<OwnRule>, String> {
+pub fn rules_from_csv(text: &str) -> Result<Vec<OwnRule>, ServiceError> {
     let text = text.trim_start_matches('\u{feff}');
     let first = text.lines().next().unwrap_or("").trim();
     let delimiter = if first == "type,payload,target,enabled" {
@@ -425,11 +439,11 @@ pub fn rules_from_csv(text: &str) -> Result<Vec<OwnRule>, String> {
     } else if first == "type;payload;target;enabled" {
         ';'
     } else {
-        return Err("表头不对".to_string());
+        return Err(ServiceError::new(codes::RULES_CSV_HEADER));
     };
     let rows = parse_table(text, delimiter)?;
     if rows.is_empty() || rows[0] != ["type", "payload", "target", "enabled"] {
-        return Err("表头不对".to_string());
+        return Err(ServiceError::new(codes::RULES_CSV_HEADER));
     }
     let mut rules = Vec::new();
     for (index, row) in rows.iter().skip(1).enumerate() {
@@ -442,16 +456,20 @@ pub fn rules_from_csv(text: &str) -> Result<Vec<OwnRule>, String> {
             row.as_slice()
         };
         if row.len() != 4 {
-            return Err(format!("第 {} 行无法拆分", index + 1));
+            return Err(ServiceError::new(codes::RULES_CSV_ROW).param("row", (index + 1).to_string()));
         }
         let kind = row[0].trim().to_ascii_uppercase();
         if !KINDS.contains(&kind.as_str()) {
-            return Err(format!("第 {} 行：不认识的类型", index + 1));
+            return Err(ServiceError::new(codes::RULES_ROW_PREFIX).param("row", (index + 1).to_string()).param("inner_code", codes::RULES_KIND));
         }
         let enabled = match row[3].trim().to_ascii_lowercase().as_str() {
             "true" | "yes" | "1" => true,
             "false" | "no" | "0" => false,
-            _ => return Err(format!("第 {} 行：启用一列只能是 true 或 false", index + 1)),
+            _ => {
+                return Err(ServiceError::new(codes::RULES_ROW_PREFIX)
+                    .param("row", (index + 1).to_string())
+                    .param("inner_code", codes::RULES_ENABLED));
+            }
         };
         let rule = OwnRule {
             payload: if kind == "MATCH" {
@@ -468,7 +486,7 @@ pub fn rules_from_csv(text: &str) -> Result<Vec<OwnRule>, String> {
     Ok(rules)
 }
 
-fn parse_table(text: &str, delimiter: char) -> Result<Vec<Vec<String>>, String> {
+fn parse_table(text: &str, delimiter: char) -> Result<Vec<Vec<String>>, ServiceError> {
     let mut rows = Vec::new();
     let mut row = Vec::new();
     let mut field = String::new();
@@ -491,7 +509,7 @@ fn parse_table(text: &str, delimiter: char) -> Result<Vec<Vec<String>>, String> 
         }
         if ch == '"' {
             if !field.is_empty() || quoted {
-                return Err(format!("第 {} 行无法拆分", rows.len()));
+                return Err(ServiceError::new(codes::RULES_CSV_ROW).param("row", rows.len().to_string()));
             }
             in_quotes = true;
             quoted = true;
@@ -514,7 +532,7 @@ fn parse_table(text: &str, delimiter: char) -> Result<Vec<Vec<String>>, String> 
         field.push(ch);
     }
     if in_quotes {
-        return Err(format!("第 {} 行无法拆分", rows.len().max(1)));
+        return Err(ServiceError::new(codes::RULES_CSV_ROW).param("row", rows.len().max(1).to_string()));
     }
     if !field.is_empty() || !row.is_empty() {
         row.push(field);
@@ -547,11 +565,11 @@ pub fn rule_view_json(
     .to_string()
 }
 
-pub fn csv_from_json(text: &str) -> Result<String, String> {
+pub fn csv_from_json(text: &str) -> Result<String, ServiceError> {
     Ok(rules_to_csv(&rules_from_json(text)?))
 }
 
-pub fn json_from_csv(text: &str) -> Result<String, String> {
+pub fn json_from_csv(text: &str) -> Result<String, ServiceError> {
     Ok(rules_json(&rules_from_csv(text)?))
 }
 
@@ -632,7 +650,7 @@ mod tests {
 
     #[test]
     fn a_bad_csv_is_rejected() {
-        assert_eq!(rules_from_csv("a,b\n").unwrap_err(), "表头不对");
+        assert_eq!(rules_from_csv("a,b\n").unwrap_err().code, codes::RULES_CSV_HEADER);
         assert!(rules_from_csv("type,payload,target,enabled\nNOPE,a,DIRECT,true\n").is_err());
         assert!(rules_from_csv("type,payload,target,enabled\n\"DOMAIN,DIRECT,true\n").is_err());
     }
@@ -661,8 +679,12 @@ mod tests {
             &names,
         )
         .unwrap_err();
-        assert!(error.contains("第 1 行"));
-        assert!(error.contains("IP 段"));
+        assert_eq!(error.code, codes::RULES_ROW_PREFIX);
+        assert_eq!(error.params.get("row").map(String::as_str), Some("1"));
+        assert_eq!(
+            error.params.get("inner_code").map(String::as_str),
+            Some(codes::RULES_CIDR)
+        );
     }
 
     #[test]
@@ -678,7 +700,11 @@ mod tests {
             &names,
         )
         .unwrap_err();
-        assert_eq!(error, "第 1 行：匹配内容不能为空");
+        assert_eq!(error.code, codes::RULES_ROW_PREFIX);
+        assert_eq!(
+            error.params.get("inner_code").map(String::as_str),
+            Some(codes::RULES_PAYLOAD_EMPTY)
+        );
         let error = validate_rules(
             &[OwnRule {
                 kind: "MATCH".into(),
@@ -689,7 +715,11 @@ mod tests {
             &names,
         )
         .unwrap_err();
-        assert_eq!(error, "第 1 行：目标不能为空");
+        assert_eq!(error.code, codes::RULES_ROW_PREFIX);
+        assert_eq!(
+            error.params.get("inner_code").map(String::as_str),
+            Some(codes::RULES_TARGET_EMPTY)
+        );
     }
 
     #[test]

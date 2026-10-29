@@ -117,10 +117,16 @@ impl Manager {
 
     #[zbus(name = "CheckProfileText")]
     async fn check_profile_text(&self, body: String) -> fdo::Result<String> {
-        Ok(match crate::profile::check_profile_text(&body) {
-            Ok(()) => String::new(),
-            Err(error) => error,
-        })
+        let result = match crate::profile::check_profile_text(&body) {
+            Ok(()) => serde_json::json!({"ok": true}),
+            Err(error) => serde_json::json!({
+                "ok": false,
+                "code": error.code,
+                "params": error.params,
+                "detail": error.detail,
+            }),
+        };
+        Ok(serde_json::to_string(&result).expect("profile check result serializes"))
     }
 
     #[zbus(name = "SetProfileMeta")]
@@ -381,8 +387,8 @@ impl Manager {
     ) -> zbus::Result<()>;
 }
 
-fn failed(error: String) -> fdo::Error {
-    fdo::Error::Failed(error)
+fn failed(error: impl Into<crate::error::ServiceError>) -> fdo::Error {
+    error.into().into_fdo()
 }
 
 pub async fn run() -> Result<(), String> {

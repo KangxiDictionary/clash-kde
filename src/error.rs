@@ -17,6 +17,7 @@ pub mod codes {
     pub const IO_NOT_FOUND: &str = "io.not_found";
     pub const IO_DENIED: &str = "io.denied";
     pub const IO_FAILED: &str = "io.failed";
+    pub const ERROR_LEGACY: &str = "error.legacy";
 
     pub const SETTINGS_PORT_INVALID: &str = "settings.port_invalid";
     pub const SETTINGS_PORT_SAME: &str = "settings.port_same";
@@ -46,6 +47,54 @@ pub mod codes {
     pub const TUN_LOG_SYMLINK: &str = "tun.log_symlink";
     pub const TUN_LOG_CHECK: &str = "tun.log_check";
     pub const TUN_NOT_AUTHORIZED: &str = "tun.not_authorized";
+
+    pub const PROFILE_NOT_FOUND: &str = "profile.not_found";
+    pub const PROFILE_NO_URL: &str = "profile.no_url";
+    pub const PROFILE_YAML_INVALID: &str = "profile.yaml_error";
+    pub const PROFILE_EMPTY: &str = "profile.empty";
+    pub const PROFILE_NOT_MAPPING: &str = "profile.not_mapping";
+    pub const PROFILE_OVERRIDE_MAPPING: &str = "profile.override_not_mapping";
+    pub const PROFILE_OVERRIDE_PARSE: &str = "profile.override_parse";
+    pub const PROFILE_CONFIG_PARSE: &str = "profile.config_parse";
+    pub const PROFILE_RUNTIME_WRITE: &str = "profile.runtime_write";
+    pub const PROFILE_ROUTE_NAME_EMPTY: &str = "route.name_empty";
+    pub const PROFILE_ROUTE_NAME_TOO_LONG: &str = "route.name_too_long";
+    pub const PROFILE_ROUTE_KIND: &str = "route.kind_unsupported";
+    pub const PROFILE_SERVER_EMPTY: &str = "route.server_empty";
+    pub const PROFILE_SERVER_TOO_LONG: &str = "route.server_too_long";
+    pub const PROFILE_SECRET_TOO_LONG: &str = "route.secret_too_long";
+    pub const PROFILE_PORT_INVALID: &str = "route.port_invalid";
+    pub const PROFILE_ROUTE_DUPLICATE: &str = "route.duplicate";
+    pub const PROFILE_GROUP_DUPLICATE: &str = "route.group_duplicate";
+    pub const PROFILE_ROUTE_NOT_REMOVABLE: &str = "route.cannot_remove";
+    pub const PROFILE_ROUTE_NOT_FOUND: &str = "route.not_found";
+    pub const PROFILE_ROUTE_NOT_EDITABLE: &str = "route.cannot_edit";
+    pub const PROFILE_ROUTE_NOT_RESTORABLE: &str = "route.cannot_restore";
+    pub const PROFILE_SUBSCRIPTION_MISSING: &str = "route.subscription_missing";
+    pub const PROFILE_SUBSCRIPTION_UNPARSEABLE: &str = "profile.subscription_unparseable";
+    pub const PROFILE_RULE_SUBSCRIPTION_MISSING: &str = "rule.subscription_missing";
+    pub const PROFILE_RULE_MISSING: &str = "rule.not_found";
+    pub const PROFILE_NO_RULES: &str = "rule.no_rules";
+
+    pub const RULES_READ: &str = "rules.read_failed";
+    pub const RULES_WRITE: &str = "rules.write_failed";
+    pub const RULES_PARSE: &str = "rules.parse_failed";
+    pub const RULES_JSON_PARSE: &str = "rules.json_parse";
+    pub const RULES_ROW_PREFIX: &str = "rules.row_prefix";
+    pub const RULES_CSV_HEADER: &str = "rules.csv_header";
+    pub const RULES_CSV_ROW: &str = "rules.csv_row";
+    pub const RULES_TYPE_UNKNOWN: &str = "rules.type_unknown";
+    pub const RULES_COMMA: &str = "rules.comma";
+    pub const RULES_PAYLOAD_TOO_LONG: &str = "rules.payload_too_long";
+    pub const RULES_TARGET_TOO_LONG: &str = "rules.target_too_long";
+    pub const RULES_TARGET_EMPTY: &str = "rules.target_empty";
+    pub const RULES_TARGET_UNKNOWN: &str = "rules.target_unknown";
+    pub const RULES_PAYLOAD_EMPTY: &str = "rules.payload_empty";
+    pub const RULES_CIDR: &str = "rules.cidr";
+    pub const RULES_PORT: &str = "rules.port";
+    pub const RULES_GEOIP: &str = "rules.geoip";
+    pub const RULES_ENABLED: &str = "rules.csv_enabled";
+    pub const RULES_KIND: &str = "rules.csv_kind";
 
 }
 
@@ -107,6 +156,12 @@ impl std::error::Error for ServiceError {}
 impl From<ServiceError> for zbus::fdo::Error {
     fn from(error: ServiceError) -> Self {
         error.into_fdo()
+    }
+}
+
+impl From<String> for ServiceError {
+    fn from(error: String) -> Self {
+        ServiceError::new(codes::ERROR_LEGACY).detail(error)
     }
 }
 
