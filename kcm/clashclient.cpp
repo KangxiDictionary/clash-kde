@@ -52,6 +52,125 @@ QVariantList jsonArray(const QString &text)
     return items;
 }
 
+QString translateCodeText(const QString &code, const QJsonObject &params, const QString &detail)
+{
+    const auto p = [&params](const char *key) { return params.value(QLatin1String(key)).toString(); };
+    const auto text = [](const char *source) { return localized(source); };
+
+    if (code == QLatin1String("io.not_found")) return text("The file was not found.");
+    if (code == QLatin1String("io.denied")) return text("Permission denied.");
+    if (code == QLatin1String("io.failed")) return text("The file operation failed.");
+    if (code == QLatin1String("settings.port_invalid")) return text("Invalid port.");
+    if (code == QLatin1String("settings.port_same")) return text("The mixed and controller ports must differ.");
+    if (code == QLatin1String("settings.mode_invalid")) return text("The mode must be rule, global, or direct.");
+    if (code == QLatin1String("settings.tun_device_invalid")) return text("The interface name must be 1 to 15 letters, digits, underscores, or hyphens.");
+    if (code == QLatin1String("settings.override_absolute")) return text("The override file needs an absolute path.");
+    if (code == QLatin1String("settings.override_filename")) return text("The override path needs a file name.");
+    if (code == QLatin1String("settings.override_is_dir")) return text("The override path is a folder.");
+    if (code == QLatin1String("lan.auth_both")) return text("Fill in both the LAN username and password.");
+    if (code == QLatin1String("lan.auth_colon")) return text("The LAN username and password cannot contain colons.");
+    if (code == QLatin1String("lan.username_too_long")) return text("The LAN username cannot exceed %1 characters.").arg(p("limit"));
+    if (code == QLatin1String("lan.password_too_long")) return text("The LAN password cannot exceed %1 characters.").arg(p("limit"));
+    if (code == QLatin1String("account.not_found")) return text("The account was not found.");
+    if (code == QLatin1String("tun.binary_not_system")) return text("TUN can only use the system's /usr/bin/mihomo.");
+    if (code == QLatin1String("tun.system_binary_missing")) return text("The system's /usr/bin/mihomo is missing.");
+    if (code == QLatin1String("tun.binary_missing")) return text("mihomo could not be found.");
+    if (code == QLatin1String("tun.config_not_owned")) return text("TUN can only use this account's own runtime configuration.");
+    if (code == QLatin1String("tun.config_parse")) return text("The TUN runtime configuration could not be parsed.");
+    if (code == QLatin1String("tun.config_missing")) return text("The runtime configuration has no TUN section.");
+    if (code == QLatin1String("tun.config_disabled")) return text("TUN is not enabled in the runtime configuration.");
+    if (code == QLatin1String("tun.machine_include_uid")) return text("Machine-wide capture cannot restrict accounts.");
+    if (code == QLatin1String("tun.machine_exclude_uid")) return text("Machine-wide capture cannot exclude this account.");
+    if (code == QLatin1String("tun.include_uid_invalid")) return text("TUN may only include this account.");
+    if (code == QLatin1String("tun.already_other_user")) return text("Another account already has its own TUN running.");
+    if (code == QLatin1String("tun.log_symlink")) return text("The TUN log cannot be a symbolic link.");
+    if (code == QLatin1String("tun.log_check")) return text("The TUN log could not be checked.");
+    if (code == QLatin1String("tun.not_authorized")) return text("TUN has not been authorized yet.");
+    if (code == QLatin1String("profile.not_found")) return text("The profile was not found.");
+    if (code == QLatin1String("profile.no_url")) return text("This profile has no subscription URL.");
+    if (code == QLatin1String("profile.yaml_error")) return text("The subscription is not valid YAML.");
+    if (code == QLatin1String("profile.empty")) return text("The profile cannot be empty.");
+    if (code == QLatin1String("profile.not_mapping")) return text("The profile must be a YAML mapping.");
+    if (code == QLatin1String("profile.override_not_mapping")) return text("The local override must be a YAML mapping.");
+    if (code == QLatin1String("profile.override_parse")) return text("The local override could not be parsed.");
+    if (code == QLatin1String("profile.config_parse")) return text("The profile YAML could not be parsed.");
+    if (code == QLatin1String("profile.runtime_write")) return text("The runtime configuration could not be written.");
+    if (code == QLatin1String("route.name_empty")) return text("The route name cannot be empty or a built-in name.");
+    if (code == QLatin1String("route.name_too_long")) return text("The route name cannot exceed %1 characters.").arg(p("limit"));
+    if (code == QLatin1String("route.kind_unsupported")) return text("This route type is not supported.");
+    if (code == QLatin1String("route.server_empty")) return text("The server cannot be empty.");
+    if (code == QLatin1String("route.server_too_long")) return text("The server address cannot exceed %1 characters.").arg(p("limit"));
+    if (code == QLatin1String("route.secret_too_long")) return text("The password or UUID cannot exceed %1 characters.").arg(p("limit"));
+    if (code == QLatin1String("route.port_invalid")) return text("Invalid port.");
+    if (code == QLatin1String("route.duplicate")) return text("A route with this name already exists.");
+    if (code == QLatin1String("route.group_duplicate")) return text("A proxy group with this name already exists.");
+    if (code == QLatin1String("route.cannot_remove")) return text("This route cannot be removed.");
+    if (code == QLatin1String("route.not_found")) return text("This route is not in the configuration.");
+    if (code == QLatin1String("route.cannot_edit")) return text("This route cannot be edited.");
+    if (code == QLatin1String("route.cannot_restore")) return text("This route cannot be restored.");
+    if (code == QLatin1String("route.subscription_missing")) return text("This route is not in the subscription.");
+    if (code == QLatin1String("profile.subscription_unparseable")) return text("The subscription snapshot could not be parsed.");
+    if (code == QLatin1String("rule.subscription_missing")) return text("This rule is not in the subscription.");
+    if (code == QLatin1String("rule.not_found")) return text("This rule is not in the configuration.");
+    if (code == QLatin1String("rule.no_rules")) return text("The configuration has no rules.");
+    if (code == QLatin1String("rules.read_failed")) return text("The custom rules could not be read.");
+    if (code == QLatin1String("rules.write_failed")) return text("The custom rules could not be written.");
+    if (code == QLatin1String("rules.parse_failed")) return text("The custom rules could not be parsed.");
+    if (code == QLatin1String("rules.json_parse")) return text("The rules JSON could not be read.");
+    if (code == QLatin1String("rules.csv_header")) return text("The spreadsheet header is invalid.");
+    if (code == QLatin1String("rules.csv_row")) return text("Row %1 could not be split.").arg(p("row"));
+    if (code == QLatin1String("rules.type_unknown")) return text("Unknown rule type.");
+    if (code == QLatin1String("rules.comma")) return text("The match value cannot contain a comma.");
+    if (code == QLatin1String("rules.payload_too_long")) return text("The match value is too long.");
+    if (code == QLatin1String("rules.target_too_long")) return text("The target name is too long.");
+    if (code == QLatin1String("rules.target_empty")) return text("The target cannot be empty.");
+    if (code == QLatin1String("rules.target_unknown")) return text("The target does not exist.");
+    if (code == QLatin1String("rules.payload_empty")) return text("The match value cannot be empty.");
+    if (code == QLatin1String("rules.cidr")) return text("The IP range is invalid.");
+    if (code == QLatin1String("rules.port")) return text("The port is invalid.");
+    if (code == QLatin1String("rules.geoip")) return text("The country code is invalid.");
+    if (code == QLatin1String("rules.csv_kind")) return text("The type in the spreadsheet is unknown.");
+    if (code == QLatin1String("rules.csv_enabled")) return text("The enabled column must be true or false.");
+    if (code == QLatin1String("rules.row_prefix")) {
+        const QJsonObject inner = QJsonDocument::fromJson(p("inner_params").toUtf8()).object();
+        return text("Row %1: %2").arg(p("row"), translateCodeText(p("inner_code"), inner, detail));
+    }
+    if (code == QLatin1String("core.log_open")) return text("The core log could not be opened.");
+    if (code == QLatin1String("core.spawn_failed")) return text("mihomo could not be started.");
+    if (code == QLatin1String("core.no_pid")) return text("mihomo has no process ID.");
+    if (code == QLatin1String("core.binary_missing")) return text("mihomo could not be found. Install the mihomo package first.");
+    if (code == QLatin1String("controller.subscription_download")) return text("The subscription could not be downloaded.");
+    if (code == QLatin1String("controller.subscription_read")) return text("The subscription could not be read.");
+    if (code == QLatin1String("controller.region_failed")) return text("The exit region could not be detected.");
+    if (code == QLatin1String("controller.region_empty")) return text("The exit region service returned no result.");
+    if (code == QLatin1String("error.legacy")) {
+        return detail.isEmpty() ? text("The operation failed.") : detail;
+    }
+    if (detail.isEmpty()) return text("The operation failed (%1).").arg(code);
+    return text("The operation failed (%1):\n%2").arg(code, detail);
+}
+
+QString serviceErrorText(const QString &message)
+{
+    QString text = message;
+    const QString prefix = QStringLiteral("org.freedesktop.DBus.Error.Failed: ");
+    if (text.startsWith(prefix)) {
+        text = text.mid(prefix.size());
+    }
+    const QJsonDocument doc = QJsonDocument::fromJson(text.toUtf8());
+    if (!doc.isObject()) {
+        return text;
+    }
+    const QJsonObject object = doc.object();
+    const QString code = object.value(QStringLiteral("code")).toString();
+    if (code.isEmpty()) {
+        return text;
+    }
+    return translateCodeText(code,
+                             object.value(QStringLiteral("params")).toObject(),
+                             object.value(QStringLiteral("detail")).toString());
+}
+
 QVariantMap ruleMap(const QString &type, const QString &payload, const QString &target, bool enabled)
 {
     QVariantMap map;
@@ -708,7 +827,7 @@ void ClashClient::reloadAccounts()
         setBusy(false);
         const QDBusPendingReply<QString> reply = *call;
         if (!reply.isValid()) {
-            m_accountsError = reply.error().message();
+            m_accountsError = serviceErrorText(reply.error().message());
             m_accounts.clear();
         } else {
             m_accountsError.clear();
@@ -804,13 +923,29 @@ QString ClashClient::profileBody(const QString &id)
     return reply.value();
 }
 
+QString ClashClient::translateServiceError(const QString &message) const
+{
+    return serviceErrorText(message);
+}
+
+QString ClashClient::translateCode(const QString &code, const QJsonObject &params,
+                                   const QString &detail) const
+{
+    return translateCodeText(code, params, detail);
+}
+
 QString ClashClient::checkProfileText(const QString &body)
 {
     const QDBusReply<QString> reply = m_iface->call(QStringLiteral("CheckProfileText"), body);
     if (!reply.isValid()) {
-        return reply.error().message();
+        return translateServiceError(reply.error().message());
     }
-    return reply.value();
+    const QString result = reply.value();
+    const QJsonDocument document = QJsonDocument::fromJson(result.toUtf8());
+    if (document.isObject() && document.object().value(QStringLiteral("ok")).toBool()) {
+        return {};
+    }
+    return translateServiceError(result);
 }
 
 QString ClashClient::coreLog() const
@@ -1341,12 +1476,7 @@ void ClashClient::pullNotes()
 
 QString dbusHint(const QDBusError &error)
 {
-    QString text = error.message();
-    const QString prefix = QStringLiteral("org.freedesktop.DBus.Error.Failed: ");
-    if (text.startsWith(prefix)) {
-        text = text.mid(prefix.size());
-    }
-    return text;
+    return serviceErrorText(error.message());
 }
 
 bool ClashClient::restoreRoute(const QString &name)
@@ -2942,10 +3072,15 @@ void ClashClient::applyStatus(const QVariantMap &status)
     const QString lanUsername = status.value(QStringLiteral("lan_username")).toString();
     const QString lanPassword = status.value(QStringLiteral("lan_password")).toString();
     const bool lanAllowed = status.value(QStringLiteral("lan_allowed"), true).toBool();
-    QString message = status.value(QStringLiteral("message")).toString();
-    const QString dbusPrefix = QStringLiteral("org.freedesktop.DBus.Error.Failed: ");
-    if (message.startsWith(dbusPrefix)) {
-        message = message.mid(dbusPrefix.size());
+    const QString messageCode = status.value(QStringLiteral("message_code")).toString();
+    const QString messageDetail = status.value(QStringLiteral("message_detail")).toString();
+    QString message;
+    if (!messageCode.isEmpty()) {
+        message = translateCode(messageCode, {}, messageDetail);
+    } else if (!messageDetail.isEmpty()) {
+        message = messageDetail;
+    } else if (status.contains(QStringLiteral("message"))) {
+        message = status.value(QStringLiteral("message")).toString();
     }
     QString phase = status.value(QStringLiteral("phase")).toString();
     if (phase.isEmpty()) {
@@ -3074,6 +3209,8 @@ void ClashClient::reportError(const QString &message)
     }
     if (text.trimmed().isEmpty()) {
         text = localized("The operation failed (no error message was returned).");
+    } else if (text.trimmed().startsWith(QLatin1Char('{'))) {
+        text = translateServiceError(text);
     }
     m_message = text;
     Q_EMIT statusChanged();

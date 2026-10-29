@@ -958,3 +958,234 @@ msgstr "应用 TUN 设置失败（没有返回错误信息）。"
 
 msgid "The operation failed (no error message was returned)."
 msgstr "操作失败（没有返回错误信息）。"
+
+msgid "The file was not found."
+msgstr "找不到文件。"
+
+msgid "Permission denied."
+msgstr "没有权限。"
+
+msgid "The file operation failed."
+msgstr "文件操作失败。"
+
+msgid "The mixed and controller ports must differ."
+msgstr "混合端口和控制器端口不能相同。"
+
+msgid "The mode must be rule, global, or direct."
+msgstr "模式只能是 rule、global 或 direct。"
+
+msgid "Fill in both the LAN username and password."
+msgstr "局域网账号和密码要一起填写。"
+
+msgid "The LAN username and password cannot contain colons."
+msgstr "局域网账号和密码不能包含冒号。"
+
+msgid "The LAN username cannot exceed %1 characters."
+msgstr "局域网账号不能超过 %1 个字符。"
+
+msgid "The LAN password cannot exceed %1 characters."
+msgstr "局域网密码不能超过 %1 个字符。"
+
+msgid "The account was not found."
+msgstr "找不到这个账户。"
+
+msgid "TUN can only use the system's /usr/bin/mihomo."
+msgstr "TUN 只能使用系统里的 /usr/bin/mihomo。"
+
+msgid "The system's /usr/bin/mihomo is missing."
+msgstr "系统里没有 /usr/bin/mihomo。"
+
+msgid "mihomo could not be found."
+msgstr "找不到 mihomo。"
+
+msgid "TUN can only use this account's own runtime configuration."
+msgstr "TUN 只能使用这个账户自己的运行配置。"
+
+msgid "The TUN runtime configuration could not be parsed."
+msgstr "运行配置无法解析。"
+
+msgid "The runtime configuration has no TUN section."
+msgstr "运行配置里没有 TUN。"
+
+msgid "TUN is not enabled in the runtime configuration."
+msgstr "运行配置没有打开 TUN。"
+
+msgid "Machine-wide capture cannot restrict accounts."
+msgstr "整机捕获不能限制账户。"
+
+msgid "Machine-wide capture cannot exclude this account."
+msgstr "整机捕获不能排除这个账户。"
+
+msgid "TUN may only include this account."
+msgstr "TUN 只能包含这个账户。"
+
+msgid "Another account already has its own TUN running."
+msgstr "已有账户开着自己的 TUN。"
+
+msgid "The TUN log cannot be a symbolic link."
+msgstr "TUN 日志不能是符号链接。"
+
+msgid "The TUN log could not be checked."
+msgstr "无法检查内核日志。"
+
+msgid "TUN has not been authorized yet."
+msgstr "TUN 还没有得到授权。"
+
+msgid "The profile was not found."
+msgstr "找不到这个配置。"
+
+msgid "This profile has no subscription URL."
+msgstr "这个配置没有订阅地址。"
+
+msgid "The subscription is not valid YAML."
+msgstr "订阅不是有效的 YAML。"
+
+msgid "The profile cannot be empty."
+msgstr "配置不能为空。"
+
+msgid "The profile must be a YAML mapping."
+msgstr "配置需要是一组键值。"
+
+msgid "The local override must be a YAML mapping."
+msgstr "本地覆盖必须是 YAML 映射。"
+
+msgid "The local override could not be parsed."
+msgstr "本地覆盖无法解析。"
+
+msgid "The profile YAML could not be parsed."
+msgstr "YAML 读不出来。"
+
+msgid "The runtime configuration could not be written."
+msgstr "无法生成或写入运行配置。"
+
+msgid "The route name cannot be empty or a built-in name."
+msgstr "路线名称不能是空的或内置名称。"
+
+msgid "The route name cannot exceed %1 characters."
+msgstr "路线名称不能超过 %1 个字符。"
+
+msgid "This route type is not supported."
+msgstr "不支持这种路线类型。"
+
+msgid "The server address cannot exceed %1 characters."
+msgstr "服务器地址不能超过 %1 个字符。"
+
+msgid "The password or UUID cannot exceed %1 characters."
+msgstr "密码或 UUID 不能超过 %1 个字符。"
+
+msgid "A route with this name already exists."
+msgstr "已经有同名路线。"
+
+msgid "A proxy group with this name already exists."
+msgstr "已经有同名策略组。"
+
+msgid "This route cannot be removed."
+msgstr "这条路线不能移除。"
+
+msgid "This route is not in the configuration."
+msgstr "这条路线不在配置文件里。"
+
+msgid "This route cannot be edited."
+msgstr "这条路线不能修改。"
+
+msgid "This route cannot be restored."
+msgstr "这条路线不能还原。"
+
+msgid "This route is not in the subscription."
+msgstr "订阅里没有这条路线。"
+
+msgid "The subscription snapshot could not be parsed."
+msgstr "订阅原文无法解析。"
+
+msgid "This rule is not in the subscription."
+msgstr "订阅里没有这条规则。"
+
+msgid "This rule is not in the configuration."
+msgstr "配置里没有这条规则。"
+
+msgid "The configuration has no rules."
+msgstr "配置里没有规则。"
+
+msgid "The custom rules could not be read."
+msgstr "无法读取自己的规则。"
+
+msgid "The custom rules could not be written."
+msgstr "无法写入自己的规则。"
+
+msgid "The custom rules could not be parsed."
+msgstr "自己的规则无法解析。"
+
+msgid "The rules JSON could not be read."
+msgstr "规则读不出来。"
+
+msgid "The spreadsheet header is invalid."
+msgstr "表头不对。"
+
+msgid "Row %1 could not be split."
+msgstr "第 %1 行无法拆分。"
+
+msgid "Unknown rule type."
+msgstr "不认识的类型。"
+
+msgid "The match value cannot contain a comma."
+msgstr "匹配内容不能包含逗号。"
+
+msgid "The match value is too long."
+msgstr "匹配内容太长。"
+
+msgid "The target name is too long."
+msgstr "目标名称太长。"
+
+msgid "The target does not exist."
+msgstr "没有这个目标。"
+
+msgid "The IP range is invalid."
+msgstr "IP 段不合法。"
+
+msgid "The port is invalid."
+msgstr "端口不合法。"
+
+msgid "The country code is invalid."
+msgstr "国家代码不合法。"
+
+msgid "The type in the spreadsheet is unknown."
+msgstr "不认识的类型。"
+
+msgid "The enabled column must be true or false."
+msgstr "启用一列只能是 true 或 false。"
+
+msgid "Row %1: %2"
+msgstr "第 %1 行：%2"
+
+msgid "The core log could not be opened."
+msgstr "无法打开内核日志。"
+
+msgid "mihomo could not be started."
+msgstr "无法启动 mihomo。"
+
+msgid "mihomo has no process ID."
+msgstr "mihomo 没有进程号。"
+
+msgid "mihomo could not be found. Install the mihomo package first."
+msgstr "找不到 mihomo，请先安装 mihomo 包。"
+
+msgid "The subscription could not be downloaded."
+msgstr "无法下载订阅。"
+
+msgid "The subscription could not be read."
+msgstr "无法读取订阅。"
+
+msgid "The exit region could not be detected."
+msgstr "出口地区检测失败。"
+
+msgid "The exit region service returned no result."
+msgstr "出口地区检测没有返回结果。"
+
+msgid "The operation failed."
+msgstr "操作失败。"
+
+msgid "The operation failed (%1)."
+msgstr "操作失败（%1）。"
+
+msgid "The operation failed (%1):\n%2"
+msgstr "操作失败（%1）：\n%2"

@@ -10,6 +10,7 @@
 #include <QVariantMap>
 
 class QDBusInterface;
+class QJsonObject;
 class QProcess;
 
 class ClashClient : public QObject
@@ -372,6 +373,8 @@ private:
     void shiftOwnRuleNotes(int removed);
     class QNetworkAccessManager *speedNam(bool throughProxy);
     QString buildDiagnostics(const QString &version, const QString &systemState, const QString &journal) const;
+    QString translateServiceError(const QString &message) const;
+    QString translateCode(const QString &code, const QJsonObject &params, const QString &detail) const;
     void startDiagnosticsStage(quint64 generation);
     void startDiagnosticsProcess(quint64 generation, const QString &program, const QStringList &args, int timeoutMs);
     void finishDiagnosticsStage(quint64 generation, const QString &output);

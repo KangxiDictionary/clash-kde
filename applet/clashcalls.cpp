@@ -18,6 +18,8 @@
 #include <QProcess>
 #include <QStandardPaths>
 
+QString serviceErrorText(const QString &message);
+
 namespace {
 QString configValue(const QString &file, const QString &group, const QString &key)
 {
@@ -245,7 +247,7 @@ void ClashCalls::refresh()
         call->deleteLater();
         const QDBusPendingReply<QString> reply = *call;
         if (reply.isError()) {
-            fail(reply.error().message());
+            fail(serviceErrorText(reply.error().message()));
             return;
         }
         applyStatus(reply.value());
@@ -368,6 +370,47 @@ void ClashCalls::onDelayUpdated(const QString &group, const QString &name, qlong
     }
 }
 
+QString serviceErrorText(const QString &message)
+{
+    QString text = message;
+    const QString prefix = QStringLiteral("org.freedesktop.DBus.Error.Failed: ");
+    if (text.startsWith(prefix)) {
+        text = text.mid(prefix.size());
+    }
+    const QJsonDocument document = QJsonDocument::fromJson(text.toUtf8());
+    if (!document.isObject()) {
+        return text;
+    }
+    const QJsonObject object = document.object();
+    const QString code = object.value(QStringLiteral("code")).toString();
+    if (code.isEmpty()) {
+        return text;
+    }
+    const QString detail = object.value(QStringLiteral("detail")).toString();
+    if (code == QLatin1String("error.legacy")) {
+        return detail.isEmpty()
+            ? ki18nd("kcm_clashkde", "The operation failed.").toString()
+            : detail;
+    }
+    if (detail.isEmpty()) {
+        return ki18nd("kcm_clashkde", "The operation failed (%1).").subs(code).toString();
+    }
+    return ki18nd("kcm_clashkde", "The operation failed (%1):\n%2").subs(code).subs(detail).toString();
+}
+
+QString serviceCodeText(const QString &code, const QString &detail)
+{
+    if (code == QLatin1String("error.legacy")) {
+        return detail.isEmpty()
+            ? ki18nd("kcm_clashkde", "The operation failed.").toString()
+            : detail;
+    }
+    if (detail.isEmpty()) {
+        return ki18nd("kcm_clashkde", "The operation failed (%1).").subs(code).toString();
+    }
+    return ki18nd("kcm_clashkde", "The operation failed (%1):\n%2").subs(code).subs(detail).toString();
+}
+
 void ClashCalls::call(const QString &member, const QVariantList &arguments)
 {
     auto *watcher = new QDBusPendingCallWatcher(m_iface->asyncCallWithArgumentList(member, arguments), this);
@@ -398,7 +441,13 @@ void ClashCalls::applyStatus(const QString &json)
     m_systemProxyApplied = object.value(QStringLiteral("system_proxy_applied")).toBool();
     m_tunEnabled = object.value(QStringLiteral("tun_enabled")).toBool();
     m_mode = object.value(QStringLiteral("mode")).toString(QStringLiteral("rule"));
-    m_message = object.value(QStringLiteral("message")).toString();
+    const QString messageCode = object.value(QStringLiteral("message_code")).toString();
+    const QString messageDetail = object.value(QStringLiteral("message_detail")).toString();
+    m_message = messageCode.isEmpty()
+        ? (messageDetail.isEmpty()
+               ? object.value(QStringLiteral("message")).toString()
+               : messageDetail)
+        : serviceCodeText(messageCode, messageDetail);
     m_region = object.value(QStringLiteral("exit_region")).toString();
     m_listenAddress = QStringLiteral("127.0.0.1:%1").arg(object.value(QStringLiteral("mixed_port")).toInt(7890));
     m_uploadBps = object.value(QStringLiteral("upload_bps")).toDouble();
