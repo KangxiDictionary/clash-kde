@@ -192,10 +192,6 @@ impl From<String> for ServiceError {
 
 impl From<ServiceError> for String {
     fn from(error: ServiceError) -> Self {
-        if error.detail.is_empty() {
-            error.code.to_string()
-        } else {
-            error.detail
-        }
+        serde_json::to_string(&error).unwrap_or_else(|_| error.code.to_string())
     }
 }

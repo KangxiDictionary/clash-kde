@@ -68,6 +68,8 @@ struct Inner {
     download_bps: u64,
     exit_region: String,
     message: String,
+    message_code: String,
+    message_detail: String,
     phase: String,
     tun_route_ready: bool,
     tun_route_known: bool,
@@ -75,6 +77,35 @@ struct Inner {
     tun_route_checked_at: i64,
     running: Option<Running>,
     restart_attempts: u32,
+}
+
+fn message_parts(message: &str) -> (String, String) {
+    if let Ok(value) = serde_json::from_str::<serde_json::Value>(message)
+        && let Some(code) = value.get("code").and_then(serde_json::Value::as_str)
+        && !code.is_empty()
+    {
+        let detail = value
+            .get("detail")
+            .and_then(serde_json::Value::as_str)
+            .unwrap_or_default();
+        return (code.to_string(), detail.to_string());
+    }
+    (String::new(), message.to_string())
+}
+
+impl Inner {
+    fn set_message(&mut self, message: String) {
+        let (code, detail) = message_parts(&message);
+        self.message = message;
+        self.message_code = code;
+        self.message_detail = detail;
+    }
+
+    fn clear_message(&mut self) {
+        self.message.clear();
+        self.message_code.clear();
+        self.message_detail.clear();
+    }
 }
 
 fn region_probe_of(inner: &Inner) -> controller::RegionProbe {
@@ -152,7 +183,8 @@ struct Status {
     download_bps: u64,
     exit_region: String,
     active_profile: String,
-    message: String,
+    message_code: String,
+    message_detail: String,
     phase: String,
     override_path: String,
     selections: BTreeMap<String, String>,
@@ -217,6 +249,8 @@ impl App {
                 download_bps: 0,
                 exit_region: String::new(),
                 message: String::new(),
+                message_code: String::new(),
+                message_detail: String::new(),
                 phase: PHASE_STOPPED.to_string(),
                 tun_route_ready: true,
                 tun_route_known: true,
@@ -269,7 +303,7 @@ impl App {
             let mut inner = self.inner.lock().await;
             inner.settings.core_desired = true;
             inner.restart_attempts = 0;
-            inner.message.clear();
+            inner.clear_message();
             inner
                 .settings
                 .save(&self.paths)
@@ -291,7 +325,7 @@ impl App {
             let mut inner = self.inner.lock().await;
             inner.settings.core_desired = false;
             inner.restart_attempts = 0;
-            inner.message.clear();
+            inner.clear_message();
             inner.phase = PHASE_STOPPED.to_string();
             inner
                 .settings
@@ -315,7 +349,7 @@ impl App {
             let mut inner = self.inner.lock().await;
             inner.settings.core_desired = true;
             inner.restart_attempts = 0;
-            inner.message.clear();
+            inner.clear_message();
             inner.phase = PHASE_STARTING.to_string();
             inner
                 .settings
@@ -333,7 +367,7 @@ impl App {
                 .settings
                 .save(&self.paths)
                 .map_err(|error| error.to_string())?;
-            inner.message.clear();
+            inner.clear_message();
         }
         self.sync_system_proxy().await?;
         self.schedule_region_lookup();
@@ -382,7 +416,7 @@ impl App {
                 .settings
                 .save(&self.paths)
                 .map_err(|error| error.to_string())?;
-            inner.message.clear();
+            inner.clear_message();
             inner.core_running
         };
         let revoke = if enabled {
@@ -423,7 +457,7 @@ impl App {
                 .settings
                 .save(&self.paths)
                 .map_err(|error| error.to_string())?;
-            inner.message.clear();
+            inner.clear_message();
             (
                 inner.core_running,
                 inner.settings.controller_port,
@@ -478,7 +512,7 @@ impl App {
                 .settings
                 .save(&self.paths)
                 .map_err(|error| error.to_string())?;
-            inner.message.clear();
+            inner.clear_message();
             running && (ports_changed || override_changed || (device_changed && tun_on))
         };
         if should_restart {
@@ -547,7 +581,7 @@ impl App {
                 .save(&self.paths)
                 .map_err(|error| error.to_string())?;
         }
-        inner.message.clear();
+        inner.clear_message();
         drop(inner);
         self.emit(Event::Profiles);
         self.emit(Event::Status);
@@ -576,7 +610,7 @@ impl App {
                     .save(&self.paths)
                     .map_err(|error| error.to_string())?;
             }
-            inner.message.clear();
+            inner.clear_message();
             if was_active && inner.core_running && inner.settings.active_profile.is_empty() {
                 Some(false)
             } else if was_active && inner.core_running {
@@ -626,7 +660,7 @@ impl App {
         profile::save_profiles(&self.paths, &profiles).map_err(|error| error.to_string())?;
         let active = {
             let mut inner = self.inner.lock().await;
-            inner.message.clear();
+            inner.clear_message();
             inner.settings.active_profile == id && inner.core_running
         };
         self.emit(Event::Profiles);
@@ -660,7 +694,7 @@ impl App {
                 .settings
                 .save(&self.paths)
                 .map_err(|error| error.to_string())?;
-            inner.message.clear();
+            inner.clear_message();
             (
                 profile_changed,
                 inner.core_running,
@@ -1128,7 +1162,7 @@ impl App {
                 .settings
                 .save(&self.paths)
                 .map_err(|error| error.to_string())?;
-            inner.message.clear();
+            inner.clear_message();
             inner.core_running
         };
         self.emit(Event::Profiles);
@@ -1166,7 +1200,7 @@ impl App {
             .settings
             .save(&self.paths)
             .map_err(|error| error.to_string())?;
-        inner.message.clear();
+        inner.clear_message();
         drop(inner);
         self.emit(Event::Proxies);
         self.emit(Event::Status);
@@ -1281,7 +1315,7 @@ impl App {
         profile.name = name;
         profile.url = url;
         profile::save_profiles(&self.paths, &profiles).map_err(|error| error.to_string())?;
-        self.inner.lock().await.message.clear();
+        self.inner.lock().await.clear_message();
         self.emit(Event::Profiles);
         self.emit(Event::Status);
         Ok(())
@@ -1330,7 +1364,7 @@ impl App {
                 .save(&self.paths)
                 .map_err(|error| error.to_string())?;
         }
-        inner.message.clear();
+        inner.clear_message();
         drop(inner);
         self.emit(Event::Profiles);
         self.emit(Event::Status);
@@ -1348,7 +1382,7 @@ impl App {
                 if self.region_epoch.load(Ordering::Relaxed) == epoch {
                     let mut inner = self.inner.lock().await;
                     inner.exit_region = region.clone();
-                    inner.message.clear();
+                    inner.clear_message();
                     drop(inner);
                     self.emit(Event::Status);
                 }
@@ -1384,11 +1418,11 @@ impl App {
             match result {
                 Ok(region) => {
                     inner.exit_region = region;
-                    inner.message.clear();
+                    inner.clear_message();
                 }
                 Err(error) => {
                     inner.exit_region.clear();
-                    inner.message = String::from(error);
+                    inner.set_message(String::from(error));
                 }
             }
             drop(inner);
@@ -1399,7 +1433,7 @@ impl App {
     async fn reload_active_if_running(self: &Arc<Self>, id: &str) -> Result<(), String> {
         let active = {
             let mut inner = self.inner.lock().await;
-            inner.message.clear();
+            inner.clear_message();
             inner.settings.active_profile == id && inner.core_running
         };
         self.emit(Event::Profiles);
@@ -1422,7 +1456,7 @@ impl App {
                 controller_secret: secret,
                 ..crate::state::Settings::default()
             };
-            inner.message.clear();
+            inner.clear_message();
             inner
                 .settings
                 .save(&self.paths)
@@ -1594,7 +1628,8 @@ impl App {
             download_bps: inner.download_bps,
             exit_region: inner.exit_region.clone(),
             active_profile: inner.settings.active_profile.clone(),
-            message: inner.message.clone(),
+            message_code: inner.message_code.clone(),
+            message_detail: inner.message_detail.clone(),
             phase: inner.phase.clone(),
             override_path: state::effective_override(&self.paths, &inner.settings.override_path)
                 .display()
@@ -1889,7 +1924,7 @@ impl App {
             inner.restart_attempts = 0;
             inner.upload_bps = 0;
             inner.download_bps = 0;
-            inner.message.clear();
+            inner.clear_message();
             inner.phase = PHASE_RUNNING.to_string();
             inner.running = Some(Running {
                 pid: process.pid(),
@@ -2108,8 +2143,10 @@ impl App {
                 }
                 ExitKind::Unexpected => {
                     inner.exit_region.clear();
-                    inner.message =
-                        format!("mihomo 已退出\n{}", core::log_tail(&self.paths.core_log()));
+                    inner.set_message(format!(
+                        "mihomo 已退出\n{}",
+                        core::log_tail(&self.paths.core_log())
+                    ));
                     inner.phase = PHASE_FAILED.to_string();
                     tracing::error!("内核意外退出，已停止重试: {}", inner.message);
                     false
@@ -2208,12 +2245,12 @@ impl App {
         inner.upload_bps = 0;
         inner.download_bps = 0;
         inner.exit_region.clear();
-        inner.message = message;
+        inner.set_message(message);
         inner.phase = PHASE_FAILED.to_string();
     }
 
     async fn set_message(&self, message: String) {
-        self.inner.lock().await.message = message;
+        self.inner.lock().await.set_message(message);
     }
 
     async fn set_phase(&self, phase: &str) {
