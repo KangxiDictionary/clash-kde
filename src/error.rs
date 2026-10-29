@@ -11,7 +11,7 @@
 use std::collections::BTreeMap;
 use std::fmt;
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 pub mod codes {
     pub const IO_NOT_FOUND: &str = "io.not_found";
@@ -121,12 +121,21 @@ pub mod codes {
     pub const CORE_NO_PID: &str = "core.no_pid";
     pub const CORE_BINARY_MISSING: &str = "core.binary_missing";
 
+    pub const BRIDGE_ACCOUNT: &str = "admin.account_missing";
+    pub const BRIDGE_ACTION: &str = "admin.action_missing";
+    pub const BRIDGE_SWITCH: &str = "admin.switch_failed";
+    pub const BRIDGE_SESSION: &str = "admin.bridge_failed";
+    pub const BRIDGE_LAUNCH: &str = "admin.launch_failed";
+    pub const TUN_SYSTEM_ROOT: &str = "tun.not_root";
+    pub const TUN_SWITCH_ACCOUNT: &str = "tun.switch_failed";
+    pub const TUN_ACCOUNT_NAME: &str = "tun.bad_account_name";
+
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ServiceError {
     /// Stable dot-separated identifier. Never shown directly to users.
-    pub code: &'static str,
+    pub code: String,
     /// Values substituted into the translated template.
     #[serde(skip_serializing_if = "BTreeMap::is_empty")]
     pub params: BTreeMap<String, String>,
@@ -136,9 +145,9 @@ pub struct ServiceError {
 }
 
 impl ServiceError {
-    pub fn new(code: &'static str) -> Self {
+    pub fn new(code: &str) -> Self {
         Self {
-            code,
+            code: code.to_string(),
             params: BTreeMap::new(),
             detail: String::new(),
         }
@@ -172,7 +181,7 @@ impl ServiceError {
 
 impl fmt::Display for ServiceError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter.write_str(self.code)
+        formatter.write_str(&self.code)
     }
 }
 

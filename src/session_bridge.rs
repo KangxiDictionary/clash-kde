@@ -7,20 +7,21 @@ use serde::Serialize;
 use zbus::fdo::DBusProxy;
 
 use crate::paths::Paths;
+use crate::error::{ServiceError, codes};
 use crate::privilege::{self, Account};
 use crate::state::Settings;
 
 pub fn run(args: &[String]) -> ExitCode {
     let Some(uid) = args.get(1).and_then(|text| text.parse::<u32>().ok()) else {
-        eprintln!("缺少账户");
+        print_error(&ServiceError::new(codes::BRIDGE_ACCOUNT));
         return ExitCode::from(1);
     };
     let Some(action) = args.get(2).map(String::as_str) else {
-        eprintln!("缺少动作");
+        print_error(&ServiceError::new(codes::BRIDGE_ACTION));
         return ExitCode::from(1);
     };
     if let Err(error) = switch_account(uid) {
-        eprintln!("{error}");
+        print_error(&error);
         return ExitCode::from(1);
     }
     let runtime = tokio::runtime::Builder::new_current_thread()
@@ -29,33 +30,40 @@ pub fn run(args: &[String]) -> ExitCode {
     let runtime = match runtime {
         Ok(runtime) => runtime,
         Err(error) => {
-            eprintln!("{error}");
+            print_error(&ServiceError::new(codes::BRIDGE_SESSION).detail(error.to_string()));
             return ExitCode::from(1);
         }
     };
     match runtime.block_on(call(uid, action)) {
         Ok(()) => ExitCode::SUCCESS,
         Err(error) => {
-            eprintln!("{error}");
+            print_error(&error);
             ExitCode::from(1)
         }
     }
 }
 
-fn switch_account(uid: u32) -> Result<(), String> {
+fn print_error(error: &ServiceError) {
+    eprintln!(
+        "{}",
+        serde_json::to_string(error).unwrap_or_else(|_| error.code.clone())
+    );
+}
+
+fn switch_account(uid: u32) -> Result<(), ServiceError> {
     let current = unsafe { libc::geteuid() };
     if current != 0 && current != uid {
-        return Err("无法切换到这个账户".to_string());
+        return Err(ServiceError::new(codes::BRIDGE_SWITCH));
     }
     let account = privilege::lookup_account(uid)?;
     if current == 0 {
         let c_name =
-            std::ffi::CString::new(account.name.clone()).map_err(|_| "账户名无效".to_string())?;
+            std::ffi::CString::new(account.name.clone()).map_err(|_| ServiceError::new(codes::TUN_ACCOUNT_NAME))?;
         if unsafe { libc::initgroups(c_name.as_ptr(), account.gid) } != 0 {
-            return Err("无法切换到这个账户".to_string());
+            return Err(ServiceError::new(codes::BRIDGE_SWITCH));
         }
         if unsafe { libc::setgid(account.gid) } != 0 || unsafe { libc::setuid(uid) } != 0 {
-            return Err("无法切换到这个账户".to_string());
+            return Err(ServiceError::new(codes::BRIDGE_SWITCH));
         }
     }
     unsafe {
@@ -71,18 +79,18 @@ fn switch_account(uid: u32) -> Result<(), String> {
     Ok(())
 }
 
-async fn call(uid: u32, action: &str) -> Result<(), String> {
+async fn call(uid: u32, action: &str) -> Result<(), ServiceError> {
     let account = privilege::lookup_account(uid)?;
     match action {
         "Status" => print_status(&account).await,
         "Start" => session_method(true).await,
         "Stop" => session_method(false).await,
         "Reload" => reload_runtime().await,
-        _ => Err("缺少动作".to_string()),
+        _ => Err(ServiceError::new(codes::BRIDGE_ACTION)),
     }
 }
 
-async fn print_status(account: &Account) -> Result<(), String> {
+async fn print_status(account: &Account) -> Result<(), ServiceError> {
     let slim = match live_status().await {
         Some(slim) => slim,
         None => saved_status(account),
@@ -155,36 +163,36 @@ fn saved_status(account: &Account) -> SlimStatus {
     }
 }
 
-async fn session_method(start: bool) -> Result<(), String> {
+async fn session_method(start: bool) -> Result<(), ServiceError> {
     let connection = zbus::connection::Builder::session()
-        .map_err(|error| error.to_string())?
+        .map_err(|error| ServiceError::new(codes::BRIDGE_SESSION).detail(error.to_string()))?
         .build()
         .await
-        .map_err(|error| error.to_string())?;
+        .map_err(|error| ServiceError::new(codes::BRIDGE_SESSION).detail(error.to_string()))?;
     let proxy = SessionManagerProxy::new(&connection)
         .await
-        .map_err(|error| error.to_string())?;
+        .map_err(|error| ServiceError::new(codes::BRIDGE_SESSION).detail(error.to_string()))?;
     let result = if start {
         proxy.start().await
     } else {
         proxy.stop().await
     };
-    result.map_err(|error| error.to_string())
+    result.map_err(|error| ServiceError::new(codes::BRIDGE_SESSION).detail(error.to_string()))
 }
 
-async fn reload_runtime() -> Result<(), String> {
+async fn reload_runtime() -> Result<(), ServiceError> {
     let connection = zbus::connection::Builder::session()
-        .map_err(|error| error.to_string())?
+        .map_err(|error| ServiceError::new(codes::BRIDGE_SESSION).detail(error.to_string()))?
         .build()
         .await
-        .map_err(|error| error.to_string())?;
+        .map_err(|error| ServiceError::new(codes::BRIDGE_SESSION).detail(error.to_string()))?;
     let proxy = SessionManagerProxy::new(&connection)
         .await
-        .map_err(|error| error.to_string())?;
+        .map_err(|error| ServiceError::new(codes::BRIDGE_SESSION).detail(error.to_string()))?;
     proxy
         .reload_runtime()
         .await
-        .map_err(|error| error.to_string())
+        .map_err(|error| ServiceError::new(codes::BRIDGE_SESSION).detail(error.to_string()))
 }
 
 #[derive(Serialize)]

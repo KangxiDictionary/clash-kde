@@ -147,7 +147,7 @@ impl Admin {
             .map_err(crate::error::ServiceError::into_fdo)?;
         let (pid, child) = launch(uid, &binary, &runtime, &config, &log)
             .await
-            .map_err(fdo::Error::Failed)?;
+            .map_err(crate::error::ServiceError::into_fdo)?;
         let (stop_tx, stop_rx) = oneshot::channel();
         let (done_tx, done_rx) = oneshot::channel();
         self.tun.replace(uid, stop_tx, done_rx).await;
@@ -182,7 +182,9 @@ impl Admin {
     ) -> fdo::Result<()> {
         let (_, sender) = caller(&header, connection).await?;
         allow(&sender, POLKIT_USERS, "启动这个账户的 Mihomo").await?;
-        bridge(uid, "Start").await.map_err(fdo::Error::Failed)?;
+        bridge(uid, "Start")
+            .await
+            .map_err(crate::error::ServiceError::into_fdo)?;
         Ok(())
     }
 
@@ -195,7 +197,9 @@ impl Admin {
     ) -> fdo::Result<()> {
         let (_, sender) = caller(&header, connection).await?;
         allow(&sender, POLKIT_USERS, "停止这个账户的 Mihomo").await?;
-        bridge(uid, "Stop").await.map_err(fdo::Error::Failed)?;
+        bridge(uid, "Stop")
+            .await
+            .map_err(crate::error::ServiceError::into_fdo)?;
         Ok(())
     }
 
@@ -468,7 +472,7 @@ async fn launch(
     runtime: &str,
     config: &str,
     log: &str,
-) -> Result<(u32, Child), String> {
+) -> Result<(u32, Child), crate::error::ServiceError> {
     let exe = service_binary();
     let mut child = Command::new(&exe)
         .arg("--spawn-tun")
@@ -484,7 +488,11 @@ async fn launch(
         .stderr(std::process::Stdio::piped())
         .kill_on_drop(true)
         .spawn()
-        .map_err(|error| format!("无法启动 mihomo: {error} ({})", exe.display()))?;
+        .map_err(|error| {
+            crate::error::ServiceError::new(crate::error::codes::BRIDGE_LAUNCH)
+                .param("binary", exe.display().to_string())
+                .detail(error.to_string())
+        })?;
     for _ in 0..3 {
         match child.try_wait() {
             Ok(Some(status)) => {
@@ -494,16 +502,26 @@ async fn launch(
                 }
                 let text = text.trim();
                 if text.is_empty() {
-                    return Err(format!("mihomo 已退出: {status}"));
+                    return Err(crate::error::ServiceError::new(crate::error::codes::BRIDGE_LAUNCH)
+                        .detail(format!("mihomo exited: {status}")));
                 }
-                return Err(text.to_string());
+                if let Ok(service_error) = serde_json::from_str::<crate::error::ServiceError>(text) {
+                    return Err(service_error);
+                }
+                return Err(crate::error::ServiceError::new(crate::error::codes::BRIDGE_LAUNCH)
+                    .detail(text.to_string()));
             }
             Ok(None) => tokio::time::sleep(Duration::from_millis(30)).await,
-            Err(error) => return Err(error.to_string()),
+            Err(error) => {
+                return Err(crate::error::ServiceError::new(crate::error::codes::BRIDGE_LAUNCH)
+                    .detail(error.to_string()));
+            }
         }
     }
     drop(child.stderr.take());
-    let pid = child.id().ok_or_else(|| "mihomo 没有进程号".to_string())?;
+    let pid = child.id().ok_or_else(|| {
+        crate::error::ServiceError::new(crate::error::codes::CORE_NO_PID)
+    })?;
     Ok((pid, child))
 }
 
@@ -529,7 +547,7 @@ async fn supervise(mut child: Child, mut stop: oneshot::Receiver<()>) {
     }
 }
 
-async fn bridge(uid: u32, action: &str) -> Result<String, String> {
+async fn bridge(uid: u32, action: &str) -> Result<String, crate::error::ServiceError> {
     let exe = service_binary();
     let output = Command::new(&exe)
         .arg("--as-user")
@@ -539,14 +557,18 @@ async fn bridge(uid: u32, action: &str) -> Result<String, String> {
         .env("PATH", "/usr/bin:/bin")
         .output()
         .await
-        .map_err(|error| error.to_string())?;
+        .map_err(|error| crate::error::ServiceError::new(crate::error::codes::BRIDGE_LAUNCH).detail(error.to_string()))?;
     if !output.status.success() {
         let error = String::from_utf8_lossy(&output.stderr);
         let error = error.trim();
         if error.is_empty() {
-            return Err("无法联系这个账户的 Mihomo".to_string());
+            return Err(crate::error::ServiceError::new(crate::error::codes::BRIDGE_SESSION));
         }
-        return Err(error.to_string());
+        if let Ok(service_error) = serde_json::from_str::<crate::error::ServiceError>(error) {
+            return Err(service_error);
+        }
+        return Err(crate::error::ServiceError::new(crate::error::codes::BRIDGE_SESSION)
+            .detail(error.to_string()));
     }
     Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
 }
@@ -576,7 +598,7 @@ async fn describe(uid: u32) -> ListedUser {
                 mode: String::new(),
                 exit_region: String::new(),
                 lan_allowed: crate::lan::permitted(&crate::lan::policy_dir(), uid),
-                error,
+                error: String::from(error),
             };
         }
     };

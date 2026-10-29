@@ -292,7 +292,10 @@ pub fn signed_in_uids() -> Vec<u32> {
 
 pub fn exec_tun(uid: u32, binary: &Path, runtime: &Path, config: &Path, log: &Path) -> i32 {
     if let Err(error) = prepare_exec(uid, binary, runtime, config, log) {
-        eprintln!("{error}");
+        eprintln!(
+            "{}",
+            serde_json::to_string(&error).unwrap_or_else(|_| error.code.clone())
+        );
         return 1;
     }
     unreachable!("prepare_exec returned without replacing the process")
@@ -304,27 +307,27 @@ fn prepare_exec(
     runtime: &Path,
     config: &Path,
     log: &Path,
-) -> Result<(), String> {
+) -> Result<(), ServiceError> {
     if unsafe { libc::geteuid() } != 0 {
-        return Err("TUN 需要系统服务".to_string());
+        return Err(ServiceError::new(codes::TUN_SYSTEM_ROOT));
     }
     if !stamp_exists(Path::new(STAMP_DIR), uid) {
-        return Err("TUN 还没有得到授权".to_string());
+        return Err(ServiceError::new(codes::TUN_NOT_AUTHORIZED));
     }
     ensure_tun_launch(binary, runtime, config, uid)?;
     log_path_is_runtime(log, runtime)?;
     let account = lookup_account(uid)?;
     enter_user(uid, account.gid, &account.name)
-        .map_err(|error| format!("无法切换到这个账户: {error}"))?;
+        .map_err(|error| ServiceError::new(codes::TUN_SWITCH_ACCOUNT).detail(error.to_string()))?;
     let log_file = fs::OpenOptions::new()
         .create(true)
         .append(true)
         .custom_flags(libc::O_NOFOLLOW)
         .open(log)
-        .map_err(|error| format!("无法打开内核日志: {error}"))?;
+        .map_err(|error| ServiceError::new(codes::CORE_LOG_OPEN).detail(error.to_string()))?;
     let stderr = log_file
         .try_clone()
-        .map_err(|error| format!("无法打开内核日志: {error}"))?;
+        .map_err(|error| ServiceError::new(codes::CORE_LOG_OPEN).detail(error.to_string()))?;
     let error = std::process::Command::new(binary)
         .arg("-d")
         .arg(runtime)
@@ -341,7 +344,9 @@ fn prepare_exec(
         .stdout(std::process::Stdio::from(log_file))
         .stderr(std::process::Stdio::from(stderr))
         .exec();
-    Err(format!("无法启动 mihomo: {error} ({})", binary.display()))
+    Err(ServiceError::new(codes::CORE_SPAWN_FAILED)
+        .param("binary", binary.display().to_string())
+        .detail(error.to_string()))
 }
 
 #[cfg(test)]
