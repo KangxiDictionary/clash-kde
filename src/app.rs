@@ -391,7 +391,12 @@ impl App {
                 .map_err(|error| error.to_string())?;
             inner.clear_message();
         }
-        self.sync_system_proxy().await?;
+        // The core is already running. A proxy write failure must not turn the
+        // whole start into an error while GetStatus reports core_running=true.
+        if let Err(error) = self.sync_system_proxy().await {
+            tracing::error!(code = codes::PROXY_SAVE_FAILED, detail = %error, "core started but the system proxy could not be applied");
+            self.set_message(error).await;
+        }
         self.schedule_region_lookup();
         self.emit(Event::Status);
         Ok(())
@@ -449,9 +454,9 @@ impl App {
         let started = if running {
             self.spawn_core().await
         } else {
-            self.sync_system_proxy().await?;
+            let result = self.sync_system_proxy().await;
             self.emit(Event::Status);
-            Ok(())
+            result
         };
         self.schedule_region_lookup();
         let revoke_error = match revoke {
@@ -463,7 +468,12 @@ impl App {
             None => None,
         };
         match (started, revoke_error) {
-            (Err(start), Some(revoke)) => Err(format!("{start}\n{revoke}")),
+            (Err(start), Some(revoke)) => {
+                // Keep one parseable ServiceError for the D-Bus caller; the
+                // second failure is still observable in the journal.
+                tracing::warn!(code = codes::TUN_REVOKE_TIMEOUT, detail = %revoke, "TUN revoke also failed");
+                Err(start)
+            }
             (Err(start), None) => Err(start),
             (Ok(()), Some(revoke)) => Err(revoke),
             (Ok(()), None) => Ok(()),

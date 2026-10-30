@@ -403,6 +403,7 @@ private:
     qint64 m_firewallCheckedAt = 0;
     bool m_firewallBusy = false;
     bool m_tunPending = false;
+    bool m_startPending = false;
     QProcess *m_diagnosticsProcess = nullptr;
     quint64 m_diagnosticsGeneration = 0;
     int m_diagnosticsStage = 0;

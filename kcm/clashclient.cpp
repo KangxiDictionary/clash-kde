@@ -2544,8 +2544,8 @@ bool ClashClient::draftIsDefaults() const
 
 bool ClashClient::commitSettings()
 {
-    if (m_tunPending) {
-        reportError(localized("Applying TUN settings, please wait."));
+    if (m_tunPending || m_startPending) {
+        reportError(localized("Applying settings, please wait."));
         return false;
     }
     auto failed = [this](const QDBusError &error) {
@@ -2718,9 +2718,10 @@ bool ClashClient::commitSettings()
             setBusy(false);
             const QDBusPendingReply<> reply = *call;
             if (!reply.isValid()) {
-                const QString message = reply.error().message().trimmed().isEmpty()
+                const QString translated = translateServiceError(reply.error().message());
+                const QString message = translated.trimmed().isEmpty()
                     ? localized("Applying TUN settings failed (no error message was returned).")
-                    : reply.error().message();
+                    : translated;
                 m_draftDirty = true;
                 Q_EMIT draftChanged();
                 reportError(message);
@@ -2768,11 +2769,26 @@ bool ClashClient::commitSettings()
             return failed(reply.error());
         }
     }
-    if (m_draftCoreDesired && !m_coreDesired) {
-        const QDBusReply<void> reply = m_iface->call(QStringLiteral("Start"));
-        if (!reply.isValid()) {
-            return failed(reply.error());
-        }
+    if (m_draftCoreDesired && !m_coreDesired && !m_tunPending) {
+        m_startPending = true;
+        setBusy(true);
+        auto *watcher = new QDBusPendingCallWatcher(m_iface->asyncCall(QStringLiteral("Start")), this);
+        connect(watcher, &QDBusPendingCallWatcher::finished, this, [this](QDBusPendingCallWatcher *call) {
+            call->deleteLater();
+            m_startPending = false;
+            setBusy(false);
+            const QDBusPendingReply<> reply = *call;
+            if (!reply.isValid()) {
+                const QString message = translateServiceError(reply.error().message());
+                m_draftDirty = true;
+                Q_EMIT draftChanged();
+                reportError(message);
+                Q_EMIT settingsFailed(message);
+            } else {
+                Q_EMIT settingsApplied();
+            }
+            refreshStatus();
+        });
     }
     m_draftDirty = false;
     refreshStatus();

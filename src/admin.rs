@@ -170,7 +170,7 @@ impl Admin {
         #[zbus(connection)] connection: &zbus::Connection,
     ) -> fdo::Result<String> {
         let (_, sender) = caller(&header, connection).await?;
-        allow(&sender, POLKIT_USERS, "查看已登录账户的 Mihomo").await?;
+        allow(&sender, POLKIT_USERS, "view signed-in accounts' Mihomo").await?;
         let mut users = Vec::new();
         for uid in privilege::signed_in_uids() {
             users.push(describe(uid).await);
@@ -186,7 +186,7 @@ impl Admin {
         uid: u32,
     ) -> fdo::Result<()> {
         let (_, sender) = caller(&header, connection).await?;
-        allow(&sender, POLKIT_USERS, "启动这个账户的 Mihomo").await?;
+        allow(&sender, POLKIT_USERS, "start this account's Mihomo").await?;
         bridge(uid, "Start")
             .await
             .map_err(crate::error::ServiceError::into_fdo)?;
@@ -201,7 +201,7 @@ impl Admin {
         uid: u32,
     ) -> fdo::Result<()> {
         let (_, sender) = caller(&header, connection).await?;
-        allow(&sender, POLKIT_USERS, "停止这个账户的 Mihomo").await?;
+        allow(&sender, POLKIT_USERS, "stop this account's Mihomo").await?;
         bridge(uid, "Stop")
             .await
             .map_err(crate::error::ServiceError::into_fdo)?;
@@ -215,7 +215,7 @@ impl Admin {
         #[zbus(connection)] connection: &zbus::Connection,
     ) -> fdo::Result<String> {
         let (_, sender) = caller(&header, connection).await?;
-        allow(&sender, POLKIT_USERS, "查看局域网开关").await?;
+        allow(&sender, POLKIT_USERS, "view the LAN switch").await?;
         #[derive(serde::Serialize)]
         struct Policy {
             global: bool,
@@ -249,7 +249,7 @@ impl Admin {
         enabled: bool,
     ) -> fdo::Result<()> {
         let (_, sender) = caller(&header, connection).await?;
-        allow(&sender, POLKIT_USERS, "设置整机是否允许局域网").await?;
+        allow(&sender, POLKIT_USERS, "set machine-wide LAN access").await?;
         crate::lan::set_global(&crate::lan::policy_dir(), enabled)
             .map_err(|error| crate::error::ServiceError::from_io(error).into_fdo())?;
         for uid in privilege::signed_in_uids() {
@@ -267,7 +267,7 @@ impl Admin {
         enabled: bool,
     ) -> fdo::Result<()> {
         let (_, sender) = caller(&header, connection).await?;
-        allow(&sender, POLKIT_USERS, "设置这个账户是否允许局域网").await?;
+        allow(&sender, POLKIT_USERS, "set this account's LAN access").await?;
         if !privilege::signed_in_uids().contains(&uid) {
             return Err(
                 crate::error::ServiceError::new(crate::error::codes::ACCOUNT_NOT_FOUND).into_fdo(),
