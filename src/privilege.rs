@@ -57,7 +57,12 @@ pub fn runtime_dir_for(account: &Account) -> PathBuf {
     account.home.join(".local/share/clash-kde/runtime")
 }
 
-pub fn judge_binary(canonical: &Path, uid: u32, mode: u32, allowed: &Path) -> Result<(), ServiceError> {
+pub fn judge_binary(
+    canonical: &Path,
+    uid: u32,
+    mode: u32,
+    allowed: &Path,
+) -> Result<(), ServiceError> {
     if canonical != allowed || uid != 0 || mode & 0o022 != 0 {
         return Err(ServiceError::new(codes::TUN_BINARY_NOT_SYSTEM));
     }
@@ -67,9 +72,8 @@ pub fn judge_binary(canonical: &Path, uid: u32, mode: u32, allowed: &Path) -> Re
 pub fn ensure_system_binary(path: &Path) -> Result<(), ServiceError> {
     let allowed = fs::canonicalize(SYSTEM_MIHOMO)
         .map_err(|_| ServiceError::new(codes::TUN_SYSTEM_BINARY_MISSING))?;
-    let canonical = fs::canonicalize(path).map_err(|error| {
-        ServiceError::new(codes::TUN_BINARY_MISSING).detail(error.to_string())
-    })?;
+    let canonical = fs::canonicalize(path)
+        .map_err(|error| ServiceError::new(codes::TUN_BINARY_MISSING).detail(error.to_string()))?;
     let meta = fs::metadata(&canonical).map_err(ServiceError::from_io)?;
     judge_binary(&canonical, meta.uid(), meta.mode(), &allowed)
 }
@@ -209,8 +213,7 @@ fn write_grant(root: &Path, uid: u32, scope: &str) -> io::Result<()> {
 }
 
 pub fn grant_scope(root: &Path, uid: u32) -> Result<&'static str, ServiceError> {
-    let text =
-        fs::read_to_string(stamp_path(root, uid))
+    let text = fs::read_to_string(stamp_path(root, uid))
         .map_err(|_| ServiceError::new(codes::TUN_NOT_AUTHORIZED))?;
     match text.trim() {
         "machine" => Ok("machine"),
@@ -245,7 +248,8 @@ pub fn enter_user(uid: u32, gid: u32, name: &str) -> io::Result<()> {
     // again afterwards.
     caps::set(None, caps::CapSet::Inheritable, &net).map_err(io::Error::other)?;
 
-    let c_name = std::ffi::CString::new(name).map_err(|_| io::Error::other("invalid account name"))?;
+    let c_name =
+        std::ffi::CString::new(name).map_err(|_| io::Error::other("invalid account name"))?;
     if unsafe { libc::initgroups(c_name.as_ptr(), gid) } != 0 {
         return Err(io::Error::last_os_error());
     }
@@ -267,7 +271,9 @@ pub fn enter_user(uid: u32, gid: u32, name: &str) -> io::Result<()> {
         .map_err(io::Error::other)?;
     let ambient = caps::read(None, caps::CapSet::Ambient).map_err(io::Error::other)?;
     if !net.is_subset(&ambient) {
-        return Err(io::Error::other("network capability was lost after switching accounts"));
+        return Err(io::Error::other(
+            "network capability was lost after switching accounts",
+        ));
     }
     caps::securebits::set_keepcaps(false).map_err(io::Error::other)?;
     Ok(())

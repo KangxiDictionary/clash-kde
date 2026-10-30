@@ -157,7 +157,6 @@ pub mod codes {
     pub const ADMIN_ROOT: &str = "admin.not_root";
     pub const TUN_SWITCH_ACCOUNT: &str = "tun.switch_failed";
     pub const TUN_ACCOUNT_NAME: &str = "tun.bad_account_name";
-
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -201,9 +200,7 @@ impl ServiceError {
     }
 
     pub fn into_fdo(self) -> zbus::fdo::Error {
-        zbus::fdo::Error::Failed(
-            serde_json::to_string(&self).expect("ServiceError serializes"),
-        )
+        zbus::fdo::Error::Failed(serde_json::to_string(&self).expect("ServiceError serializes"))
     }
 }
 
@@ -223,9 +220,8 @@ impl From<ServiceError> for zbus::fdo::Error {
 
 impl From<String> for ServiceError {
     fn from(error: String) -> Self {
-        serde_json::from_str::<ServiceError>(&error).unwrap_or_else(|_| {
-            ServiceError::new(codes::ERROR_LEGACY).detail(error)
-        })
+        serde_json::from_str::<ServiceError>(&error)
+            .unwrap_or_else(|_| ServiceError::new(codes::ERROR_LEGACY).detail(error))
     }
 }
 

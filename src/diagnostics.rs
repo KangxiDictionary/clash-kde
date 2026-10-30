@@ -23,7 +23,8 @@ use crate::tun::{self, TunOptions};
 
 pub fn run() -> Result<(), String> {
     let paths = Paths::from_env();
-    let settings = Settings::load(&paths).map_err(|error| format!("could not read settings: {error}"))?;
+    let settings =
+        Settings::load(&paths).map_err(|error| format!("could not read settings: {error}"))?;
     print!("{}", report(&paths, &settings));
     Ok(())
 }

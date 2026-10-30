@@ -456,11 +456,15 @@ pub fn rules_from_csv(text: &str) -> Result<Vec<OwnRule>, ServiceError> {
             row.as_slice()
         };
         if row.len() != 4 {
-            return Err(ServiceError::new(codes::RULES_CSV_ROW).param("row", (index + 1).to_string()));
+            return Err(
+                ServiceError::new(codes::RULES_CSV_ROW).param("row", (index + 1).to_string())
+            );
         }
         let kind = row[0].trim().to_ascii_uppercase();
         if !KINDS.contains(&kind.as_str()) {
-            return Err(ServiceError::new(codes::RULES_ROW_PREFIX).param("row", (index + 1).to_string()).param("inner_code", codes::RULES_KIND));
+            return Err(ServiceError::new(codes::RULES_ROW_PREFIX)
+                .param("row", (index + 1).to_string())
+                .param("inner_code", codes::RULES_KIND));
         }
         let enabled = match row[3].trim().to_ascii_lowercase().as_str() {
             "true" | "yes" | "1" => true,
@@ -509,7 +513,9 @@ fn parse_table(text: &str, delimiter: char) -> Result<Vec<Vec<String>>, ServiceE
         }
         if ch == '"' {
             if !field.is_empty() || quoted {
-                return Err(ServiceError::new(codes::RULES_CSV_ROW).param("row", rows.len().to_string()));
+                return Err(
+                    ServiceError::new(codes::RULES_CSV_ROW).param("row", rows.len().to_string())
+                );
             }
             in_quotes = true;
             quoted = true;
@@ -532,7 +538,9 @@ fn parse_table(text: &str, delimiter: char) -> Result<Vec<Vec<String>>, ServiceE
         field.push(ch);
     }
     if in_quotes {
-        return Err(ServiceError::new(codes::RULES_CSV_ROW).param("row", rows.len().max(1).to_string()));
+        return Err(
+            ServiceError::new(codes::RULES_CSV_ROW).param("row", rows.len().max(1).to_string())
+        );
     }
     if !field.is_empty() || !row.is_empty() {
         row.push(field);
@@ -650,7 +658,10 @@ mod tests {
 
     #[test]
     fn a_bad_csv_is_rejected() {
-        assert_eq!(rules_from_csv("a,b\n").unwrap_err().code, codes::RULES_CSV_HEADER);
+        assert_eq!(
+            rules_from_csv("a,b\n").unwrap_err().code,
+            codes::RULES_CSV_HEADER
+        );
         assert!(rules_from_csv("type,payload,target,enabled\nNOPE,a,DIRECT,true\n").is_err());
         assert!(rules_from_csv("type,payload,target,enabled\n\"DOMAIN,DIRECT,true\n").is_err());
     }

@@ -241,7 +241,10 @@ pub fn load_notes(paths: &Paths) -> BTreeMap<String, String> {
     serde_json::from_str(&text).unwrap_or_default()
 }
 
-pub fn save_notes(paths: &Paths, notes: &BTreeMap<String, String>) -> Result<(), crate::error::ServiceError> {
+pub fn save_notes(
+    paths: &Paths,
+    notes: &BTreeMap<String, String>,
+) -> Result<(), crate::error::ServiceError> {
     let clean: BTreeMap<String, String> = notes
         .iter()
         .filter_map(|(key, value)| {
@@ -289,14 +292,23 @@ pub fn ensure_secret(settings: &mut Settings) -> bool {
     true
 }
 
-pub fn validate_ports(mixed_port: u32, controller_port: u32) -> Result<(u16, u16), crate::error::ServiceError> {
-    let mixed = u16::try_from(mixed_port).map_err(|_| crate::error::ServiceError::new(crate::error::codes::SETTINGS_PORT_INVALID))?;
-    let controller = u16::try_from(controller_port).map_err(|_| crate::error::ServiceError::new(crate::error::codes::SETTINGS_PORT_INVALID))?;
+pub fn validate_ports(
+    mixed_port: u32,
+    controller_port: u32,
+) -> Result<(u16, u16), crate::error::ServiceError> {
+    let mixed = u16::try_from(mixed_port)
+        .map_err(|_| crate::error::ServiceError::new(crate::error::codes::SETTINGS_PORT_INVALID))?;
+    let controller = u16::try_from(controller_port)
+        .map_err(|_| crate::error::ServiceError::new(crate::error::codes::SETTINGS_PORT_INVALID))?;
     if mixed == 0 || controller == 0 {
-        return Err(crate::error::ServiceError::new(crate::error::codes::SETTINGS_PORT_INVALID));
+        return Err(crate::error::ServiceError::new(
+            crate::error::codes::SETTINGS_PORT_INVALID,
+        ));
     }
     if mixed == controller {
-        return Err(crate::error::ServiceError::new(crate::error::codes::SETTINGS_PORT_SAME));
+        return Err(crate::error::ServiceError::new(
+            crate::error::codes::SETTINGS_PORT_SAME,
+        ));
     }
     Ok((mixed, controller))
 }
@@ -304,7 +316,9 @@ pub fn validate_ports(mixed_port: u32, controller_port: u32) -> Result<(u16, u16
 pub fn normalize_mode(mode: &str) -> Result<String, crate::error::ServiceError> {
     match mode {
         "rule" | "global" | "direct" => Ok(mode.to_string()),
-        _ => Err(crate::error::ServiceError::new(crate::error::codes::SETTINGS_MODE_INVALID)),
+        _ => Err(crate::error::ServiceError::new(
+            crate::error::codes::SETTINGS_MODE_INVALID,
+        )),
     }
 }
 
@@ -318,7 +332,9 @@ pub fn normalize_tun_device(name: &str) -> Result<String, crate::error::ServiceE
             .chars()
             .all(|ch| ch.is_ascii_alphanumeric() || ch == '_' || ch == '-');
     if !ok {
-        return Err(crate::error::ServiceError::new(crate::error::codes::SETTINGS_TUN_DEVICE_INVALID));
+        return Err(crate::error::ServiceError::new(
+            crate::error::codes::SETTINGS_TUN_DEVICE_INVALID,
+        ));
     }
     Ok(name.to_string())
 }
@@ -332,20 +348,29 @@ pub fn effective_override(paths: &Paths, stored: &str) -> PathBuf {
     }
 }
 
-pub fn normalize_override_path(paths: &Paths, text: &str) -> Result<String, crate::error::ServiceError> {
+pub fn normalize_override_path(
+    paths: &Paths,
+    text: &str,
+) -> Result<String, crate::error::ServiceError> {
     let text = text.trim();
     if text.is_empty() {
         return Ok(String::new());
     }
     let path = PathBuf::from(text);
     if !path.is_absolute() {
-        return Err(crate::error::ServiceError::new(crate::error::codes::SETTINGS_OVERRIDE_ABSOLUTE));
+        return Err(crate::error::ServiceError::new(
+            crate::error::codes::SETTINGS_OVERRIDE_ABSOLUTE,
+        ));
     }
     if path.file_name().is_none_or(|name| name.is_empty()) {
-        return Err(crate::error::ServiceError::new(crate::error::codes::SETTINGS_OVERRIDE_FILENAME));
+        return Err(crate::error::ServiceError::new(
+            crate::error::codes::SETTINGS_OVERRIDE_FILENAME,
+        ));
     }
     if path.is_dir() {
-        return Err(crate::error::ServiceError::new(crate::error::codes::SETTINGS_OVERRIDE_IS_DIR));
+        return Err(crate::error::ServiceError::new(
+            crate::error::codes::SETTINGS_OVERRIDE_IS_DIR,
+        ));
     }
     if path == paths.override_file() {
         return Ok(String::new());

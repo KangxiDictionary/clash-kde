@@ -87,7 +87,10 @@ impl Admin {
         // This check only needs root to read the other accounts' configs;
         // fail before asking the user for a password.
         if privilege::other_personal_tun(uid) {
-            return Err(crate::error::ServiceError::new(crate::error::codes::TUN_ALREADY_OTHER_USER).into_fdo());
+            return Err(crate::error::ServiceError::new(
+                crate::error::codes::TUN_ALREADY_OTHER_USER,
+            )
+            .into_fdo());
         }
         allow(
             &sender,
@@ -134,7 +137,9 @@ impl Admin {
     ) -> fdo::Result<u32> {
         let (uid, _) = caller(&header, connection).await?;
         if !privilege::stamp_exists(Path::new(privilege::STAMP_DIR), uid) {
-            return Err(crate::error::ServiceError::new(crate::error::codes::TUN_NOT_AUTHORIZED).into_fdo());
+            return Err(
+                crate::error::ServiceError::new(crate::error::codes::TUN_NOT_AUTHORIZED).into_fdo(),
+            );
         }
         privilege::ensure_tun_launch(
             Path::new(&binary),
@@ -264,7 +269,9 @@ impl Admin {
         let (_, sender) = caller(&header, connection).await?;
         allow(&sender, POLKIT_USERS, "设置这个账户是否允许局域网").await?;
         if !privilege::signed_in_uids().contains(&uid) {
-            return Err(crate::error::ServiceError::new(crate::error::codes::ACCOUNT_NOT_FOUND).into_fdo());
+            return Err(
+                crate::error::ServiceError::new(crate::error::codes::ACCOUNT_NOT_FOUND).into_fdo(),
+            );
         }
         crate::lan::set_user(&crate::lan::policy_dir(), uid, enabled)
             .map_err(|error| crate::error::ServiceError::from_io(error).into_fdo())?;
@@ -326,7 +333,9 @@ pub async fn revoke_tun() -> Result<(), String> {
 pub async fn revoke_quickly() -> Result<(), String> {
     match tokio::time::timeout(Duration::from_millis(1200), revoke_tun()).await {
         Ok(result) => result,
-        Err(_) => Err(crate::error::ServiceError::new(crate::error::codes::TUN_REVOKE_TIMEOUT).into()),
+        Err(_) => {
+            Err(crate::error::ServiceError::new(crate::error::codes::TUN_REVOKE_TIMEOUT).into())
+        }
     }
 }
 
@@ -427,7 +436,9 @@ fn plain_dbus(error: &str) -> String {
 async fn caller(header: &Header<'_>, connection: &zbus::Connection) -> fdo::Result<(u32, String)> {
     let sender = header
         .sender()
-        .ok_or_else(|| crate::error::ServiceError::new(crate::error::codes::ADMIN_CALLER).into_fdo())?
+        .ok_or_else(|| {
+            crate::error::ServiceError::new(crate::error::codes::ADMIN_CALLER).into_fdo()
+        })?
         .to_string();
     let dbus = DBusProxy::new(connection)
         .await
@@ -438,9 +449,9 @@ async fn caller(header: &Header<'_>, connection: &zbus::Connection) -> fdo::Resu
         .get_connection_credentials(name)
         .await
         .map_err(|error| fdo::Error::Failed(error.to_string()))?;
-    let uid = creds
-        .unix_user_id()
-        .ok_or_else(|| crate::error::ServiceError::new(crate::error::codes::ADMIN_CALLER).into_fdo())?;
+    let uid = creds.unix_user_id().ok_or_else(|| {
+        crate::error::ServiceError::new(crate::error::codes::ADMIN_CALLER).into_fdo()
+    })?;
     Ok((uid, sender))
 }
 
@@ -506,26 +517,33 @@ async fn launch(
                 }
                 let text = text.trim();
                 if text.is_empty() {
-                    return Err(crate::error::ServiceError::new(crate::error::codes::BRIDGE_LAUNCH)
-                        .detail(format!("mihomo exited: {status}")));
+                    return Err(crate::error::ServiceError::new(
+                        crate::error::codes::BRIDGE_LAUNCH,
+                    )
+                    .detail(format!("mihomo exited: {status}")));
                 }
-                if let Ok(service_error) = serde_json::from_str::<crate::error::ServiceError>(text) {
+                if let Ok(service_error) = serde_json::from_str::<crate::error::ServiceError>(text)
+                {
                     return Err(service_error);
                 }
-                return Err(crate::error::ServiceError::new(crate::error::codes::BRIDGE_LAUNCH)
-                    .detail(text.to_string()));
+                return Err(
+                    crate::error::ServiceError::new(crate::error::codes::BRIDGE_LAUNCH)
+                        .detail(text.to_string()),
+                );
             }
             Ok(None) => tokio::time::sleep(Duration::from_millis(30)).await,
             Err(error) => {
-                return Err(crate::error::ServiceError::new(crate::error::codes::BRIDGE_LAUNCH)
-                    .detail(error.to_string()));
+                return Err(
+                    crate::error::ServiceError::new(crate::error::codes::BRIDGE_LAUNCH)
+                        .detail(error.to_string()),
+                );
             }
         }
     }
     drop(child.stderr.take());
-    let pid = child.id().ok_or_else(|| {
-        crate::error::ServiceError::new(crate::error::codes::CORE_NO_PID)
-    })?;
+    let pid = child
+        .id()
+        .ok_or_else(|| crate::error::ServiceError::new(crate::error::codes::CORE_NO_PID))?;
     Ok((pid, child))
 }
 
@@ -561,18 +579,25 @@ async fn bridge(uid: u32, action: &str) -> Result<String, crate::error::ServiceE
         .env("PATH", "/usr/bin:/bin")
         .output()
         .await
-        .map_err(|error| crate::error::ServiceError::new(crate::error::codes::BRIDGE_LAUNCH).detail(error.to_string()))?;
+        .map_err(|error| {
+            crate::error::ServiceError::new(crate::error::codes::BRIDGE_LAUNCH)
+                .detail(error.to_string())
+        })?;
     if !output.status.success() {
         let error = String::from_utf8_lossy(&output.stderr);
         let error = error.trim();
         if error.is_empty() {
-            return Err(crate::error::ServiceError::new(crate::error::codes::BRIDGE_SESSION));
+            return Err(crate::error::ServiceError::new(
+                crate::error::codes::BRIDGE_SESSION,
+            ));
         }
         if let Ok(service_error) = serde_json::from_str::<crate::error::ServiceError>(error) {
             return Err(service_error);
         }
-        return Err(crate::error::ServiceError::new(crate::error::codes::BRIDGE_SESSION)
-            .detail(error.to_string()));
+        return Err(
+            crate::error::ServiceError::new(crate::error::codes::BRIDGE_SESSION)
+                .detail(error.to_string()),
+        );
     }
     Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
 }

@@ -6,8 +6,8 @@ use std::process::ExitCode;
 use serde::Serialize;
 use zbus::fdo::DBusProxy;
 
-use crate::paths::Paths;
 use crate::error::{ServiceError, codes};
+use crate::paths::Paths;
 use crate::privilege::{self, Account};
 use crate::state::Settings;
 
@@ -57,8 +57,8 @@ fn switch_account(uid: u32) -> Result<(), ServiceError> {
     }
     let account = privilege::lookup_account(uid)?;
     if current == 0 {
-        let c_name =
-            std::ffi::CString::new(account.name.clone()).map_err(|_| ServiceError::new(codes::TUN_ACCOUNT_NAME))?;
+        let c_name = std::ffi::CString::new(account.name.clone())
+            .map_err(|_| ServiceError::new(codes::TUN_ACCOUNT_NAME))?;
         if unsafe { libc::initgroups(c_name.as_ptr(), account.gid) } != 0 {
             return Err(ServiceError::new(codes::BRIDGE_SWITCH));
         }

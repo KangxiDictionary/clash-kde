@@ -42,7 +42,9 @@ impl CoreProcess {
                     .param("binary", binary.display().to_string())
                     .detail(error.to_string())
             })?;
-        let pid = child.id().ok_or_else(|| ServiceError::new(codes::CORE_NO_PID))?;
+        let pid = child
+            .id()
+            .ok_or_else(|| ServiceError::new(codes::CORE_NO_PID))?;
         Ok(Self {
             child: Some(child),
             pid,

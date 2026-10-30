@@ -9,9 +9,9 @@ use serde::{Deserialize, Serialize};
 use serde_yaml::{Mapping, Value};
 
 use crate::controller::{ProxyGroup, ProxyNode};
+use crate::error::{ServiceError, codes};
 use crate::paths::Paths;
 use crate::state::{Settings, write_private};
-use crate::error::{ServiceError, codes};
 use crate::tun::{self, TunOptions};
 
 const OVERRIDE_TEMPLATE: &str = "\
@@ -125,7 +125,8 @@ pub fn subscription_yaml(body: &str) -> Result<String, ServiceError> {
             base64::Engine::decode(&base64::engine::general_purpose::URL_SAFE_NO_PAD, &compact)
         })
         .map_err(|_| ServiceError::new(codes::PROFILE_YAML_INVALID))?;
-    let text = String::from_utf8(bytes).map_err(|_| ServiceError::new(codes::PROFILE_YAML_INVALID))?;
+    let text =
+        String::from_utf8(bytes).map_err(|_| ServiceError::new(codes::PROFILE_YAML_INVALID))?;
     let text = text.trim().trim_start_matches('\u{feff}');
     if parse_mapping(text).is_none() {
         return Err(ServiceError::new(codes::PROFILE_YAML_INVALID));
@@ -222,7 +223,9 @@ pub fn load_override(path: &Path) -> Result<Value, ServiceError> {
         Ok(Value::Null) => Ok(Value::Mapping(Mapping::new())),
         Ok(value) if value.as_mapping().is_some() => Ok(value),
         Ok(_) => Err(ServiceError::new(codes::PROFILE_OVERRIDE_MAPPING)),
-        Err(error) => Err(ServiceError::new(codes::PROFILE_OVERRIDE_PARSE).detail(error.to_string())),
+        Err(error) => {
+            Err(ServiceError::new(codes::PROFILE_OVERRIDE_PARSE).detail(error.to_string()))
+        }
     }
 }
 
@@ -403,9 +406,9 @@ pub fn write_runtime_config(paths: &Paths, settings: &Settings) -> Result<(), Se
         }
         tracing::info!("没有 MMDB，使用 geoip.dat/geosite.dat 作为地理数据");
     }
-    let text =
-        serde_yaml::to_string(&config)
-        .map_err(|error| ServiceError::new(codes::PROFILE_RUNTIME_WRITE).detail(error.to_string()))?;
+    let text = serde_yaml::to_string(&config).map_err(|error| {
+        ServiceError::new(codes::PROFILE_RUNTIME_WRITE).detail(error.to_string())
+    })?;
     fs::create_dir_all(paths.runtime_dir()).map_err(ServiceError::from_io)?;
     write_private(&paths.runtime_config(), text.as_bytes()).map_err(ServiceError::from_io)
 }
@@ -464,7 +467,11 @@ pub fn remove_route(body: &str, name: &str) -> Result<String, ServiceError> {
     })
 }
 
-pub fn update_route(body: &str, previous: &str, fields: &RouteFields) -> Result<String, ServiceError> {
+pub fn update_route(
+    body: &str,
+    previous: &str,
+    fields: &RouteFields,
+) -> Result<String, ServiceError> {
     let previous = previous.trim().to_string();
     if previous.is_empty() || reserved_route(&previous) {
         return Err(ServiceError::new(codes::PROFILE_ROUTE_NOT_EDITABLE));
@@ -570,7 +577,11 @@ fn sequence_item<'a>(document: &'a Value, key: &str, index: usize) -> Option<&'a
         .get(index)
 }
 
-pub fn restore_profile_rule(working: &str, snapshot: &str, index: usize) -> Result<String, ServiceError> {
+pub fn restore_profile_rule(
+    working: &str,
+    snapshot: &str,
+    index: usize,
+) -> Result<String, ServiceError> {
     let snapshot_value = decode_subscription(snapshot)?;
     let original = snapshot_value
         .as_mapping()

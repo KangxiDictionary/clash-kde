@@ -503,11 +503,15 @@ impl App {
             return Err(ServiceError::new(codes::SETTINGS_MIHOMO_EMPTY).into());
         }
         if mihomo_path.chars().count() > 1024 {
-            return Err(ServiceError::new(codes::SETTINGS_MIHOMO_TOO_LONG).param("limit", "1024").into());
+            return Err(ServiceError::new(codes::SETTINGS_MIHOMO_TOO_LONG)
+                .param("limit", "1024")
+                .into());
         }
         let tun_device = state::normalize_tun_device(&tun_device)?;
         if override_path.chars().count() > 4096 {
-            return Err(ServiceError::new(codes::SETTINGS_OVERRIDE_TOO_LONG).param("limit", "4096").into());
+            return Err(ServiceError::new(codes::SETTINGS_OVERRIDE_TOO_LONG)
+                .param("limit", "4096")
+                .into());
         }
         let override_path = state::normalize_override_path(&self.paths, &override_path)?;
         let effective = state::effective_override(&self.paths, &override_path);
@@ -556,7 +560,9 @@ impl App {
     pub async fn add_subscription(&self, name: String, url: String) -> Result<String, String> {
         let url = url.trim().to_string();
         if url.chars().count() > 2048 {
-            return Err(ServiceError::new(codes::PROFILE_URL_TOO_LONG).param("limit", "2048").into());
+            return Err(ServiceError::new(codes::PROFILE_URL_TOO_LONG)
+                .param("limit", "2048")
+                .into());
         }
         if !(url.starts_with("http://") || url.starts_with("https://")) {
             return Err(ServiceError::new(codes::PROFILE_URL_SCHEME).into());
@@ -564,7 +570,9 @@ impl App {
         let name = {
             let trimmed = name.trim();
             if trimmed.chars().count() > 128 {
-                return Err(ServiceError::new(codes::PROFILE_NAME_TOO_LONG).param("limit", "128").into());
+                return Err(ServiceError::new(codes::PROFILE_NAME_TOO_LONG)
+                    .param("limit", "128")
+                    .into());
             }
             if trimmed.is_empty() {
                 url.clone()
@@ -645,7 +653,8 @@ impl App {
                     self.set_message(error).await;
                 }
                 self.withdraw_proxy().await;
-                self.set_message(ServiceError::new(codes::PROFILE_NOT_FOUND).into()).await;
+                self.set_message(ServiceError::new(codes::PROFILE_NOT_FOUND).into())
+                    .await;
                 self.emit(Event::Status);
             }
             None => self.emit(Event::Status),
@@ -824,7 +833,11 @@ impl App {
     }
 
     pub async fn close_connection(&self, id: &str) -> Result<(), String> {
-        self.running_controller().await?.close_connection(id).await.map_err(String::from)
+        self.running_controller()
+            .await?
+            .close_connection(id)
+            .await
+            .map_err(String::from)
     }
 
     pub async fn close_all_connections(&self) -> Result<(), String> {
@@ -1319,10 +1332,14 @@ impl App {
             return Err(ServiceError::new(codes::PROFILE_NAME_EMPTY).into());
         }
         if name.chars().count() > 128 {
-            return Err(ServiceError::new(codes::PROFILE_NAME_TOO_LONG).param("limit", "128").into());
+            return Err(ServiceError::new(codes::PROFILE_NAME_TOO_LONG)
+                .param("limit", "128")
+                .into());
         }
         if url.chars().count() > 2048 {
-            return Err(ServiceError::new(codes::PROFILE_URL_TOO_LONG).param("limit", "2048").into());
+            return Err(ServiceError::new(codes::PROFILE_URL_TOO_LONG)
+                .param("limit", "2048")
+                .into());
         }
         if !url.is_empty() && !(url.starts_with("http://") || url.starts_with("https://")) {
             return Err(ServiceError::new(codes::PROFILE_URL_SCHEME).into());
@@ -1341,8 +1358,9 @@ impl App {
     }
 
     pub async fn import_profile(&self, name: String, path: String) -> Result<String, String> {
-        let raw = std::fs::read_to_string(&path)
-            .map_err(|error| ServiceError::new(codes::PROFILE_IMPORT_READ).detail(error.to_string()))?;
+        let raw = std::fs::read_to_string(&path).map_err(|error| {
+            ServiceError::new(codes::PROFILE_IMPORT_READ).detail(error.to_string())
+        })?;
         let text = profile::subscription_yaml(&raw)?;
         let name = {
             let trimmed = name.trim();
@@ -1358,7 +1376,9 @@ impl App {
             }
         };
         if name.chars().count() > 128 {
-            return Err(ServiceError::new(codes::PROFILE_NAME_TOO_LONG).param("limit", "128").into());
+            return Err(ServiceError::new(codes::PROFILE_NAME_TOO_LONG)
+                .param("limit", "128")
+                .into());
         }
         let id = uuid::Uuid::new_v4().to_string();
         profile::write_profile_body(&self.paths, &id, &text)
@@ -1836,8 +1856,9 @@ impl App {
                         }
                         if let Ok(Some(status)) = process.try_wait() {
                             return Err(String::from(
-                                ServiceError::new(codes::CORE_EXITED)
-                                    .detail(format!("mihomo exited before TUN was ready: {status}")),
+                                ServiceError::new(codes::CORE_EXITED).detail(format!(
+                                    "mihomo exited before TUN was ready: {status}"
+                                )),
                             ));
                         }
                         if route_started.elapsed() >= Duration::from_secs(tun::ROUTE_GRACE_SECS) {
@@ -1876,9 +1897,9 @@ impl App {
             }
             if started.elapsed() >= limit {
                 tracing::error!("等待 mihomo 控制器超时 ({} 秒)", limit.as_secs());
-                return Err(String::from(
-                    ServiceError::new(codes::CORE_CONTROLLER_TIMEOUT),
-                ));
+                return Err(String::from(ServiceError::new(
+                    codes::CORE_CONTROLLER_TIMEOUT,
+                )));
             }
             let hint = core::startup_hint(&self.paths.core_log());
             let hint_json = String::from(hint.clone());
@@ -1897,8 +1918,6 @@ impl App {
             tokio::time::sleep(Duration::from_millis(50)).await;
         }
     }
-
-
 
     async fn launch_process(
         self: &Arc<Self>,
@@ -2238,8 +2257,7 @@ impl App {
             )
         };
         if proxy_settings::system_proxy_should_apply(enabled, running, tun) {
-            proxy_settings::apply_if_needed(&self.paths, port)
-                .map_err(ServiceError::from_io)?;
+            proxy_settings::apply_if_needed(&self.paths, port).map_err(ServiceError::from_io)?;
             self.inner.lock().await.system_proxy_applied = true;
         } else {
             self.withdraw_proxy().await;

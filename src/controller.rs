@@ -63,7 +63,8 @@ impl Controller {
         if response.status().is_success() {
             Ok(())
         } else {
-            Err(ServiceError::new(codes::CONTROLLER_MODE).detail(format!("HTTP {}", response.status())))
+            Err(ServiceError::new(codes::CONTROLLER_MODE)
+                .detail(format!("HTTP {}", response.status())))
         }
     }
 
@@ -74,11 +75,14 @@ impl Controller {
             .json(&json!({ "name": name }))
             .send()
             .await
-            .map_err(|error| ServiceError::new(codes::CONTROLLER_SELECT).detail(error.to_string()))?;
+            .map_err(|error| {
+                ServiceError::new(codes::CONTROLLER_SELECT).detail(error.to_string())
+            })?;
         if response.status().is_success() {
             Ok(())
         } else {
-            Err(ServiceError::new(codes::CONTROLLER_SELECT).detail(format!("HTTP {}", response.status())))
+            Err(ServiceError::new(codes::CONTROLLER_SELECT)
+                .detail(format!("HTTP {}", response.status())))
         }
     }
 
@@ -88,14 +92,16 @@ impl Controller {
             .get(format!("{}/proxies", self.base))
             .send()
             .await
-            .map_err(|error| ServiceError::new(codes::CONTROLLER_READ_GROUPS).detail(error.to_string()))?;
+            .map_err(|error| {
+                ServiceError::new(codes::CONTROLLER_READ_GROUPS).detail(error.to_string())
+            })?;
         if !response.status().is_success() {
-            return Err(ServiceError::new(codes::CONTROLLER_READ_GROUPS).detail(format!("HTTP {}", response.status())));
+            return Err(ServiceError::new(codes::CONTROLLER_READ_GROUPS)
+                .detail(format!("HTTP {}", response.status())));
         }
-        let body: Value = response
-            .json()
-            .await
-            .map_err(|error| ServiceError::new(codes::CONTROLLER_PARSE_GROUPS).detail(error.to_string()))?;
+        let body: Value = response.json().await.map_err(|error| {
+            ServiceError::new(codes::CONTROLLER_PARSE_GROUPS).detail(error.to_string())
+        })?;
         Ok(parse_groups(&body))
     }
 
@@ -130,9 +136,12 @@ impl Controller {
             .get(format!("{}/traffic", self.base))
             .send()
             .await
-            .map_err(|error| ServiceError::new(codes::CONTROLLER_READ_TRAFFIC).detail(error.to_string()))?;
+            .map_err(|error| {
+                ServiceError::new(codes::CONTROLLER_READ_TRAFFIC).detail(error.to_string())
+            })?;
         if !response.status().is_success() {
-            return Err(ServiceError::new(codes::CONTROLLER_READ_TRAFFIC).detail(format!("HTTP {}", response.status())));
+            return Err(ServiceError::new(codes::CONTROLLER_READ_TRAFFIC)
+                .detail(format!("HTTP {}", response.status())));
         }
         Ok(response.bytes_stream())
     }
@@ -143,14 +152,16 @@ impl Controller {
             .get(format!("{}/connections", self.base))
             .send()
             .await
-            .map_err(|error| ServiceError::new(codes::CONTROLLER_READ_CONNECTIONS).detail(error.to_string()))?;
+            .map_err(|error| {
+                ServiceError::new(codes::CONTROLLER_READ_CONNECTIONS).detail(error.to_string())
+            })?;
         if !response.status().is_success() {
-            return Err(ServiceError::new(codes::CONTROLLER_READ_CONNECTIONS).detail(format!("HTTP {}", response.status())));
+            return Err(ServiceError::new(codes::CONTROLLER_READ_CONNECTIONS)
+                .detail(format!("HTTP {}", response.status())));
         }
-        let body: Value = response
-            .json()
-            .await
-            .map_err(|error| ServiceError::new(codes::CONTROLLER_PARSE_CONNECTIONS).detail(error.to_string()))?;
+        let body: Value = response.json().await.map_err(|error| {
+            ServiceError::new(codes::CONTROLLER_PARSE_CONNECTIONS).detail(error.to_string())
+        })?;
         Ok(parse_connections(&body))
     }
 
@@ -164,11 +175,14 @@ impl Controller {
             .delete(format!("{}/connections/{}", self.base, path_segment(id)))
             .send()
             .await
-            .map_err(|error| ServiceError::new(codes::CONTROLLER_CLOSE_CONNECTION).detail(error.to_string()))?;
+            .map_err(|error| {
+                ServiceError::new(codes::CONTROLLER_CLOSE_CONNECTION).detail(error.to_string())
+            })?;
         if response.status().is_success() {
             Ok(())
         } else {
-            Err(ServiceError::new(codes::CONTROLLER_CLOSE_CONNECTION).detail(format!("HTTP {}", response.status())))
+            Err(ServiceError::new(codes::CONTROLLER_CLOSE_CONNECTION)
+                .detail(format!("HTTP {}", response.status())))
         }
     }
 
@@ -178,11 +192,14 @@ impl Controller {
             .delete(format!("{}/connections", self.base))
             .send()
             .await
-            .map_err(|error| ServiceError::new(codes::CONTROLLER_CLOSE_CONNECTION).detail(error.to_string()))?;
+            .map_err(|error| {
+                ServiceError::new(codes::CONTROLLER_CLOSE_CONNECTION).detail(error.to_string())
+            })?;
         if response.status().is_success() {
             Ok(())
         } else {
-            Err(ServiceError::new(codes::CONTROLLER_CLOSE_CONNECTION).detail(format!("HTTP {}", response.status())))
+            Err(ServiceError::new(codes::CONTROLLER_CLOSE_CONNECTION)
+                .detail(format!("HTTP {}", response.status())))
         }
     }
 
@@ -204,14 +221,16 @@ impl Controller {
             .get(format!("{}/providers/{kind}", self.base))
             .send()
             .await
-            .map_err(|error| ServiceError::new(codes::CONTROLLER_READ_PROVIDERS).detail(error.to_string()))?;
+            .map_err(|error| {
+                ServiceError::new(codes::CONTROLLER_READ_PROVIDERS).detail(error.to_string())
+            })?;
         if !response.status().is_success() {
-            return Err(ServiceError::new(codes::CONTROLLER_READ_PROVIDERS).detail(format!("HTTP {}", response.status())));
+            return Err(ServiceError::new(codes::CONTROLLER_READ_PROVIDERS)
+                .detail(format!("HTTP {}", response.status())));
         }
-        let body: Value = response
-            .json()
-            .await
-            .map_err(|error| ServiceError::new(codes::CONTROLLER_PARSE_PROVIDERS).detail(error.to_string()))?;
+        let body: Value = response.json().await.map_err(|error| {
+            ServiceError::new(codes::CONTROLLER_PARSE_PROVIDERS).detail(error.to_string())
+        })?;
         Ok(parse_providers(&body, count))
     }
 
@@ -237,11 +256,14 @@ impl Controller {
             ))
             .send()
             .await
-            .map_err(|error| ServiceError::new(codes::CONTROLLER_UPDATE_PROVIDER).detail(error.to_string()))?;
+            .map_err(|error| {
+                ServiceError::new(codes::CONTROLLER_UPDATE_PROVIDER).detail(error.to_string())
+            })?;
         if response.status().is_success() {
             Ok(())
         } else {
-            Err(ServiceError::new(codes::CONTROLLER_UPDATE_PROVIDER).detail(format!("HTTP {}", response.status())))
+            Err(ServiceError::new(codes::CONTROLLER_UPDATE_PROVIDER)
+                .detail(format!("HTTP {}", response.status())))
         }
     }
 }
@@ -526,13 +548,12 @@ pub async fn fetch_subscription(url: &str) -> Result<SubscriptionDocument, Servi
         .redirect(reqwest::redirect::Policy::limited(10))
         .build()
         .map_err(|error| error.to_string())?;
-    let response = client
-        .get(url)
-        .send()
-        .await
-        .map_err(|error| ServiceError::new(codes::CONTROLLER_SUBSCRIPTION_DOWNLOAD).detail(error.to_string()))?;
+    let response = client.get(url).send().await.map_err(|error| {
+        ServiceError::new(codes::CONTROLLER_SUBSCRIPTION_DOWNLOAD).detail(error.to_string())
+    })?;
     if !response.status().is_success() {
-        return Err(ServiceError::new(codes::CONTROLLER_SUBSCRIPTION_DOWNLOAD).detail(format!("HTTP {}", response.status())));
+        return Err(ServiceError::new(codes::CONTROLLER_SUBSCRIPTION_DOWNLOAD)
+            .detail(format!("HTTP {}", response.status())));
     }
     let usage = response
         .headers()
@@ -540,10 +561,9 @@ pub async fn fetch_subscription(url: &str) -> Result<SubscriptionDocument, Servi
         .and_then(|value| value.to_str().ok())
         .map(parse_subscription_userinfo)
         .unwrap_or_default();
-    let body = response
-        .text()
-        .await
-        .map_err(|error| ServiceError::new(codes::CONTROLLER_SUBSCRIPTION_READ).detail(error.to_string()))?;
+    let body = response.text().await.map_err(|error| {
+        ServiceError::new(codes::CONTROLLER_SUBSCRIPTION_READ).detail(error.to_string())
+    })?;
     Ok(SubscriptionDocument { body, usage })
 }
 
@@ -628,14 +648,16 @@ fn region_client(probe: RegionProbe) -> Result<Client, ServiceError> {
     let builder = match probe {
         RegionProbe::Direct => builder.no_proxy(),
         RegionProbe::Proxy(port) => {
-            let proxy = reqwest::Proxy::all(format!("http://127.0.0.1:{port}"))
-                .map_err(|error| ServiceError::new(codes::CONTROLLER_REGION_PROXY).detail(error.to_string()))?;
+            let proxy =
+                reqwest::Proxy::all(format!("http://127.0.0.1:{port}")).map_err(|error| {
+                    ServiceError::new(codes::CONTROLLER_REGION_PROXY).detail(error.to_string())
+                })?;
             builder.proxy(proxy)
         }
     };
-    builder
-        .build()
-        .map_err(|error| ServiceError::new(codes::CONTROLLER_REGION_PROXY).detail(error.to_string()))
+    builder.build().map_err(|error| {
+        ServiceError::new(codes::CONTROLLER_REGION_PROXY).detail(error.to_string())
+    })
 }
 
 pub async fn lookup_exit_region(probe: RegionProbe) -> Result<String, ServiceError> {
@@ -660,18 +682,16 @@ pub async fn lookup_exit_region(probe: RegionProbe) -> Result<String, ServiceErr
 }
 
 async fn fetch_region(client: &Client, url: &str) -> Result<String, ServiceError> {
-    let response = client
-        .get(url)
-        .send()
-        .await
-        .map_err(|error| ServiceError::new(codes::CONTROLLER_REGION_FAILED).detail(error.to_string()))?;
+    let response = client.get(url).send().await.map_err(|error| {
+        ServiceError::new(codes::CONTROLLER_REGION_FAILED).detail(error.to_string())
+    })?;
     if !response.status().is_success() {
-        return Err(ServiceError::new(codes::CONTROLLER_REGION_HTTP).detail(format!("HTTP {}", response.status())));
+        return Err(ServiceError::new(codes::CONTROLLER_REGION_HTTP)
+            .detail(format!("HTTP {}", response.status())));
     }
-    let body: Value = response
-        .json()
-        .await
-        .map_err(|error| ServiceError::new(codes::CONTROLLER_REGION_PARSE).detail(error.to_string()))?;
+    let body: Value = response.json().await.map_err(|error| {
+        ServiceError::new(codes::CONTROLLER_REGION_PARSE).detail(error.to_string())
+    })?;
     describe_region(&body).ok_or_else(|| ServiceError::new(codes::CONTROLLER_REGION_EMPTY))
 }
 
