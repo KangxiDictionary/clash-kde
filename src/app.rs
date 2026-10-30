@@ -305,7 +305,7 @@ impl App {
         if desired {
             tracing::info!("restoring the previous core state");
             if let Err(error) = self.spawn_core().await {
-                tracing::error!("could not restore the core: {error}");
+                tracing::error!(code = codes::CORE_RESTORE_FAILED, detail = %error, "could not restore the core");
             }
         } else {
             self.set_phase(PHASE_STOPPED).await;
@@ -746,7 +746,7 @@ impl App {
         let controller = Controller::new(port, &secret);
         for (group, name) in &selections {
             if let Err(error) = controller.select_proxy(group, name).await {
-                tracing::warn!("{error}");
+                tracing::warn!(code = codes::CONTROLLER_SELECT, detail = %error, "could not apply the proxy selection");
             }
         }
         self.emit(Event::Proxies);
@@ -1580,7 +1580,7 @@ impl App {
             inner.tun_route_checked_at = profile::now_unix();
             if changed {
                 if health.known && !health.ready {
-                    tracing::warn!("TUN policy route is missing: {detail}");
+                    tracing::warn!(code = codes::TUN_ROUTE_DEGRADED, detail = %detail, "TUN policy route is missing");
                 } else if health.known && !previous_ready {
                     tracing::info!("TUN policy route recovered: {detail}");
                 }
@@ -1773,6 +1773,7 @@ impl App {
             "dat" => tracing::info!("no local MMDB; using geoip.dat/geosite.dat"),
             "download" => {
                 tracing::warn!(
+                    code = codes::CORE_GEODATA_DOWNLOADING,
                     "no usable local geodata; mihomo may download MMDB/GeoSite on first start"
                 )
             }
@@ -1799,13 +1800,13 @@ impl App {
         } else {
             error
         };
-        tracing::error!("core failed to start: {error}");
+        tracing::error!(code = codes::CORE_START_FAILED, detail = %error, "core failed to start");
         // resolve_binary/write_runtime_config can fail before the old process
         // is stopped. Tear it down first so a failed restart cannot leave a
         // running core behind a "failed" status.
         self.withdraw_proxy().await;
         if let Err(stop_error) = self.stop_process().await {
-            tracing::warn!("could not stop the old core: {stop_error}");
+            tracing::warn!(code = codes::CORE_STOP_FAILED, detail = %stop_error, "could not stop the old core");
         }
         self.set_message(error.clone()).await;
         self.set_phase(PHASE_FAILED).await;
@@ -1832,7 +1833,7 @@ impl App {
                 if let Some(error) = core::tun_listen_error(&self.paths.core_log()) {
                     let tun = self.inner.lock().await.settings.tun_enabled;
                     if tun {
-                        tracing::error!("TUN failed to start: {error}");
+                        tracing::error!(code = codes::CORE_TUN_LISTEN, detail = %error, "TUN failed to start");
                         return Err(String::from(
                             ServiceError::new(codes::CORE_TUN_LISTEN).detail(error),
                         ));
@@ -1852,7 +1853,7 @@ impl App {
                         let health = probe_health(options.clone()).await;
                         if health.ready {
                             if !health.known {
-                                tracing::warn!("TUN route was not verified: {}", health.detail);
+                                tracing::warn!(code = codes::TUN_ROUTE_UNKNOWN, detail = %health.detail, "TUN route was not verified");
                             }
                             let mut inner = self.inner.lock().await;
                             inner.tun_route_ready = true;
@@ -1873,8 +1874,9 @@ impl App {
                             // dedicated table has no default route. Keep the core running and
                             // let the periodic health check clear or report the degraded state.
                             tracing::warn!(
-                                "TUN route is not ready (degraded): {}; if the mihomo device is not {expected}, set tun_device",
-                                health.detail
+                                code = codes::TUN_ROUTE_DEGRADED,
+                                detail = %health.detail,
+                                "TUN route is not ready (degraded); set tun_device if the mihomo device is not {expected}"
                             );
                             let mut inner = self.inner.lock().await;
                             inner.tun_route_ready = false;
@@ -1890,7 +1892,7 @@ impl App {
             }
             match process.try_wait() {
                 Ok(Some(status)) => {
-                    tracing::error!("mihomo exited before the controller became ready: {status}");
+                    tracing::error!(code = codes::CORE_EXITED, detail = %status, "mihomo exited before the controller became ready");
                     return Err(String::from(
                         ServiceError::new(codes::CORE_EXITED).detail(status.to_string()),
                     ));
@@ -1904,6 +1906,7 @@ impl App {
             }
             if started.elapsed() >= limit {
                 tracing::error!(
+                    code = codes::CORE_CONTROLLER_TIMEOUT,
                     "waiting for the mihomo controller timed out ({} seconds)",
                     limit.as_secs()
                 );
@@ -1959,7 +1962,7 @@ impl App {
             return Err(ServiceError::new(codes::CORE_CHECK).detail(error).into());
         }
         if let Err(error) = controller.set_mode(&settings.mode).await {
-            tracing::warn!("{error}");
+            tracing::warn!(code = codes::CONTROLLER_SELECT, detail = %error, "could not apply the proxy selection");
         }
         self.apply_saved_selections(&controller).await;
 
@@ -2105,7 +2108,7 @@ impl App {
             if group.nodes.iter().any(|node| &node.name == selected)
                 && let Err(error) = controller.select_proxy(&group.name, selected).await
             {
-                tracing::warn!("{error}");
+                tracing::warn!(code = codes::CONTROLLER_SELECT, detail = %error, "could not apply the proxy selection");
             }
         }
     }
@@ -2187,6 +2190,7 @@ impl App {
                     inner.restart_attempts += 1;
                     inner.phase = PHASE_STARTING.to_string();
                     tracing::warn!(
+                        code = codes::CORE_RESTART,
                         "core exited unexpectedly; retrying (attempt {})",
                         inner.restart_attempts
                     );
@@ -2198,6 +2202,7 @@ impl App {
                     inner.message_log_tail = core::log_tail(&self.paths.core_log());
                     inner.phase = PHASE_FAILED.to_string();
                     tracing::error!(
+                        code = codes::CORE_EXITED,
                         "core exited unexpectedly; stopped retrying: {}",
                         inner.message
                     );
@@ -2234,7 +2239,7 @@ impl App {
                 match proxy_settings::release_ownership(&self.paths, port) {
                     Ok(()) => true,
                     Err(error) => {
-                        tracing::error!("could not release the edited system proxy: {error}");
+                        tracing::error!(code = codes::PROXY_RELEASE_FAILED, detail = %error, "could not release the edited system proxy");
                         return;
                     }
                 }
@@ -2252,7 +2257,7 @@ impl App {
         inner.settings.system_proxy_enabled = false;
         inner.system_proxy_applied = false;
         if let Err(error) = inner.settings.save(&self.paths) {
-            tracing::error!("could not save the system-proxy preference: {error}");
+            tracing::error!(code = codes::PROXY_SAVE_FAILED, detail = %error, "could not save the system-proxy preference");
             return;
         }
         drop(inner);
@@ -2283,7 +2288,7 @@ impl App {
     async fn withdraw_proxy(&self) {
         let port = self.inner.lock().await.settings.mixed_port;
         if let Err(error) = proxy_settings::restore_if_applied(&self.paths, port) {
-            tracing::error!("could not restore the KDE proxy: {error}");
+            tracing::error!(code = codes::PROXY_RESTORE_FAILED, detail = %error, "could not restore the KDE proxy");
             return;
         }
         self.inner.lock().await.system_proxy_applied = false;

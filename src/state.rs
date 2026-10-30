@@ -184,11 +184,13 @@ impl Settings {
                 match fs::copy(path, &backup) {
                     Ok(_) => {
                         tracing::error!(
+                            code = crate::error::codes::SETTINGS_CONFIG_PARSE,
                             "could not parse the config; backed it up to {}: {error}",
                             backup.display()
                         )
                     }
                     Err(copy_error) => tracing::error!(
+                        code = crate::error::codes::SETTINGS_CONFIG_PARSE,
                         "could not back up the unreadable config to {} ({copy_error}): {error}",
                         backup.display()
                     ),

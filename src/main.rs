@@ -84,7 +84,7 @@ async fn async_main(args: Vec<String>) -> ExitCode {
         return match proxy_settings::restore_if_applied(&paths, port) {
             Ok(()) => ExitCode::SUCCESS,
             Err(error) => {
-                tracing::error!("{error}");
+                tracing::error!(code = crate::error::codes::CLI_RESTORE_PROXY, detail = %error, "proxy restore failed");
                 ExitCode::from(1)
             }
         };
@@ -94,7 +94,7 @@ async fn async_main(args: Vec<String>) -> ExitCode {
         return match admin::run().await {
             Ok(()) => ExitCode::SUCCESS,
             Err(error) => {
-                tracing::error!("{error}");
+                tracing::error!(code = crate::error::codes::CLI_ADMIN, detail = %error, "admin service failed");
                 ExitCode::from(1)
             }
         };
@@ -103,7 +103,7 @@ async fn async_main(args: Vec<String>) -> ExitCode {
     match dbus_api::run().await {
         Ok(()) => ExitCode::SUCCESS,
         Err(error) => {
-            tracing::error!("{error}");
+            tracing::error!(code = crate::error::codes::CLI_SESSION, detail = %error, "session service failed");
             ExitCode::from(1)
         }
     }

@@ -14,6 +14,8 @@ CODE = re.compile(r'pub const [A-Z0-9_]+: &str = "([^"]+)"')
 CPP_CODE = re.compile(r'code == QLatin1String\("([^"]+)"\)')
 PO_MSGID = re.compile(r'^msgid "((?:\\.|[^"\\])*)"', re.M)
 CPP_TEXT = re.compile(r'text\("((?:\\.|[^"\\])*)"\)')
+TRACING_SEVERE = re.compile(r'tracing::(warn|error)!\s*\((.*?)\)\s*;', re.S)
+CODE_FIELD = re.compile(r'code\s*=\s*(?:(?:crate::error::)?codes::([A-Z0-9_]+)|%[A-Za-z_][\w.]*\.code)')
 
 
 def rust_strings() -> list[tuple[str, int, str]]:
@@ -40,6 +42,19 @@ def tracing_texts() -> list[tuple[str, int, str]]:
         for number, line in enumerate(path.read_text().splitlines(), 1):
             if 'tracing::' in line and CN.search(line) and not line.strip().startswith('//'):
                 bad.append((str(path.relative_to(ROOT)), number, line.strip()))
+    return bad
+
+
+def tracing_without_codes() -> list[tuple[str, int, str]]:
+    bad: list[tuple[str, int, str]] = []
+    for path in sorted((ROOT / 'src').glob('*.rs')):
+        text = path.read_text()
+        for match in TRACING_SEVERE.finditer(text):
+            body = match.group(2)
+            if CODE_FIELD.search(body):
+                continue
+            line = text[: match.start()].count('\n') + 1
+            bad.append((str(path.relative_to(ROOT)), line, match.group(0).splitlines()[0]))
     return bad
 
 
@@ -71,6 +86,13 @@ def main() -> int:
         failed = True
         print('Rust user-visible strings with raw non-ASCII text:', file=sys.stderr)
         for path, number, line in bad:
+            print(f'  {path}:{number}: {line}', file=sys.stderr)
+
+    trace_codes = tracing_without_codes()
+    if trace_codes:
+        failed = True
+        print('tracing warn/error records must carry a code:', file=sys.stderr)
+        for path, number, line in trace_codes:
             print(f'  {path}:{number}: {line}', file=sys.stderr)
 
     logs = tracing_texts()

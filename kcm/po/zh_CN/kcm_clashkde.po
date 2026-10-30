@@ -1354,3 +1354,48 @@ msgstr "显示日志"
 
 msgid "Hide log"
 msgstr "隐藏日志"
+
+msgid "Could not restore the previous core state."
+msgstr "无法恢复上次的内核状态。"
+
+msgid "The core failed to start."
+msgstr "内核启动失败。"
+
+msgid "The old core could not be stopped."
+msgstr "无法停止旧内核。"
+
+msgid "The core exited unexpectedly; retrying."
+msgstr "内核意外退出，正在重试。"
+
+msgid "The geodata directory could not be prepared."
+msgstr "无法准备地理数据目录。"
+
+msgid "Geodata could not be copied."
+msgstr "无法复制地理数据。"
+
+msgid "The edited system proxy could not be released."
+msgstr "无法放开被改过的系统代理。"
+
+msgid "The KDE proxy could not be restored."
+msgstr "无法恢复 KDE 代理。"
+
+msgid "The system-proxy preference could not be saved."
+msgstr "无法保存系统代理开关。"
+
+msgid "The configuration could not be parsed."
+msgstr "配置文件无法解析。"
+
+msgid "The TUN policy route is not ready."
+msgstr "TUN 策略路由未就绪。"
+
+msgid "The TUN policy route could not be verified."
+msgstr "无法验证 TUN 策略路由。"
+
+msgid "The admin service failed."
+msgstr "管理服务失败。"
+
+msgid "The proxy restore command failed."
+msgstr "代理恢复命令失败。"
+
+msgid "The session service failed."
+msgstr "会话服务失败。"

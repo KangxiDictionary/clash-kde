@@ -155,6 +155,21 @@ pub mod codes {
     pub const POLKIT_DENIED: &str = "admin.polkit_denied";
     pub const ADMIN_CALLER: &str = "admin.caller_missing";
     pub const ADMIN_ROOT: &str = "admin.not_root";
+    pub const CORE_RESTORE_FAILED: &str = "core.restore_failed";
+    pub const CORE_START_FAILED: &str = "core.start_failed";
+    pub const CORE_STOP_FAILED: &str = "core.stop_failed";
+    pub const CORE_RESTART: &str = "core.restart";
+    pub const TUN_ROUTE_DEGRADED: &str = "tun.route_degraded";
+    pub const TUN_ROUTE_UNKNOWN: &str = "tun.route_unknown";
+    pub const GEODATA_PREPARE_FAILED: &str = "geodata.prepare_failed";
+    pub const GEODATA_COPY_FAILED: &str = "geodata.copy_failed";
+    pub const PROXY_RELEASE_FAILED: &str = "proxy.release_failed";
+    pub const PROXY_SAVE_FAILED: &str = "proxy.save_failed";
+    pub const PROXY_RESTORE_FAILED: &str = "proxy.restore_failed";
+    pub const CLI_RESTORE_PROXY: &str = "cli.restore_proxy";
+    pub const CLI_ADMIN: &str = "cli.admin";
+    pub const CLI_SESSION: &str = "cli.session";
+    pub const SETTINGS_CONFIG_PARSE: &str = "settings.config_parse";
     pub const TUN_SWITCH_ACCOUNT: &str = "tun.switch_failed";
     pub const TUN_ACCOUNT_NAME: &str = "tun.bad_account_name";
 }
