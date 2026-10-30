@@ -13,6 +13,7 @@ use tokio::task::AbortHandle;
 
 use crate::controller::{self, Controller};
 use crate::core::{self, CoreProcess};
+use crate::error::{ServiceError, codes};
 use crate::paths::Paths;
 use crate::profile::{self, Profile};
 use crate::proxy_settings;
@@ -436,7 +437,7 @@ impl App {
             Some(task) => match task.await {
                 Ok(Err(error)) => Some(error),
                 Ok(Ok(())) => None,
-                Err(_) => Some("无法撤销 TUN 授权".to_string()),
+                Err(_) => Some(ServiceError::new(codes::TUN_REVOKE_TIMEOUT).into()),
             },
             None => None,
         };
@@ -482,14 +483,14 @@ impl App {
         let (mixed_port, controller_port) = state::validate_ports(mixed_port, controller_port)?;
         let mihomo_path = mihomo_path.trim().to_string();
         if mihomo_path.is_empty() {
-            return Err("mihomo 路径不能为空".to_string());
+            return Err(ServiceError::new(codes::SETTINGS_MIHOMO_EMPTY).into());
         }
         if mihomo_path.chars().count() > 1024 {
-            return Err("mihomo 路径不能超过 1024 个字符".to_string());
+            return Err(ServiceError::new(codes::SETTINGS_MIHOMO_TOO_LONG).param("limit", "1024").into());
         }
         let tun_device = state::normalize_tun_device(&tun_device)?;
         if override_path.chars().count() > 4096 {
-            return Err("覆盖文件路径不能超过 4096 个字符".to_string());
+            return Err(ServiceError::new(codes::SETTINGS_OVERRIDE_TOO_LONG).param("limit", "4096").into());
         }
         let override_path = state::normalize_override_path(&self.paths, &override_path)?;
         let effective = state::effective_override(&self.paths, &override_path);
@@ -538,15 +539,15 @@ impl App {
     pub async fn add_subscription(&self, name: String, url: String) -> Result<String, String> {
         let url = url.trim().to_string();
         if url.chars().count() > 2048 {
-            return Err("订阅地址不能超过 2048 个字符".to_string());
+            return Err(ServiceError::new(codes::PROFILE_URL_TOO_LONG).param("limit", "2048").into());
         }
         if !(url.starts_with("http://") || url.starts_with("https://")) {
-            return Err("订阅地址需要以 http:// 或 https:// 开头".to_string());
+            return Err(ServiceError::new(codes::PROFILE_URL_SCHEME).into());
         }
         let name = {
             let trimmed = name.trim();
             if trimmed.chars().count() > 128 {
-                return Err("名称不能超过 128 个字符".to_string());
+                return Err(ServiceError::new(codes::PROFILE_NAME_TOO_LONG).param("limit", "128").into());
             }
             if trimmed.is_empty() {
                 url.clone()
@@ -593,7 +594,7 @@ impl App {
         let before = profiles.len();
         profiles.retain(|profile| profile.id != id);
         if profiles.len() == before {
-            return Err("找不到这个配置".to_string());
+            return Err(ServiceError::new(codes::PROFILE_NOT_FOUND).into());
         }
         profile::save_profiles(&self.paths, &profiles).map_err(|error| error.to_string())?;
         let _ = std::fs::remove_file(profile::profile_body_path(&self.paths, id));
@@ -627,7 +628,7 @@ impl App {
                     self.set_message(error).await;
                 }
                 self.withdraw_proxy().await;
-                self.set_message("没有选择配置".to_string()).await;
+                self.set_message(ServiceError::new(codes::PROFILE_NOT_FOUND).into()).await;
                 self.emit(Event::Status);
             }
             None => self.emit(Event::Status),
@@ -638,10 +639,10 @@ impl App {
     pub async fn update_profile(self: &Arc<Self>, id: &str) -> Result<(), String> {
         let profiles = profile::load_profiles(&self.paths);
         let Some(profile) = profiles.iter().find(|profile| profile.id == id) else {
-            return Err("找不到这个配置".to_string());
+            return Err(ServiceError::new(codes::PROFILE_NOT_FOUND).into());
         };
         if profile.url.is_empty() {
-            return Err("这个配置没有订阅地址".to_string());
+            return Err(ServiceError::new(codes::PROFILE_NO_URL).into());
         }
         let fetched = controller::fetch_subscription(&profile.url).await?;
         let text = profile::subscription_yaml(&fetched.body)?;
@@ -680,7 +681,7 @@ impl App {
         if !profile.is_empty() {
             let profiles = profile::load_profiles(&self.paths);
             if !profiles.iter().any(|item| item.id == profile) {
-                return Err("找不到这个配置".to_string());
+                return Err(ServiceError::new(codes::PROFILE_NOT_FOUND).into());
             }
         }
         let (profile_changed, running, port, secret) = {
@@ -732,7 +733,7 @@ impl App {
         speed_test_mib: i32,
     ) -> Result<(), String> {
         if !(1..=100).contains(&speed_test_mib) {
-            return Err("测速大小要在 1 到 100 MB 之间".to_string());
+            return Err(ServiceError::new(codes::SETTINGS_SPEED_RANGE).into());
         }
         {
             let mut inner = self.inner.lock().await;
@@ -898,7 +899,7 @@ impl App {
     pub async fn remove_own_rule(self: &Arc<Self>, index: u32) -> Result<(), String> {
         let mut rules = rules::load_rules(&rules::rules_file(&self.paths))?;
         if index as usize >= rules.len() {
-            return Err("没有这条规则".to_string());
+            return Err(ServiceError::new(codes::RULE_NOT_FOUND).into());
         }
         rules.remove(index as usize);
         self.store_own_rules(rules).await
@@ -919,7 +920,7 @@ impl App {
     async fn running_controller(&self) -> Result<Controller, String> {
         let (running, port, secret) = self.controller_endpoint().await;
         if !running {
-            return Err("内核没有在运行".to_string());
+            return Err(ServiceError::new(codes::CORE_NOT_RUNNING).into());
         }
         Ok(Controller::new(port, &secret))
     }
@@ -1060,10 +1061,10 @@ impl App {
     pub async fn restore_route(self: &Arc<Self>, id: &str, name: &str) -> Result<(), String> {
         let profiles = profile::load_profiles(&self.paths);
         let Some(profile) = profiles.iter().find(|profile| profile.id == id) else {
-            return Err("找不到这个配置".to_string());
+            return Err(ServiceError::new(codes::PROFILE_NOT_FOUND).into());
         };
         if profile.url.is_empty() {
-            return Err("这个配置没有订阅地址".to_string());
+            return Err(ServiceError::new(codes::PROFILE_NO_URL).into());
         }
         let snapshot = profile::read_subscription_body(&self.paths, id)?;
         let working = profile::read_profile_body(&self.paths, id)
@@ -1079,10 +1080,10 @@ impl App {
     ) -> Result<(), String> {
         let profiles = profile::load_profiles(&self.paths);
         let Some(profile) = profiles.iter().find(|profile| profile.id == id) else {
-            return Err("找不到这个配置".to_string());
+            return Err(ServiceError::new(codes::PROFILE_NOT_FOUND).into());
         };
         if profile.url.is_empty() {
-            return Err("这个配置没有订阅地址".to_string());
+            return Err(ServiceError::new(codes::PROFILE_NO_URL).into());
         }
         let snapshot = profile::read_subscription_body(&self.paths, id)?;
         let working = profile::read_profile_body(&self.paths, id)
@@ -1098,9 +1099,10 @@ impl App {
 
     pub async fn set_notes(&self, body: &str) -> Result<(), String> {
         if body.len() > 1_000_000 {
-            return Err("注释太大".to_string());
+            return Err(ServiceError::new(codes::SETTINGS_NOTES_TOO_LARGE).into());
         }
-        let notes = serde_json::from_str(body).map_err(|_| "注释无法解析".to_string())?;
+        let notes = serde_json::from_str(body)
+            .map_err(|_| String::from(ServiceError::new(codes::SETTINGS_NOTES_PARSE)))?;
         crate::state::save_notes(&self.paths, &notes)
     }
 
@@ -1153,7 +1155,7 @@ impl App {
     pub async fn set_active_profile(self: &Arc<Self>, id: &str) -> Result<(), String> {
         let profiles = profile::load_profiles(&self.paths);
         if !profiles.iter().any(|profile| profile.id == id) {
-            return Err("找不到这个配置".to_string());
+            return Err(ServiceError::new(codes::PROFILE_NOT_FOUND).into());
         }
         let restart = {
             let mut inner = self.inner.lock().await;
@@ -1186,7 +1188,7 @@ impl App {
     pub async fn select_proxy(self: &Arc<Self>, group: &str, name: &str) -> Result<(), String> {
         let (running, port, secret) = self.controller_endpoint().await;
         if !running {
-            return Err("内核没有在运行".to_string());
+            return Err(ServiceError::new(codes::CORE_NOT_RUNNING).into());
         }
         Controller::new(port, &secret)
             .select_proxy(group, name)
@@ -1223,12 +1225,12 @@ impl App {
     async fn probe_group_delay(&self, group: &str) -> Result<(), String> {
         let (running, port, secret) = self.controller_endpoint().await;
         if !running {
-            return Err("内核没有在运行".to_string());
+            return Err(ServiceError::new(codes::CORE_NOT_RUNNING).into());
         }
         let controller = Controller::new(port, &secret);
         let groups = controller.proxies().await?;
         let Some(found) = groups.into_iter().find(|item| item.name == group) else {
-            return Err("找不到这个策略组".to_string());
+            return Err(ServiceError::new(codes::GROUP_NOT_FOUND).into());
         };
         let semaphore = Arc::new(tokio::sync::Semaphore::new(8));
         let mut tasks = tokio::task::JoinSet::new();
@@ -1265,7 +1267,7 @@ impl App {
             .iter()
             .any(|profile| profile.id == id)
         {
-            return Err("找不到这个配置".to_string());
+            return Err(ServiceError::new(codes::PROFILE_NOT_FOUND).into());
         }
         profile::read_profile_body(&self.paths, id)
             .map_err(|error| profile::explain_io("无法读取配置", &error))
@@ -1274,13 +1276,13 @@ impl App {
 
     pub async fn set_profile_body(self: &Arc<Self>, id: &str, body: String) -> Result<(), String> {
         if body.len() > 8_000_000 {
-            return Err("配置文件太大".to_string());
+            return Err(ServiceError::new(codes::PROFILE_TOO_LARGE).into());
         }
         if !profile::load_profiles(&self.paths)
             .iter()
             .any(|profile| profile.id == id)
         {
-            return Err("找不到这个配置".to_string());
+            return Err(ServiceError::new(codes::PROFILE_NOT_FOUND).into());
         }
         let text = profile::subscription_yaml(&body)?;
         profile::write_profile_body(&self.paths, id, &text)
@@ -1297,20 +1299,20 @@ impl App {
         let name = name.trim().to_string();
         let url = url.trim().to_string();
         if name.is_empty() {
-            return Err("名称不能为空".to_string());
+            return Err(ServiceError::new(codes::PROFILE_NAME_EMPTY).into());
         }
         if name.chars().count() > 128 {
-            return Err("名称不能超过 128 个字符".to_string());
+            return Err(ServiceError::new(codes::PROFILE_NAME_TOO_LONG).param("limit", "128").into());
         }
         if url.chars().count() > 2048 {
-            return Err("订阅地址不能超过 2048 个字符".to_string());
+            return Err(ServiceError::new(codes::PROFILE_URL_TOO_LONG).param("limit", "2048").into());
         }
         if !url.is_empty() && !(url.starts_with("http://") || url.starts_with("https://")) {
-            return Err("订阅地址需要以 http:// 或 https:// 开头".to_string());
+            return Err(ServiceError::new(codes::PROFILE_URL_SCHEME).into());
         }
         let mut profiles = profile::load_profiles(&self.paths);
         let Some(profile) = profiles.iter_mut().find(|profile| profile.id == id) else {
-            return Err("找不到这个配置".to_string());
+            return Err(ServiceError::new(codes::PROFILE_NOT_FOUND).into());
         };
         profile.name = name;
         profile.url = url;
@@ -1322,8 +1324,8 @@ impl App {
     }
 
     pub async fn import_profile(&self, name: String, path: String) -> Result<String, String> {
-        let raw =
-            std::fs::read_to_string(&path).map_err(|error| format!("无法读取配置: {error}"))?;
+        let raw = std::fs::read_to_string(&path)
+            .map_err(|error| ServiceError::new(codes::PROFILE_IMPORT_READ).detail(error.to_string()))?;
         let text = profile::subscription_yaml(&raw)?;
         let name = {
             let trimmed = name.trim();
@@ -1339,7 +1341,7 @@ impl App {
             }
         };
         if name.chars().count() > 128 {
-            return Err("名称不能超过 128 个字符".to_string());
+            return Err(ServiceError::new(codes::PROFILE_NAME_TOO_LONG).param("limit", "128").into());
         }
         let id = uuid::Uuid::new_v4().to_string();
         profile::write_profile_body(&self.paths, &id, &text)
@@ -1472,7 +1474,7 @@ impl App {
         if let Some(task) = revoke {
             match task.await {
                 Ok(result) => result?,
-                Err(_) => return Err("无法撤销 TUN 授权".to_string()),
+                Err(_) => return Err(ServiceError::new(codes::TUN_REVOKE_TIMEOUT).into()),
             }
         }
         Ok(())
@@ -1690,7 +1692,7 @@ impl App {
         if let Err(error) = self.stop_process().await {
             self.mark_stopped(error.clone()).await;
             self.emit(Event::Status);
-            return Err(error);
+            return Err(ServiceError::new(codes::CORE_CHECK).detail(error).into());
         }
 
         // mihomo exits immediately when another program (often mihomo-party)
@@ -1717,9 +1719,8 @@ impl App {
         }
         if !busy.is_empty() {
             return self
-                .fail_before_start(format!(
-                    "{} 已被其他程序占用；如果系统 mihomo.service 正在运行，请先执行 sudo systemctl disable --now mihomo；否则用 ss -ltnp 查看占用者，或换一个端口",
-                    busy.join("、")
+                .fail_before_start(String::from(
+                    ServiceError::new(codes::CORE_PORT_BUSY).param("ports", busy.join(", ")),
                 ))
                 .await;
         }
@@ -1738,7 +1739,7 @@ impl App {
             self.withdraw_proxy().await;
             self.mark_stopped(error.clone()).await;
             self.emit(Event::Status);
-            return Err(error);
+            return Err(ServiceError::new(codes::CORE_CHECK).detail(error).into());
         }
         self.sync_system_proxy().await?;
         self.schedule_region_lookup();
@@ -1841,10 +1842,16 @@ impl App {
             match process.try_wait() {
                 Ok(Some(status)) => {
                     tracing::error!("mihomo 在控制器就绪前退出: {status}");
-                    return Err(self.startup_failure(&format!("mihomo 已退出: {status}")));
+                    return Err(String::from(
+                        ServiceError::new(codes::CORE_EXITED).detail(status.to_string()),
+                    ));
                 }
                 Ok(None) => {}
-                Err(error) => return Err(format!("无法检查 mihomo: {error}")),
+                Err(error) => {
+                    return Err(ServiceError::new(codes::CORE_CHECK)
+                        .detail(error.to_string())
+                        .into());
+                }
             }
             if started.elapsed() >= limit {
                 tracing::error!("等待 mihomo 控制器超时 ({} 秒)", limit.as_secs());
@@ -1908,7 +1915,7 @@ impl App {
             if matches!(process.try_wait(), Ok(None)) {
                 process.terminate().await;
             }
-            return Err(error);
+            return Err(ServiceError::new(codes::CORE_CHECK).detail(error).into());
         }
         if let Err(error) = controller.set_mode(&settings.mode).await {
             tracing::warn!("{error}");
@@ -2095,7 +2102,7 @@ impl App {
                 tokio::time::sleep(Duration::from_millis(40)).await;
             }
             if core::process_alive(pid) {
-                return Err("内核没有在限定时间内退出".to_string());
+                return Err(ServiceError::new(codes::CORE_STOP_TIMEOUT).into());
             }
         }
         Ok(())

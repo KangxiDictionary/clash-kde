@@ -120,6 +120,26 @@ pub mod codes {
     pub const CORE_SPAWN_FAILED: &str = "core.spawn_failed";
     pub const CORE_NO_PID: &str = "core.no_pid";
     pub const CORE_BINARY_MISSING: &str = "core.binary_missing";
+    pub const CORE_NOT_RUNNING: &str = "core.not_running";
+    pub const CORE_CHECK: &str = "core.check_failed";
+    pub const CORE_EXITED: &str = "core.exited";
+    pub const CORE_STOP_TIMEOUT: &str = "core.stop_timeout";
+    pub const CORE_PORT_BUSY: &str = "core.port_busy";
+    pub const SETTINGS_MIHOMO_EMPTY: &str = "settings.mihomo_path_empty";
+    pub const SETTINGS_MIHOMO_TOO_LONG: &str = "settings.mihomo_path_too_long";
+    pub const SETTINGS_OVERRIDE_TOO_LONG: &str = "settings.override_too_long";
+    pub const SETTINGS_SPEED_RANGE: &str = "settings.speed_test_range";
+    pub const SETTINGS_NOTES_TOO_LARGE: &str = "settings.notes_too_large";
+    pub const SETTINGS_NOTES_PARSE: &str = "settings.notes_parse";
+    pub const PROFILE_NAME_EMPTY: &str = "profile.name_empty";
+    pub const PROFILE_NAME_TOO_LONG: &str = "profile.name_too_long";
+    pub const PROFILE_URL_TOO_LONG: &str = "profile.url_too_long";
+    pub const PROFILE_URL_SCHEME: &str = "profile.url_scheme";
+    pub const PROFILE_TOO_LARGE: &str = "profile.too_large";
+    pub const PROFILE_IMPORT_READ: &str = "profile.import_read";
+    pub const RULE_NOT_FOUND: &str = "rule.index_missing";
+    pub const GROUP_NOT_FOUND: &str = "controller.group_missing";
+    pub const TUN_REVOKE_TIMEOUT: &str = "tun.revoke_timeout";
 
     pub const BRIDGE_ACCOUNT: &str = "admin.account_missing";
     pub const BRIDGE_ACTION: &str = "admin.action_missing";
@@ -195,7 +215,9 @@ impl From<ServiceError> for zbus::fdo::Error {
 
 impl From<String> for ServiceError {
     fn from(error: String) -> Self {
-        ServiceError::new(codes::ERROR_LEGACY).detail(error)
+        serde_json::from_str::<ServiceError>(&error).unwrap_or_else(|_| {
+            ServiceError::new(codes::ERROR_LEGACY).detail(error)
+        })
     }
 }
 

@@ -57,6 +57,26 @@ QString translateCodeText(const QString &code, const QJsonObject &params, const 
     const auto p = [&params](const char *key) { return params.value(QLatin1String(key)).toString(); };
     const auto text = [](const char *source) { return localized(source); };
 
+    if (code == QLatin1String("settings.mihomo_path_empty")) return text("The mihomo executable path cannot be empty.");
+    if (code == QLatin1String("settings.mihomo_path_too_long")) return text("The mihomo executable path cannot exceed %1 characters.").arg(p("limit"));
+    if (code == QLatin1String("settings.override_too_long")) return text("The override path cannot exceed %1 characters.").arg(p("limit"));
+    if (code == QLatin1String("settings.speed_test_range")) return text("The speed test size must be between 1 and 100 MB.");
+    if (code == QLatin1String("settings.notes_too_large")) return text("The note is too large.");
+    if (code == QLatin1String("settings.notes_parse")) return text("The notes could not be parsed.");
+    if (code == QLatin1String("profile.name_empty")) return text("The name cannot be empty.");
+    if (code == QLatin1String("profile.name_too_long")) return text("The name cannot exceed %1 characters.").arg(p("limit"));
+    if (code == QLatin1String("profile.url_too_long")) return text("The subscription URL cannot exceed %1 characters.").arg(p("limit"));
+    if (code == QLatin1String("profile.url_scheme")) return text("The subscription URL must start with http:// or https://.");
+    if (code == QLatin1String("profile.too_large")) return text("The profile is too large.");
+    if (code == QLatin1String("profile.import_read")) return text("The imported profile could not be read.");
+    if (code == QLatin1String("rule.index_missing")) return text("This rule no longer exists.");
+    if (code == QLatin1String("controller.group_missing")) return text("The proxy group was not found.");
+    if (code == QLatin1String("tun.revoke_timeout")) return text("TUN authorization could not be revoked in time.");
+    if (code == QLatin1String("core.not_running")) return text("The core is not running.");
+    if (code == QLatin1String("core.check_failed")) return text("The core state could not be checked.");
+    if (code == QLatin1String("core.exited")) return text("mihomo exited.");
+    if (code == QLatin1String("core.stop_timeout")) return text("The core did not stop in time.");
+    if (code == QLatin1String("core.port_busy")) return text("%1 is already in use; stop the other program or choose another port.").arg(p("ports"));
     if (code == QLatin1String("io.not_found")) return text("The file was not found.");
     if (code == QLatin1String("io.denied")) return text("Permission denied.");
     if (code == QLatin1String("io.failed")) return text("The file operation failed.");

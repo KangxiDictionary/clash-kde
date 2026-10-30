@@ -1189,3 +1189,63 @@ msgstr "操作失败（%1）。"
 
 msgid "The operation failed (%1):\n%2"
 msgstr "操作失败（%1）：\n%2"
+
+msgid "The mihomo executable path cannot be empty."
+msgstr "mihomo 可执行文件路径不能为空。"
+
+msgid "The mihomo executable path cannot exceed %1 characters."
+msgstr "mihomo 可执行文件路径不能超过 %1 个字符。"
+
+msgid "The override path cannot exceed %1 characters."
+msgstr "覆盖文件路径不能超过 %1 个字符。"
+
+msgid "The speed test size must be between 1 and 100 MB."
+msgstr "测速大小要在 1 到 100 MB 之间。"
+
+msgid "The note is too large."
+msgstr "注释太大。"
+
+msgid "The notes could not be parsed."
+msgstr "注释无法解析。"
+
+msgid "The name cannot be empty."
+msgstr "名称不能为空。"
+
+msgid "The name cannot exceed %1 characters."
+msgstr "名称不能超过 %1 个字符。"
+
+msgid "The subscription URL cannot exceed %1 characters."
+msgstr "订阅地址不能超过 %1 个字符。"
+
+msgid "The subscription URL must start with http:// or https://."
+msgstr "订阅地址需要以 http:// 或 https:// 开头。"
+
+msgid "The profile is too large."
+msgstr "配置文件太大。"
+
+msgid "The imported profile could not be read."
+msgstr "无法读取导入的配置。"
+
+msgid "This rule no longer exists."
+msgstr "没有这条规则。"
+
+msgid "The proxy group was not found."
+msgstr "找不到这个策略组。"
+
+msgid "TUN authorization could not be revoked in time."
+msgstr "无法及时撤销 TUN 授权。"
+
+msgid "The core is not running."
+msgstr "内核没有在运行。"
+
+msgid "The core state could not be checked."
+msgstr "无法检查内核状态。"
+
+msgid "mihomo exited."
+msgstr "mihomo 已退出。"
+
+msgid "The core did not stop in time."
+msgstr "内核没有在限定时间内退出。"
+
+msgid "%1 is already in use; stop the other program or choose another port."
+msgstr "%1 已被其他程序占用；请停止占用程序或换一个端口。"

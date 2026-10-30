@@ -249,8 +249,9 @@ documented in [`docs/COMPATIBILITY.md`](docs/COMPATIBILITY.md). Highlights:
 - Source files carry SPDX identifiers; the MSRV is declared in `Cargo.toml`.
 - AppStream metadata is not yet present. CI runs formatting, tests, clippy,
   QML lint, and the KCM build on Arch Linux.
-- Error strings from the Rust service and some C++ paths are currently Chinese
-  and are not part of the gettext catalogs.
+- User-visible service errors cross D-Bus as `ServiceError` JSON
+  (`code` + `params` + English `detail`). The KCM/applet translate those codes
+  with the user's locale; logs and the technical diagnostics report stay English.
 
 ## License
 
