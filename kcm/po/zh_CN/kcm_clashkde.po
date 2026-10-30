@@ -1348,3 +1348,9 @@ msgstr "无法设置出口检测代理。"
 
 msgid "Detecting…"
 msgstr "正在检测…"
+
+msgid "Show log"
+msgstr "显示日志"
+
+msgid "Hide log"
+msgstr "隐藏日志"
