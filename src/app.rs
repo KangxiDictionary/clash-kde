@@ -72,6 +72,7 @@ struct Inner {
     message_code: String,
     message_detail: String,
     message_params: BTreeMap<String, String>,
+    message_log_tail: String,
     phase: String,
     tun_route_ready: bool,
     tun_route_known: bool,
@@ -121,6 +122,7 @@ impl Inner {
         self.message_code.clear();
         self.message_detail.clear();
         self.message_params.clear();
+        self.message_log_tail.clear();
     }
 }
 
@@ -202,6 +204,7 @@ struct Status {
     message_code: String,
     message_detail: String,
     message_params: BTreeMap<String, String>,
+    message_log_tail: String,
     phase: String,
     override_path: String,
     selections: BTreeMap<String, String>,
@@ -269,6 +272,7 @@ impl App {
                 message_code: String::new(),
                 message_detail: String::new(),
                 message_params: BTreeMap::new(),
+                message_log_tail: String::new(),
                 phase: PHASE_STOPPED.to_string(),
                 tun_route_ready: true,
                 tun_route_known: true,
@@ -1670,6 +1674,7 @@ impl App {
             message_code: inner.message_code.clone(),
             message_detail: inner.message_detail.clone(),
             message_params: inner.message_params.clone(),
+            message_log_tail: inner.message_log_tail.clone(),
             phase: inner.phase.clone(),
             override_path: state::effective_override(&self.paths, &inner.settings.override_path)
                 .display()
@@ -2189,10 +2194,8 @@ impl App {
                 }
                 ExitKind::Unexpected => {
                     inner.exit_region.clear();
-                    inner.set_message(String::from(
-                        ServiceError::new(codes::CORE_EXITED)
-                            .detail(core::log_tail(&self.paths.core_log())),
-                    ));
+                    inner.set_message(String::from(ServiceError::new(codes::CORE_EXITED)));
+                    inner.message_log_tail = core::log_tail(&self.paths.core_log());
                     inner.phase = PHASE_FAILED.to_string();
                     tracing::error!(
                         "core exited unexpectedly; stopped retrying: {}",

@@ -367,6 +367,27 @@ Item {
             }
         }
 
+        QQC2.Button {
+            id: logToggle
+            Layout.fillWidth: true
+            visible: kcm.client.messageLogTail.length > 0
+            text: checked ? tx.i18n("Hide log") : tx.i18n("Show log")
+            icon.name: checked ? "arrow-down" : "arrow-right"
+            checkable: true
+            Kirigami.MnemonicData.enabled: false
+        }
+
+        QQC2.TextArea {
+            Layout.fillWidth: true
+            Layout.preferredHeight: Math.min(contentHeight + topPadding + bottomPadding, Kirigami.Units.gridUnit * 12)
+            visible: kcm.client.messageLogTail.length > 0 && logToggle.checked
+            readOnly: true
+            text: kcm.client.messageLogTail
+            wrapMode: TextEdit.WrapAnywhere
+            font.family: "monospace"
+            Kirigami.MnemonicData.enabled: false
+        }
+
         Kirigami.InlineMessage {
             Layout.fillWidth: true
             visible: kcm.client.tunEnabled && kcm.client.firewallActive

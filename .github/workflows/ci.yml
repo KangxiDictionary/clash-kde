@@ -22,13 +22,16 @@ jobs:
       - name: Install build dependencies
         run: |
           pacman -Syu --noconfirm --needed \
-            cmake extra-cmake-modules git icu pkgconf python rust \
+            cmake extra-cmake-modules git icu libxml2 pkgconf python rust \
             qt6-base qt6-declarative qt6-tools \
             kcmutils kconfig kcoreaddons ki18n kirigami kirigami-addons \
             kquickcharts libplasma
 
       - name: Audit translations
         run: python scripts/check-i18n.py
+
+      - name: Validate polkit policy XML
+        run: xmllint --noout distro/arch/org.kde.clashkde.policy
 
       - name: Check Rust formatting
         run: cargo fmt --check

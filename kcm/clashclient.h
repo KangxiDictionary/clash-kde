@@ -42,6 +42,7 @@ class ClashClient : public QObject
     Q_PROPERTY(QString exitRaw READ exitRaw NOTIFY statusChanged)
     Q_PROPERTY(QString activeProfile READ activeProfile NOTIFY statusChanged)
     Q_PROPERTY(QString message READ message NOTIFY statusChanged)
+    Q_PROPERTY(QString messageLogTail READ messageLogTail NOTIFY statusChanged)
     Q_PROPERTY(QString phase READ phase NOTIFY statusChanged)
     Q_PROPERTY(bool busy READ busy NOTIFY busyChanged)
     Q_PROPERTY(bool delayTesting READ delayTesting NOTIFY delayTestingChanged)
@@ -133,6 +134,7 @@ public:
     QString exitRaw() const;
     QString activeProfile() const;
     QString message() const;
+    QString messageLogTail() const;
     QString phase() const;
     bool busy() const;
     bool delayTesting() const;
@@ -425,6 +427,7 @@ private:
     QString m_exitRegion;
     QString m_activeProfile;
     QString m_message;
+    QString m_messageLogTail;
     QString m_phase = QStringLiteral("stopped");
     bool m_busy = false;
     bool m_delayTesting = false;

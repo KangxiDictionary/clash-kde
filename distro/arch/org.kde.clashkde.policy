@@ -7,7 +7,9 @@
   <action id="org.kde.clashkde.tun">
     <description>Capture this account's traffic with Mihomo</description>
     <description xml:lang="zh-Hans-CN">用 Mihomo 截取这个账户的流量</description>
+    <description xml:lang="zh_CN">用 Mihomo 截取这个账户的流量</description>
     <description xml:lang="zh-Hant-TW">用 Mihomo 截取這個帳戶的流量</description>
+    <description xml:lang="zh_TW">用 Mihomo 截取這個帳戶的流量</description>
     <description xml:lang="ja">Mihomo でこのアカウントの通信を取り込む</description>
     <description xml:lang="ko">Mihomo로 이 계정의 트래픽을 잡기</description>
     <description xml:lang="de">Den Verkehr dieses Kontos mit Mihomo erfassen</description>
@@ -18,7 +20,9 @@
     <description xml:lang="it">Catturare il traffico di questo account con Mihomo</description>
     <message>Authentication is required to capture this account's network traffic.</message>
     <message xml:lang="zh-Hans-CN">需要认证才能截取这个账户的网络流量。</message>
+    <message xml:lang="zh_CN">需要认证才能截取这个账户的网络流量。</message>
     <message xml:lang="zh-Hant-TW">需要認證才能截取這個帳戶的網路流量。</message>
+    <message xml:lang="zh_TW">需要認證才能截取這個帳戶的網路流量。</message>
     <message xml:lang="ja">このアカウントの通信を取り込むには認証が必要です。</message>
     <message xml:lang="ko">이 계정의 네트워크 트래픽을 잡으려면 인증이 필요합니다.</message>
     <message xml:lang="de">Zum Erfassen des Netzwerkverkehrs dieses Kontos ist eine Authentifizierung nötig.</message>
@@ -37,7 +41,9 @@
   <action id="org.kde.clashkde.tun-machine">
     <description>Send every account and root through this account</description>
     <description xml:lang="zh-Hans-CN">让所有账户和 root 走这个账户</description>
+    <description xml:lang="zh_CN">让所有账户和 root 走这个账户</description>
     <description xml:lang="zh-Hant-TW">讓所有帳戶和 root 走這個帳戶</description>
+    <description xml:lang="zh_TW">讓所有帳戶和 root 走這個帳戶</description>
     <description xml:lang="ja">すべてのアカウントと root をこのアカウントに通す</description>
     <description xml:lang="ko">모든 계정과 root를 이 계정으로 보내기</description>
     <description xml:lang="de">Alle Konten und root durch dieses Konto leiten</description>
@@ -48,7 +54,9 @@
     <description xml:lang="it">Instradare tutti gli account e root attraverso questo account</description>
     <message>Authentication is required to send every account and root through this account.</message>
     <message xml:lang="zh-Hans-CN">需要管理员认证才能让所有账户和 root 走这个账户。</message>
+    <message xml:lang="zh_CN">需要管理员认证才能让所有账户和 root 走这个账户。</message>
     <message xml:lang="zh-Hant-TW">需要管理員認證才能讓所有帳戶和 root 走這個帳戶。</message>
+    <message xml:lang="zh_TW">需要管理員認證才能讓所有帳戶和 root 走這個帳戶。</message>
     <message xml:lang="ja">すべてのアカウントと root をこのアカウントに通すには管理者の認証が必要です。</message>
     <message xml:lang="ko">모든 계정과 root를 이 계정으로 보내려면 관리자 인증이 필요합니다.</message>
     <message xml:lang="de">Zum Leiten aller Konten und von root durch dieses Konto ist eine Administrator-Authentifizierung nötig.</message>
@@ -67,7 +75,9 @@
   <action id="org.kde.clashkde.manage-users">
     <description>View or change Mihomo for a signed-in account</description>
     <description xml:lang="zh-Hans-CN">查看或开关已登录账户的 Mihomo</description>
+    <description xml:lang="zh_CN">查看或开关已登录账户的 Mihomo</description>
     <description xml:lang="zh-Hant-TW">開關已登入帳戶的 Mihomo</description>
+    <description xml:lang="zh_TW">開關已登入帳戶的 Mihomo</description>
     <description xml:lang="ja">ログイン中のアカウントの Mihomo を起動または停止する</description>
     <description xml:lang="ko">로그인한 계정의 Mihomo를 켜거나 끄기</description>
     <description xml:lang="de">Mihomo eines angemeldeten Kontos starten oder stoppen</description>
@@ -77,8 +87,10 @@
     <description xml:lang="ru">Запускать или останавливать Mihomo вошедшей учётной записи</description>
     <description xml:lang="it">Avviare o fermare Mihomo per un account che ha effettuato l'accesso</description>
     <message>Authentication is required to view or change Mihomo for a signed-in account.</message>
-    <message xml:lang="zh-Hans-CN">需要认证才能$(reason)。</message>
+    <message xml:lang="zh-Hans-CN">需要认证才能查看或开关已登录账户的 Mihomo。</message>
+    <message xml:lang="zh_CN">需要认证才能查看或开关已登录账户的 Mihomo。</message>
     <message xml:lang="zh-Hant-TW">需要認證才能查看或開關已登入帳戶的 Mihomo。</message>
+    <message xml:lang="zh_TW">需要認證才能查看或開關已登入帳戶的 Mihomo。</message>
     <message xml:lang="ja">ログイン中のアカウントの Mihomo を表示または変更するには認証が必要です。</message>
     <message xml:lang="ko">로그인한 계정의 Mihomo를 보거나 바꾸려면 인증이 필요합니다.</message>
     <message xml:lang="de">Zum Anzeigen oder Ändern von Mihomo für ein angemeldetes Konto ist eine Authentifizierung nötig.</message>

@@ -290,6 +290,7 @@ QString ClashClient::exitRegion() const { return formatExitRegion(m_exitRegion, 
 QString ClashClient::exitRaw() const { return m_exitRegion; }
 QString ClashClient::activeProfile() const { return m_activeProfile; }
 QString ClashClient::message() const { return m_message; }
+QString ClashClient::messageLogTail() const { return m_messageLogTail; }
 QString ClashClient::phase() const { return m_phase; }
 bool ClashClient::busy() const { return m_busy; }
 bool ClashClient::delayTesting() const { return m_delayTesting; }
@@ -2978,6 +2979,7 @@ void ClashClient::applyStatus(const QVariantMap &status)
     const QString messageCode = status.value(QStringLiteral("message_code")).toString();
     const QString messageDetail = status.value(QStringLiteral("message_detail")).toString();
     const QVariantMap messageParams = status.value(QStringLiteral("message_params")).toMap();
+    const QString messageLogTail = status.value(QStringLiteral("message_log_tail")).toString();
     QString message;
     if (!messageCode.isEmpty()) {
         message = translateCode(messageCode, QJsonObject::fromVariantMap(messageParams), messageDetail);
@@ -3005,7 +3007,7 @@ void ClashClient::applyStatus(const QVariantMap &status)
         && m_autoTestDelay == autoTestDelay && m_blurIp == blurIp && m_compact == compact
         && m_showWidgetHint == showWidgetHint && m_speedTestMib == speedTestMib && m_allowLan == allowLan
         && m_lanUsername == lanUsername && m_lanPassword == lanPassword && m_lanAllowed == lanAllowed
-        && m_message == message && m_phase == phase) {
+        && m_message == message && m_messageLogTail == messageLogTail && m_phase == phase) {
         if (!coreRunning && !m_connections.isEmpty()) {
             m_connections.clear();
             Q_EMIT connectionsChanged();
@@ -3055,6 +3057,7 @@ void ClashClient::applyStatus(const QVariantMap &status)
     m_lanPassword = lanPassword;
     m_lanAllowed = lanAllowed;
     m_message = message;
+    m_messageLogTail = messageLogTail;
     m_phase = phase;
     const bool releasedOutside = proxyWasEnabled && !m_systemProxyEnabled;
     if (!m_draftDirty && !draftMatchesLive()) {
