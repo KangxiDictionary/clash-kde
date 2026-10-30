@@ -404,7 +404,7 @@ pub fn write_runtime_config(paths: &Paths, settings: &Settings) -> Result<(), Se
         if let Value::Mapping(map) = &mut config {
             map.insert(Value::String("geodata-mode".into()), Value::Bool(true));
         }
-        tracing::info!("没有 MMDB，使用 geoip.dat/geosite.dat 作为地理数据");
+        tracing::info!("no MMDB; using geoip.dat/geosite.dat as geodata");
     }
     let text = serde_yaml::to_string(&config).map_err(|error| {
         ServiceError::new(codes::PROFILE_RUNTIME_WRITE).detail(error.to_string())

@@ -563,7 +563,7 @@ async fn supervise(mut child: Child, mut stop: oneshot::Receiver<()>) {
         }
         status = child.wait() => {
             if let Ok(status) = status {
-                tracing::info!("mihomo 退出: {status}");
+                tracing::info!("mihomo exited: {status}");
             }
         }
     }

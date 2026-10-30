@@ -452,7 +452,7 @@ pub async fn run() -> Result<(), String> {
                     } => Manager::delay_updated(&emitter, &group, &name, delay_ms).await,
                 };
                 if let Err(error) = result {
-                    tracing::debug!("无法发出状态信号: {error}");
+                    tracing::debug!("could not emit the status signal: {error}");
                 }
             }
         }

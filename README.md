@@ -251,7 +251,8 @@ documented in [`docs/COMPATIBILITY.md`](docs/COMPATIBILITY.md). Highlights:
   QML lint, and the KCM build on Arch Linux.
 - User-visible service errors cross D-Bus as `ServiceError` JSON
   (`code` + `params` + English `detail`). The KCM/applet translate those codes
-  with the user's locale; logs and the technical diagnostics report stay English.
+  with the user's locale. `tracing`/journal logs and the technical diagnostics
+  report stay English so they remain grep-able and suitable for bug reports.
 
 ## License
 

@@ -299,9 +299,9 @@ impl App {
         self.withdraw_proxy().await;
         let desired = self.inner.lock().await.settings.core_desired;
         if desired {
-            tracing::info!("恢复上次的内核运行状态");
+            tracing::info!("restoring the previous core state");
             if let Err(error) = self.spawn_core().await {
-                tracing::error!("恢复内核失败: {error}");
+                tracing::error!("could not restore the core: {error}");
             }
         } else {
             self.set_phase(PHASE_STOPPED).await;
@@ -316,7 +316,7 @@ impl App {
     }
 
     pub async fn start(self: &Arc<Self>) -> Result<(), String> {
-        tracing::info!("启动内核");
+        tracing::info!("starting the core");
         {
             let mut inner = self.inner.lock().await;
             inner.settings.core_desired = true;
@@ -338,7 +338,7 @@ impl App {
     }
 
     pub async fn stop(self: &Arc<Self>) -> Result<(), String> {
-        tracing::info!("停止内核");
+        tracing::info!("stopping the core");
         {
             let mut inner = self.inner.lock().await;
             inner.settings.core_desired = false;
@@ -362,7 +362,7 @@ impl App {
     }
 
     pub async fn restart(self: &Arc<Self>) -> Result<(), String> {
-        tracing::info!("重启内核");
+        tracing::info!("restarting the core");
         {
             let mut inner = self.inner.lock().await;
             inner.settings.core_desired = true;
@@ -1576,9 +1576,9 @@ impl App {
             inner.tun_route_checked_at = profile::now_unix();
             if changed {
                 if health.known && !health.ready {
-                    tracing::warn!("TUN 路由失效: {detail}");
+                    tracing::warn!("TUN policy route is missing: {detail}");
                 } else if health.known && !previous_ready {
-                    tracing::info!("TUN 路由已恢复: {detail}");
+                    tracing::info!("TUN policy route recovered: {detail}");
                 }
             }
             changed
@@ -1765,9 +1765,11 @@ impl App {
 
         let geodata = core::geodata_sources();
         match core::geodata_mode(&geodata) {
-            "dat" => tracing::info!("本地没有 MMDB，将使用 geoip.dat/geosite.dat"),
+            "dat" => tracing::info!("no local MMDB; using geoip.dat/geosite.dat"),
             "download" => {
-                tracing::warn!("本地没有可用的地理数据，mihomo 首次启动可能需要下载 MMDB/GeoSite")
+                tracing::warn!(
+                    "no usable local geodata; mihomo may download MMDB/GeoSite on first start"
+                )
             }
             _ => {}
         }
@@ -1792,13 +1794,13 @@ impl App {
         } else {
             error
         };
-        tracing::error!("内核未能启动: {error}");
+        tracing::error!("core failed to start: {error}");
         // resolve_binary/write_runtime_config can fail before the old process
         // is stopped. Tear it down first so a failed restart cannot leave a
         // running core behind a "failed" status.
         self.withdraw_proxy().await;
         if let Err(stop_error) = self.stop_process().await {
-            tracing::warn!("停止旧内核失败: {stop_error}");
+            tracing::warn!("could not stop the old core: {stop_error}");
         }
         self.set_message(error.clone()).await;
         self.set_phase(PHASE_FAILED).await;
@@ -1825,7 +1827,7 @@ impl App {
                 if let Some(error) = core::tun_listen_error(&self.paths.core_log()) {
                     let tun = self.inner.lock().await.settings.tun_enabled;
                     if tun {
-                        tracing::error!("TUN 启动失败: {error}");
+                        tracing::error!("TUN failed to start: {error}");
                         return Err(String::from(
                             ServiceError::new(codes::CORE_TUN_LISTEN).detail(error),
                         ));
@@ -1845,7 +1847,7 @@ impl App {
                         let health = probe_health(options.clone()).await;
                         if health.ready {
                             if !health.known {
-                                tracing::warn!("TUN 路由未验证: {}", health.detail);
+                                tracing::warn!("TUN route was not verified: {}", health.detail);
                             }
                             let mut inner = self.inner.lock().await;
                             inner.tun_route_ready = true;
@@ -1883,7 +1885,7 @@ impl App {
             }
             match process.try_wait() {
                 Ok(Some(status)) => {
-                    tracing::error!("mihomo 在控制器就绪前退出: {status}");
+                    tracing::error!("mihomo exited before the controller became ready: {status}");
                     return Err(String::from(
                         ServiceError::new(codes::CORE_EXITED).detail(status.to_string()),
                     ));
@@ -1896,7 +1898,10 @@ impl App {
                 }
             }
             if started.elapsed() >= limit {
-                tracing::error!("等待 mihomo 控制器超时 ({} 秒)", limit.as_secs());
+                tracing::error!(
+                    "waiting for the mihomo controller timed out ({} seconds)",
+                    limit.as_secs()
+                );
                 return Err(String::from(ServiceError::new(
                     codes::CORE_CONTROLLER_TIMEOUT,
                 )));
@@ -1910,7 +1915,7 @@ impl App {
                 } else {
                     PHASE_STARTING
                 };
-                tracing::info!("内核启动进度: {hint}");
+                tracing::info!("core startup progress: {hint}");
                 self.set_message(String::from(hint)).await;
                 self.set_phase(phase).await;
                 self.emit(Event::Status);
@@ -1934,11 +1939,11 @@ impl App {
                 &self.paths.core_log(),
             )
             .await?;
-            tracing::info!("已通过系统服务启动 TUN 内核: pid={pid}");
+            tracing::info!("started the TUN core through the system service: pid={pid}");
             core::CoreProcess::adopt(pid)
         } else {
             let process = core::CoreProcess::spawn(&self.paths, &binary)?;
-            tracing::info!("已启动内核: pid={}", process.pid());
+            tracing::info!("started the core: pid={}", process.pid());
             process
         };
         let controller = Controller::new(settings.controller_port, &settings.controller_secret);
@@ -1980,7 +1985,7 @@ impl App {
                 _ = kill_rx => false,
                 status = process.wait() => {
                     if let Ok(status) = status {
-                        tracing::info!("mihomo 退出: {status}");
+                        tracing::info!("mihomo exited: {status}");
                     }
                     true
                 }
@@ -2176,7 +2181,10 @@ impl App {
                 {
                     inner.restart_attempts += 1;
                     inner.phase = PHASE_STARTING.to_string();
-                    tracing::warn!("内核意外退出，准备第 {} 次重试", inner.restart_attempts);
+                    tracing::warn!(
+                        "core exited unexpectedly; retrying (attempt {})",
+                        inner.restart_attempts
+                    );
                     true
                 }
                 ExitKind::Unexpected => {
@@ -2186,7 +2194,10 @@ impl App {
                             .detail(core::log_tail(&self.paths.core_log())),
                     ));
                     inner.phase = PHASE_FAILED.to_string();
-                    tracing::error!("内核意外退出，已停止重试: {}", inner.message);
+                    tracing::error!(
+                        "core exited unexpectedly; stopped retrying: {}",
+                        inner.message
+                    );
                     false
                 }
             }
@@ -2220,7 +2231,7 @@ impl App {
                 match proxy_settings::release_ownership(&self.paths, port) {
                     Ok(()) => true,
                     Err(error) => {
-                        tracing::error!("放开被改过的系统代理失败: {error}");
+                        tracing::error!("could not release the edited system proxy: {error}");
                         return;
                     }
                 }
@@ -2238,7 +2249,7 @@ impl App {
         inner.settings.system_proxy_enabled = false;
         inner.system_proxy_applied = false;
         if let Err(error) = inner.settings.save(&self.paths) {
-            tracing::error!("保存系统代理开关失败: {error}");
+            tracing::error!("could not save the system-proxy preference: {error}");
             return;
         }
         drop(inner);
@@ -2269,7 +2280,7 @@ impl App {
     async fn withdraw_proxy(&self) {
         let port = self.inner.lock().await.settings.mixed_port;
         if let Err(error) = proxy_settings::restore_if_applied(&self.paths, port) {
-            tracing::error!("恢复 KDE 代理失败: {error}");
+            tracing::error!("could not restore the KDE proxy: {error}");
             return;
         }
         self.inner.lock().await.system_proxy_applied = false;

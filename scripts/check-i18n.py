@@ -34,6 +34,15 @@ def rust_strings() -> list[tuple[str, int, str]]:
     return bad
 
 
+def tracing_texts() -> list[tuple[str, int, str]]:
+    bad: list[tuple[str, int, str]] = []
+    for path in sorted((ROOT / 'src').glob('*.rs')):
+        for number, line in enumerate(path.read_text().splitlines(), 1):
+            if 'tracing::' in line and CN.search(line) and not line.strip().startswith('//'):
+                bad.append((str(path.relative_to(ROOT)), number, line.strip()))
+    return bad
+
+
 def main() -> int:
     codes = set(CODE.findall((ROOT / 'src/error.rs').read_text()))
     cpp = (ROOT / 'kcm/servicetranslations.cpp').read_text()
@@ -62,6 +71,13 @@ def main() -> int:
         failed = True
         print('Rust user-visible strings with raw non-ASCII text:', file=sys.stderr)
         for path, number, line in bad:
+            print(f'  {path}:{number}: {line}', file=sys.stderr)
+
+    logs = tracing_texts()
+    if logs:
+        failed = True
+        print('tracing logs must stay English:', file=sys.stderr)
+        for path, number, line in logs:
             print(f'  {path}:{number}: {line}', file=sys.stderr)
 
     if failed:

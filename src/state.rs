@@ -183,7 +183,10 @@ impl Settings {
                 let backup = path.with_file_name(format!("config.toml.broken-{stamp}"));
                 match fs::copy(path, &backup) {
                     Ok(_) => {
-                        tracing::error!("配置文件无法解析，已备份到 {}: {error}", backup.display())
+                        tracing::error!(
+                            "could not parse the config; backed it up to {}: {error}",
+                            backup.display()
+                        )
                     }
                     Err(copy_error) => tracing::error!(
                         "could not back up the unreadable config to {} ({copy_error}): {error}",

@@ -240,7 +240,7 @@ fn geodata_roots() -> Vec<PathBuf> {
 
 fn seed_geodata_from(runtime: &Path, roots: &[PathBuf]) {
     if let Err(error) = std::fs::create_dir_all(runtime) {
-        tracing::warn!("无法准备地理数据目录: {error}");
+        tracing::warn!("could not prepare the geodata directory: {error}");
         return;
     }
     for name in GEODATA_FILES {
@@ -269,7 +269,7 @@ fn seed_geodata_from(runtime: &Path, roots: &[PathBuf]) {
             continue;
         }
         if let Err(error) = copy_file(&src, &dest) {
-            tracing::warn!("无法复制地理数据 {name}: {error}");
+            tracing::warn!("could not copy geodata {name}: {error}");
         }
     }
 }
