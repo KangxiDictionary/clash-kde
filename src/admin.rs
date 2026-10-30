@@ -74,7 +74,7 @@ impl Admin {
         )
         .await?;
         privilege::write_stamp(Path::new(privilege::STAMP_DIR), uid)
-            .map_err(|error| fdo::Error::Failed(error.to_string()))
+            .map_err(|error| crate::error::ServiceError::from_io(error).into_fdo())
     }
 
     #[zbus(name = "AuthorizeMachineTun")]
@@ -87,7 +87,7 @@ impl Admin {
         // This check only needs root to read the other accounts' configs;
         // fail before asking the user for a password.
         if privilege::other_personal_tun(uid) {
-            return Err(fdo::Error::Failed("已有账户开着自己的 TUN".to_string()));
+            return Err(crate::error::ServiceError::new(crate::error::codes::TUN_ALREADY_OTHER_USER).into_fdo());
         }
         allow(
             &sender,
@@ -96,7 +96,7 @@ impl Admin {
         )
         .await?;
         privilege::write_machine_stamp(Path::new(privilege::STAMP_DIR), uid)
-            .map_err(|error| fdo::Error::Failed(error.to_string()))
+            .map_err(|error| crate::error::ServiceError::from_io(error).into_fdo())
     }
 
     #[zbus(name = "TunGrant")]
@@ -119,7 +119,7 @@ impl Admin {
     ) -> fdo::Result<()> {
         let (uid, _) = caller(&header, connection).await?;
         privilege::remove_stamp(Path::new(privilege::STAMP_DIR), uid)
-            .map_err(|error| fdo::Error::Failed(error.to_string()))
+            .map_err(|error| crate::error::ServiceError::from_io(error).into_fdo())
     }
 
     #[zbus(name = "SpawnTun")]
@@ -134,7 +134,7 @@ impl Admin {
     ) -> fdo::Result<u32> {
         let (uid, _) = caller(&header, connection).await?;
         if !privilege::stamp_exists(Path::new(privilege::STAMP_DIR), uid) {
-            return Err(fdo::Error::Failed("TUN 还没有得到授权".to_string()));
+            return Err(crate::error::ServiceError::new(crate::error::codes::TUN_NOT_AUTHORIZED).into_fdo());
         }
         privilege::ensure_tun_launch(
             Path::new(&binary),
@@ -246,7 +246,7 @@ impl Admin {
         let (_, sender) = caller(&header, connection).await?;
         allow(&sender, POLKIT_USERS, "设置整机是否允许局域网").await?;
         crate::lan::set_global(&crate::lan::policy_dir(), enabled)
-            .map_err(|error| fdo::Error::Failed(error.to_string()))?;
+            .map_err(|error| crate::error::ServiceError::from_io(error).into_fdo())?;
         for uid in privilege::signed_in_uids() {
             let _ = bridge(uid, "Reload").await;
         }
@@ -264,10 +264,10 @@ impl Admin {
         let (_, sender) = caller(&header, connection).await?;
         allow(&sender, POLKIT_USERS, "设置这个账户是否允许局域网").await?;
         if !privilege::signed_in_uids().contains(&uid) {
-            return Err(fdo::Error::Failed("找不到这个账户".to_string()));
+            return Err(crate::error::ServiceError::new(crate::error::codes::ACCOUNT_NOT_FOUND).into_fdo());
         }
         crate::lan::set_user(&crate::lan::policy_dir(), uid, enabled)
-            .map_err(|error| fdo::Error::Failed(error.to_string()))?;
+            .map_err(|error| crate::error::ServiceError::from_io(error).into_fdo())?;
         let _ = bridge(uid, "Reload").await;
         Ok(())
     }
@@ -275,7 +275,7 @@ impl Admin {
 
 pub async fn run() -> Result<(), String> {
     if unsafe { libc::geteuid() } != 0 {
-        return Err("系统服务需要 root".to_string());
+        return Err(crate::error::ServiceError::new(crate::error::codes::ADMIN_ROOT).into());
     }
     let tun = Arc::new(TunTable::default());
     let connection = zbus::connection::Builder::system()
@@ -326,7 +326,7 @@ pub async fn revoke_tun() -> Result<(), String> {
 pub async fn revoke_quickly() -> Result<(), String> {
     match tokio::time::timeout(Duration::from_millis(1200), revoke_tun()).await {
         Ok(result) => result,
-        Err(_) => Err("无法及时撤销 TUN 授权".to_string()),
+        Err(_) => Err(crate::error::ServiceError::new(crate::error::codes::TUN_REVOKE_TIMEOUT).into()),
     }
 }
 
@@ -427,7 +427,7 @@ fn plain_dbus(error: &str) -> String {
 async fn caller(header: &Header<'_>, connection: &zbus::Connection) -> fdo::Result<(u32, String)> {
     let sender = header
         .sender()
-        .ok_or_else(|| fdo::Error::Failed("缺少调用方".to_string()))?
+        .ok_or_else(|| crate::error::ServiceError::new(crate::error::codes::ADMIN_CALLER).into_fdo())?
         .to_string();
     let dbus = DBusProxy::new(connection)
         .await
@@ -440,7 +440,7 @@ async fn caller(header: &Header<'_>, connection: &zbus::Connection) -> fdo::Resu
         .map_err(|error| fdo::Error::Failed(error.to_string()))?;
     let uid = creds
         .unix_user_id()
-        .ok_or_else(|| fdo::Error::Failed("缺少调用方".to_string()))?;
+        .ok_or_else(|| crate::error::ServiceError::new(crate::error::codes::ADMIN_CALLER).into_fdo())?;
     Ok((uid, sender))
 }
 
@@ -458,11 +458,15 @@ async fn allow(sender: &str, action: &str, reason: &str) -> fdo::Result<()> {
         ])
         .status()
         .await
-        .map_err(|error| fdo::Error::Failed(format!("无法询问授权: {error}")))?;
+        .map_err(|error| {
+            crate::error::ServiceError::new(crate::error::codes::POLKIT_ASK)
+                .detail(error.to_string())
+                .into_fdo()
+        })?;
     if status.success() {
         Ok(())
     } else {
-        Err(fdo::Error::Failed("没有得到授权".to_string()))
+        Err(crate::error::ServiceError::new(crate::error::codes::POLKIT_DENIED).into_fdo())
     }
 }
 

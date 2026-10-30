@@ -71,6 +71,7 @@ struct Inner {
     message: String,
     message_code: String,
     message_detail: String,
+    message_params: BTreeMap<String, String>,
     phase: String,
     tun_route_ready: bool,
     tun_route_known: bool,
@@ -80,7 +81,7 @@ struct Inner {
     restart_attempts: u32,
 }
 
-fn message_parts(message: &str) -> (String, String) {
+fn message_parts(message: &str) -> (String, String, BTreeMap<String, String>) {
     if let Ok(value) = serde_json::from_str::<serde_json::Value>(message)
         && let Some(code) = value.get("code").and_then(serde_json::Value::as_str)
         && !code.is_empty()
@@ -89,23 +90,37 @@ fn message_parts(message: &str) -> (String, String) {
             .get("detail")
             .and_then(serde_json::Value::as_str)
             .unwrap_or_default();
-        return (code.to_string(), detail.to_string());
+        let params = value
+            .get("params")
+            .and_then(serde_json::Value::as_object)
+            .map(|object| {
+                object
+                    .iter()
+                    .filter_map(|(key, value)| {
+                        value.as_str().map(|value| (key.clone(), value.to_string()))
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
+        return (code.to_string(), detail.to_string(), params);
     }
-    (String::new(), message.to_string())
+    (String::new(), message.to_string(), BTreeMap::new())
 }
 
 impl Inner {
     fn set_message(&mut self, message: String) {
-        let (code, detail) = message_parts(&message);
+        let (code, detail, params) = message_parts(&message);
         self.message = message;
         self.message_code = code;
         self.message_detail = detail;
+        self.message_params = params;
     }
 
     fn clear_message(&mut self) {
         self.message.clear();
         self.message_code.clear();
         self.message_detail.clear();
+        self.message_params.clear();
     }
 }
 
@@ -186,6 +201,7 @@ struct Status {
     active_profile: String,
     message_code: String,
     message_detail: String,
+    message_params: BTreeMap<String, String>,
     phase: String,
     override_path: String,
     selections: BTreeMap<String, String>,
@@ -252,6 +268,7 @@ impl App {
                 message: String::new(),
                 message_code: String::new(),
                 message_detail: String::new(),
+                message_params: BTreeMap::new(),
                 phase: PHASE_STOPPED.to_string(),
                 tun_route_ready: true,
                 tun_route_known: true,
@@ -559,7 +576,7 @@ impl App {
         let text = profile::subscription_yaml(&fetched.body)?;
         let id = uuid::Uuid::new_v4().to_string();
         profile::write_profile_body(&self.paths, &id, &text)
-            .map_err(|error| profile::explain_io("无法写入配置", &error))?;
+            .map_err(|error| profile::explain_io("write profile", &error))?;
         profile::write_subscription_body(&self.paths, &id, &text)
             .map_err(|error| error.to_string())?;
         let mut profiles = profile::load_profiles(&self.paths);
@@ -649,7 +666,7 @@ impl App {
         profile::write_subscription_body(&self.paths, id, &text)
             .map_err(|error| error.to_string())?;
         profile::write_profile_body(&self.paths, id, &text)
-            .map_err(|error| profile::explain_io("无法写入配置", &error))?;
+            .map_err(|error| profile::explain_io("write profile", &error))?;
         let mut profiles = profile::load_profiles(&self.paths);
         if let Some(profile) = profiles.iter_mut().find(|profile| profile.id == id) {
             profile.updated_unix = profile::now_unix();
@@ -1068,7 +1085,7 @@ impl App {
         }
         let snapshot = profile::read_subscription_body(&self.paths, id)?;
         let working = profile::read_profile_body(&self.paths, id)
-            .map_err(|error| profile::explain_io("无法读取配置", &error))?;
+            .map_err(|error| profile::explain_io("read profile", &error))?;
         let next = profile::restore_route(&working, &snapshot, name)?;
         self.set_profile_body(id, next).await
     }
@@ -1087,7 +1104,7 @@ impl App {
         }
         let snapshot = profile::read_subscription_body(&self.paths, id)?;
         let working = profile::read_profile_body(&self.paths, id)
-            .map_err(|error| profile::explain_io("无法读取配置", &error))?;
+            .map_err(|error| profile::explain_io("read profile", &error))?;
         let next = profile::restore_profile_rule(&working, &snapshot, index as usize)?;
         self.set_profile_body(id, next).await
     }
@@ -1103,7 +1120,7 @@ impl App {
         }
         let notes = serde_json::from_str(body)
             .map_err(|_| String::from(ServiceError::new(codes::SETTINGS_NOTES_PARSE)))?;
-        crate::state::save_notes(&self.paths, &notes)
+        crate::state::save_notes(&self.paths, &notes).map_err(String::from)
     }
 
     pub async fn set_view_pref(
@@ -1147,7 +1164,7 @@ impl App {
             return Ok("[]".to_string());
         }
         let text = profile::read_profile_body(&self.paths, id)
-            .map_err(|error| profile::explain_io("无法读取配置", &error))?;
+            .map_err(|error| profile::explain_io("read profile", &error))?;
         let groups = profile::selector_groups(&text);
         Ok(serde_json::to_string(&groups).unwrap_or_else(|_| "[]".to_string()))
     }
@@ -1270,7 +1287,7 @@ impl App {
             return Err(ServiceError::new(codes::PROFILE_NOT_FOUND).into());
         }
         profile::read_profile_body(&self.paths, id)
-            .map_err(|error| profile::explain_io("无法读取配置", &error))
+            .map_err(|error| profile::explain_io("read profile", &error))
             .map_err(String::from)
     }
 
@@ -1286,7 +1303,7 @@ impl App {
         }
         let text = profile::subscription_yaml(&body)?;
         profile::write_profile_body(&self.paths, id, &text)
-            .map_err(|error| profile::explain_io("无法写入配置", &error))?;
+            .map_err(|error| profile::explain_io("write profile", &error))?;
         self.reload_active_if_running(id).await
     }
 
@@ -1336,7 +1353,7 @@ impl App {
                     .file_stem()
                     .and_then(|stem| stem.to_str())
                     .filter(|stem| !stem.is_empty())
-                    .unwrap_or("导入的配置")
+                    .unwrap_or("Imported profile")
                     .to_string()
             }
         };
@@ -1345,7 +1362,7 @@ impl App {
         }
         let id = uuid::Uuid::new_v4().to_string();
         profile::write_profile_body(&self.paths, &id, &text)
-            .map_err(|error| profile::explain_io("无法写入配置", &error))?;
+            .map_err(|error| profile::explain_io("write profile", &error))?;
         let mut profiles = profile::load_profiles(&self.paths);
         profiles.push(Profile {
             id: id.clone(),
@@ -1406,7 +1423,7 @@ impl App {
         tokio::spawn(async move {
             let probe = {
                 let mut inner = app.inner.lock().await;
-                inner.exit_region = "正在检测".to_string();
+                inner.exit_region = "detecting".to_string();
                 let probe = region_probe_of(&inner);
                 drop(inner);
                 app.emit(Event::Status);
@@ -1632,6 +1649,7 @@ impl App {
             active_profile: inner.settings.active_profile.clone(),
             message_code: inner.message_code.clone(),
             message_detail: inner.message_detail.clone(),
+            message_params: inner.message_params.clone(),
             phase: inner.phase.clone(),
             override_path: state::effective_override(&self.paths, &inner.settings.override_path)
                 .display()
@@ -1672,7 +1690,7 @@ impl App {
         let settings = self.inner.lock().await.settings.clone();
         self.set_phase(PHASE_STARTING).await;
         tracing::info!(
-            "准备内核: binary={}, mixed_port={}, controller_port={}, profile={}",
+            "preparing core: binary={}, mixed_port={}, controller_port={}, profile={}",
             settings.mihomo_path,
             settings.mixed_port,
             settings.controller_port,
@@ -1705,10 +1723,10 @@ impl App {
         for attempt in 0..10 {
             busy.clear();
             if !core::port_available(mixed_host, settings.mixed_port) {
-                busy.push(format!("混合端口 {}", settings.mixed_port));
+                busy.push(format!("mixed port {}", settings.mixed_port));
             }
             if !core::port_available("127.0.0.1", settings.controller_port) {
-                busy.push(format!("控制器端口 {}", settings.controller_port));
+                busy.push(format!("controller port {}", settings.controller_port));
             }
             if busy.is_empty() {
                 break;
@@ -1750,7 +1768,7 @@ impl App {
 
     async fn fail_before_start(&self, error: String) -> Result<(), String> {
         let error = if error.trim().is_empty() {
-            "内核启动失败（没有返回错误信息）".to_string()
+            "The core failed to start (no error message was returned).".to_string()
         } else {
             error
         };
@@ -1771,7 +1789,7 @@ impl App {
     async fn wait_until_ready(self: &Arc<Self>, process: &mut CoreProcess) -> Result<(), String> {
         let started = Instant::now();
         let limit = Duration::from_secs(180);
-        let mut announced = "正在启动内核".to_string();
+        let mut announced = String::from(ServiceError::new(codes::CORE_STARTING));
         self.set_message(announced.clone()).await;
         self.set_phase(PHASE_STARTING).await;
         self.emit(Event::Status);
@@ -1788,7 +1806,9 @@ impl App {
                     let tun = self.inner.lock().await.settings.tun_enabled;
                     if tun {
                         tracing::error!("TUN 启动失败: {error}");
-                        return Err(self.startup_failure(&error));
+                        return Err(String::from(
+                            ServiceError::new(codes::CORE_TUN_LISTEN).detail(error),
+                        ));
                     }
                 }
                 let (tun, options) = {
@@ -1815,16 +1835,17 @@ impl App {
                             break;
                         }
                         if let Ok(Some(status)) = process.try_wait() {
-                            return Err(self.startup_failure(&format!(
-                                "mihomo 在 TUN 路由就绪前退出: {status}"
-                            )));
+                            return Err(String::from(
+                                ServiceError::new(codes::CORE_EXITED)
+                                    .detail(format!("mihomo exited before TUN was ready: {status}")),
+                            ));
                         }
                         if route_started.elapsed() >= Duration::from_secs(tun::ROUTE_GRACE_SECS) {
                             // TUN traffic can still work through auto-redirect even when the
                             // dedicated table has no default route. Keep the core running and
                             // let the periodic health check clear or report the degraded state.
                             tracing::warn!(
-                                "TUN 路由未建立（降级运行）: {}；如果 mihomo 的设备名不是 {expected}，请设置 tun_device",
+                                "TUN route is not ready (degraded): {}; if the mihomo device is not {expected}, set tun_device",
                                 health.detail
                             );
                             let mut inner = self.inner.lock().await;
@@ -1855,18 +1876,21 @@ impl App {
             }
             if started.elapsed() >= limit {
                 tracing::error!("等待 mihomo 控制器超时 ({} 秒)", limit.as_secs());
-                return Err(self.startup_failure("mihomo 控制器没有在限定时间内响应"));
+                return Err(String::from(
+                    ServiceError::new(codes::CORE_CONTROLLER_TIMEOUT),
+                ));
             }
             let hint = core::startup_hint(&self.paths.core_log());
-            if hint != announced {
-                announced = hint.clone();
+            let hint_json = String::from(hint.clone());
+            if hint_json != announced {
+                announced = hint_json;
                 let phase = if core::startup_downloading(&self.paths.core_log()) {
                     PHASE_DOWNLOADING
                 } else {
                     PHASE_STARTING
                 };
                 tracing::info!("内核启动进度: {hint}");
-                self.set_message(hint).await;
+                self.set_message(String::from(hint)).await;
                 self.set_phase(phase).await;
                 self.emit(Event::Status);
             }
@@ -1874,19 +1898,7 @@ impl App {
         }
     }
 
-    fn startup_failure(&self, error: &str) -> String {
-        let error = if error.trim().is_empty() {
-            "内核启动失败（没有返回错误信息）"
-        } else {
-            error
-        };
-        let tail = core::log_tail(&self.paths.core_log());
-        if tail.is_empty() {
-            error.to_string()
-        } else {
-            format!("{error}\n{tail}")
-        }
-    }
+
 
     async fn launch_process(
         self: &Arc<Self>,
@@ -2150,9 +2162,9 @@ impl App {
                 }
                 ExitKind::Unexpected => {
                     inner.exit_region.clear();
-                    inner.set_message(format!(
-                        "mihomo 已退出\n{}",
-                        core::log_tail(&self.paths.core_log())
+                    inner.set_message(String::from(
+                        ServiceError::new(codes::CORE_EXITED)
+                            .detail(core::log_tail(&self.paths.core_log())),
                     ));
                     inner.phase = PHASE_FAILED.to_string();
                     tracing::error!("内核意外退出，已停止重试: {}", inner.message);
@@ -2227,7 +2239,7 @@ impl App {
         };
         if proxy_settings::system_proxy_should_apply(enabled, running, tun) {
             proxy_settings::apply_if_needed(&self.paths, port)
-                .map_err(|error| error.to_string())?;
+                .map_err(ServiceError::from_io)?;
             self.inner.lock().await.system_proxy_applied = true;
         } else {
             self.withdraw_proxy().await;

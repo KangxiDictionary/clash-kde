@@ -21,6 +21,7 @@ find_package(ICU REQUIRED COMPONENTS uc)
 kcmutils_add_qml_kcm(kcm_clashkde SOURCES
     kcm.cpp
     clashclient.cpp
+    servicetranslations.cpp
 )
 
 target_link_libraries(kcm_clashkde PRIVATE

@@ -12,7 +12,7 @@ plasma_add_applet(org.kde.plasma.clashkde
     GENERATE_APPLET_CLASS
 )
 
-target_sources(org.kde.plasma.clashkde PRIVATE clashcalls.h)
+target_sources(org.kde.plasma.clashkde PRIVATE clashcalls.h ../kcm/servicetranslations.cpp)
 
 target_link_libraries(org.kde.plasma.clashkde PRIVATE
     KF6::I18n

@@ -3,6 +3,7 @@
 
 #include "clashcalls.h"
 #include "regionlabel.h"
+#include "servicetranslations.h"
 
 #include <KLocalizedString>
 #include <QDBusConnection>
@@ -387,28 +388,12 @@ QString serviceErrorText(const QString &message)
         return text;
     }
     const QString detail = object.value(QStringLiteral("detail")).toString();
-    if (code == QLatin1String("error.legacy")) {
-        return detail.isEmpty()
-            ? ki18nd("kcm_clashkde", "The operation failed.").toString()
-            : detail;
-    }
-    if (detail.isEmpty()) {
-        return ki18nd("kcm_clashkde", "The operation failed (%1).").subs(code).toString();
-    }
-    return ki18nd("kcm_clashkde", "The operation failed (%1):\n%2").subs(code).subs(detail).toString();
+    return translateServiceCode(code, object.value(QStringLiteral("params")).toObject(), detail);
 }
 
-QString serviceCodeText(const QString &code, const QString &detail)
+QString serviceCodeText(const QString &code, const QJsonObject &params, const QString &detail)
 {
-    if (code == QLatin1String("error.legacy")) {
-        return detail.isEmpty()
-            ? ki18nd("kcm_clashkde", "The operation failed.").toString()
-            : detail;
-    }
-    if (detail.isEmpty()) {
-        return ki18nd("kcm_clashkde", "The operation failed (%1).").subs(code).toString();
-    }
-    return ki18nd("kcm_clashkde", "The operation failed (%1):\n%2").subs(code).subs(detail).toString();
+    return translateServiceCode(code, params, detail);
 }
 
 void ClashCalls::call(const QString &member, const QVariantList &arguments)
@@ -443,11 +428,12 @@ void ClashCalls::applyStatus(const QString &json)
     m_mode = object.value(QStringLiteral("mode")).toString(QStringLiteral("rule"));
     const QString messageCode = object.value(QStringLiteral("message_code")).toString();
     const QString messageDetail = object.value(QStringLiteral("message_detail")).toString();
+    const QJsonObject messageParams = object.value(QStringLiteral("message_params")).toObject();
     m_message = messageCode.isEmpty()
         ? (messageDetail.isEmpty()
                ? object.value(QStringLiteral("message")).toString()
                : messageDetail)
-        : serviceCodeText(messageCode, messageDetail);
+        : serviceCodeText(messageCode, messageParams, messageDetail);
     m_region = object.value(QStringLiteral("exit_region")).toString();
     m_listenAddress = QStringLiteral("127.0.0.1:%1").arg(object.value(QStringLiteral("mixed_port")).toInt(7890));
     m_uploadBps = object.value(QStringLiteral("upload_bps")).toDouble();

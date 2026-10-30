@@ -186,7 +186,7 @@ impl Settings {
                         tracing::error!("配置文件无法解析，已备份到 {}: {error}", backup.display())
                     }
                     Err(copy_error) => tracing::error!(
-                        "配置文件无法解析，备份到 {} 也失败（{copy_error}）: {error}",
+                        "could not back up the unreadable config to {} ({copy_error}): {error}",
                         backup.display()
                     ),
                 }
@@ -241,7 +241,7 @@ pub fn load_notes(paths: &Paths) -> BTreeMap<String, String> {
     serde_json::from_str(&text).unwrap_or_default()
 }
 
-pub fn save_notes(paths: &Paths, notes: &BTreeMap<String, String>) -> Result<(), String> {
+pub fn save_notes(paths: &Paths, notes: &BTreeMap<String, String>) -> Result<(), crate::error::ServiceError> {
     let clean: BTreeMap<String, String> = notes
         .iter()
         .filter_map(|(key, value)| {
@@ -254,9 +254,9 @@ pub fn save_notes(paths: &Paths, notes: &BTreeMap<String, String>) -> Result<(),
             }
         })
         .collect();
-    fs::create_dir_all(&paths.config_dir).map_err(|error| error.to_string())?;
+    fs::create_dir_all(&paths.config_dir).map_err(crate::error::ServiceError::from_io)?;
     let text = serde_json::to_string_pretty(&clean).expect("notes serialize");
-    write_private(&notes_file(paths), text.as_bytes()).map_err(|error| error.to_string())
+    write_private(&notes_file(paths), text.as_bytes()).map_err(crate::error::ServiceError::from_io)
 }
 
 pub fn write_private(path: &Path, bytes: &[u8]) -> std::io::Result<()> {

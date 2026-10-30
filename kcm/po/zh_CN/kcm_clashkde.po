@@ -1249,3 +1249,102 @@ msgstr "内核没有在限定时间内退出。"
 
 msgid "%1 is already in use; stop the other program or choose another port."
 msgstr "%1 已被其他程序占用；请停止占用程序或换一个端口。"
+
+msgid "No account was specified."
+msgstr "没有指定账户。"
+
+msgid "No action was specified."
+msgstr "没有指定动作。"
+
+msgid "Could not switch to this account."
+msgstr "无法切换到这个账户。"
+
+msgid "Could not contact this account's Mihomo."
+msgstr "无法联系这个账户的 Mihomo。"
+
+msgid "The Mihomo helper could not be started."
+msgstr "无法启动 Mihomo 辅助程序。"
+
+msgid "The D-Bus caller could not be identified."
+msgstr "无法识别 D-Bus 调用方。"
+
+msgid "The system service requires root."
+msgstr "系统服务需要 root。"
+
+msgid "Authorization could not be requested."
+msgstr "无法询问授权。"
+
+msgid "Authorization was denied."
+msgstr "没有得到授权。"
+
+msgid "TUN requires the system service."
+msgstr "TUN 需要系统服务。"
+
+msgid "The account name is invalid."
+msgstr "账户名无效。"
+
+msgid "Starting the core."
+msgstr "正在启动内核。"
+
+msgid "Downloading geodata."
+msgstr "正在下载地理数据。"
+
+msgid "The controller did not respond in time."
+msgstr "控制器没有在限定时间内响应。"
+
+msgid "TUN could not start."
+msgstr "TUN 启动失败。"
+
+msgid "Could not switch the mode."
+msgstr "无法切换模式。"
+
+msgid "Could not select the proxy."
+msgstr "无法选择节点。"
+
+msgid "Could not read the proxy groups."
+msgstr "无法读取策略组。"
+
+msgid "The proxy group response could not be parsed."
+msgstr "策略组响应无法解析。"
+
+msgid "Could not read traffic."
+msgstr "无法读取流量。"
+
+msgid "Could not read connections."
+msgstr "无法读取连接。"
+
+msgid "The connection response could not be parsed."
+msgstr "连接响应无法解析。"
+
+msgid "Could not close the connection."
+msgstr "无法关闭连接。"
+
+msgid "That connection no longer exists."
+msgstr "没有这条连接。"
+
+msgid "Could not read the provider list."
+msgstr "无法读取节点列表。"
+
+msgid "The provider list could not be parsed."
+msgstr "节点列表无法解析。"
+
+msgid "Could not update the provider."
+msgstr "无法更新列表。"
+
+msgid "Could not download the subscription."
+msgstr "无法下载订阅。"
+
+msgid "Could not read the subscription."
+msgstr "无法读取订阅。"
+
+msgid "The exit region service returned an error."
+msgstr "出口地区服务返回错误。"
+
+msgid "The exit region response could not be parsed."
+msgstr "出口地区响应无法解析。"
+
+msgid "The exit-region proxy could not be configured."
+msgstr "无法设置出口检测代理。"
+
+msgid "Detecting…"
+msgstr "正在检测…"

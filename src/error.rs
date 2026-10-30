@@ -125,6 +125,10 @@ pub mod codes {
     pub const CORE_EXITED: &str = "core.exited";
     pub const CORE_STOP_TIMEOUT: &str = "core.stop_timeout";
     pub const CORE_PORT_BUSY: &str = "core.port_busy";
+    pub const CORE_STARTING: &str = "core.starting";
+    pub const CORE_GEODATA_DOWNLOADING: &str = "core.geodata_downloading";
+    pub const CORE_CONTROLLER_TIMEOUT: &str = "core.controller_timeout";
+    pub const CORE_TUN_LISTEN: &str = "core.tun_listen_error";
     pub const SETTINGS_MIHOMO_EMPTY: &str = "settings.mihomo_path_empty";
     pub const SETTINGS_MIHOMO_TOO_LONG: &str = "settings.mihomo_path_too_long";
     pub const SETTINGS_OVERRIDE_TOO_LONG: &str = "settings.override_too_long";
@@ -147,6 +151,10 @@ pub mod codes {
     pub const BRIDGE_SESSION: &str = "admin.bridge_failed";
     pub const BRIDGE_LAUNCH: &str = "admin.launch_failed";
     pub const TUN_SYSTEM_ROOT: &str = "tun.not_root";
+    pub const POLKIT_ASK: &str = "admin.polkit_ask";
+    pub const POLKIT_DENIED: &str = "admin.polkit_denied";
+    pub const ADMIN_CALLER: &str = "admin.caller_missing";
+    pub const ADMIN_ROOT: &str = "admin.not_root";
     pub const TUN_SWITCH_ACCOUNT: &str = "tun.switch_failed";
     pub const TUN_ACCOUNT_NAME: &str = "tun.bad_account_name";
 

@@ -77,7 +77,7 @@ pub fn explain_io(action: &str, error: &std::io::Error) -> ServiceError {
 pub fn read_subscription_body(paths: &Paths, id: &str) -> Result<String, ServiceError> {
     let path = subscription_body_path(paths, id);
     if path.exists() {
-        return fs::read_to_string(&path).map_err(|error| explain_io("无法读取订阅", &error));
+        return fs::read_to_string(&path).map_err(|error| explain_io("read subscription", &error));
     }
     let profiles = load_profiles(paths);
     let Some(profile) = profiles.iter().find(|profile| profile.id == id) else {
@@ -86,9 +86,9 @@ pub fn read_subscription_body(paths: &Paths, id: &str) -> Result<String, Service
     if profile.url.is_empty() {
         return Err(ServiceError::new(codes::PROFILE_NO_URL));
     }
-    let body = read_profile_body(paths, id).map_err(|error| explain_io("无法读取配置", &error))?;
+    let body = read_profile_body(paths, id).map_err(|error| explain_io("read profile", &error))?;
     write_subscription_body(paths, id, &body)
-        .map_err(|error| explain_io("无法写入订阅", &error))?;
+        .map_err(|error| explain_io("write subscription", &error))?;
     Ok(body)
 }
 

@@ -141,11 +141,11 @@ pub fn startup_downloading(path: &Path) -> bool {
         || tail.contains("can't find geosite")
 }
 
-pub fn startup_hint(path: &Path) -> String {
+pub fn startup_hint(path: &Path) -> ServiceError {
     if startup_downloading(path) {
-        "正在下载地理数据".to_string()
+        ServiceError::new(codes::CORE_GEODATA_DOWNLOADING)
     } else {
-        "正在启动内核".to_string()
+        ServiceError::new(codes::CORE_STARTING)
     }
 }
 
@@ -169,9 +169,9 @@ pub fn tun_listen_error(path: &Path) -> Option<String> {
         .trim()
         .trim_matches('"');
     if detail.is_empty() {
-        Some("TUN 没有接上".to_string())
+        Some("TUN did not come up".to_string())
     } else {
-        Some(format!("TUN 没有接上: {detail}"))
+        Some(format!("TUN did not come up: {detail}"))
     }
 }
 
@@ -303,7 +303,7 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let log = dir.path().join("mihomo.log");
         std::fs::write(&log, "Can't find MMDB, start download\n").unwrap();
-        assert_eq!(startup_hint(&log), "正在下载地理数据");
+        assert_eq!(startup_hint(&log).code, codes::CORE_GEODATA_DOWNLOADING);
     }
 
     #[test]
@@ -311,7 +311,7 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let log = dir.path().join("mihomo.log");
         std::fs::write(&log, "Geodata Loader mode: memconservative\n").unwrap();
-        assert_eq!(startup_hint(&log), "正在启动内核");
+        assert_eq!(startup_hint(&log).code, codes::CORE_STARTING);
     }
 
     #[test]

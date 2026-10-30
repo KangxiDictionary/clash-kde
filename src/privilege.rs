@@ -245,7 +245,7 @@ pub fn enter_user(uid: u32, gid: u32, name: &str) -> io::Result<()> {
     // again afterwards.
     caps::set(None, caps::CapSet::Inheritable, &net).map_err(io::Error::other)?;
 
-    let c_name = std::ffi::CString::new(name).map_err(|_| io::Error::other("账户名无效"))?;
+    let c_name = std::ffi::CString::new(name).map_err(|_| io::Error::other("invalid account name"))?;
     if unsafe { libc::initgroups(c_name.as_ptr(), gid) } != 0 {
         return Err(io::Error::last_os_error());
     }
@@ -267,7 +267,7 @@ pub fn enter_user(uid: u32, gid: u32, name: &str) -> io::Result<()> {
         .map_err(io::Error::other)?;
     let ambient = caps::read(None, caps::CapSet::Ambient).map_err(io::Error::other)?;
     if !net.is_subset(&ambient) {
-        return Err(io::Error::other("切换账户后没有留下网络能力"));
+        return Err(io::Error::other("network capability was lost after switching accounts"));
     }
     caps::securebits::set_keepcaps(false).map_err(io::Error::other)?;
     Ok(())

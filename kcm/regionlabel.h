@@ -6,6 +6,7 @@
 #include <QLocale>
 #include <QString>
 #include <QStringList>
+#include <KLocalizedString>
 
 #include <unicode/uloc.h>
 #include <unicode/ustring.h>
@@ -108,7 +109,7 @@ inline QString presentHost(const QString &host, bool blurIp)
 inline QString exitAddress(const QString &raw)
 {
     const QString text = raw.trimmed();
-    if (text.isEmpty() || text == QStringLiteral("正在检测")) {
+    if (text.isEmpty() || text == QStringLiteral("detecting")) {
         return {};
     }
     const QStringList parts = text.split(QLatin1Char('\t'));
@@ -120,8 +121,11 @@ inline QString exitAddress(const QString &raw)
 
 inline QString formatExitPlace(const QString &raw)
 {
-    if (raw.isEmpty() || raw == QStringLiteral("正在检测")) {
+    if (raw.isEmpty()) {
         return raw;
+    }
+    if (raw == QStringLiteral("detecting")) {
+        return ki18nd("kcm_clashkde", "Detecting…").toString();
     }
     const QStringList parts = raw.split(QLatin1Char('\t'));
     if (parts.size() != 3 || parts.at(0).size() != 2) {
@@ -150,7 +154,7 @@ inline QString formatExitAddress(const QString &raw, bool blurIp)
 inline QString formatExitRegion(const QString &raw, bool blurIp = false)
 {
     const QString place = formatExitPlace(raw);
-    if (place.isEmpty() || place == QStringLiteral("正在检测") || place.startsWith(QStringLiteral("❓"))) {
+    if (place.isEmpty() || place == QStringLiteral("detecting") || place.startsWith(QStringLiteral("❓"))) {
         return place;
     }
     const QString address = formatExitAddress(raw, blurIp);
